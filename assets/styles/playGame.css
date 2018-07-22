@@ -1,0 +1,39 @@
+
+.displayPanel {
+    margin: 10px;
+    display: inline-block;
+    vertical-align: top;
+}
+
+#inputPanel {
+    margin-top: 5px;
+}
+
+#messageTable {
+    border: 1px solid gray;
+}
+
+#messageTable td {
+    border: none;
+}
+
+.messageRow {
+    border: none;
+}
+
+.messageRow:focus{
+    outline: none;
+}
+
+.messageRow.newMessage {
+    background-color: skyblue;
+}
+
+.messageRow.oldMessage {
+    background-color: white;
+    transition: background-color 1s;
+}
+
+.terrainCell {
+    background-color:#F0E6DB
+}

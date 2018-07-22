@@ -1,0 +1,38 @@
+.draggable {
+    padding: 0px;
+    width: 50px;
+    height: 50px;
+}
+
+#workPanel {
+    float: left;
+}
+
+th.detailsHeading {
+    text-align: right;
+    vertical-align: top;
+}
+
+form dt {
+    clear:both;
+    width:33%;
+    float:left;
+    text-align:right;
+}
+
+form dd {
+    float:left;
+    width:66%;
+    margin:0 0 0.5em 0.25em;
+}
+
+#mapTable, #mapTable th, #mapTable td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+
+/* jquery dialog overrrides */
+.ui-dialog-titlebar {
+   font-size: 12px;
+}
+

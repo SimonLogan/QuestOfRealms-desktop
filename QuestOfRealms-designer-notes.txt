@@ -1,0 +1,64 @@
+Follow the cryptoApp example to create QuestOfRealms-designer-desktop
+
+FYI:
+${__dirname} is a nodejs variable.
+
+
+mkdir QuestOfRealms-desktop
+cd QuestOfRealms-desktop
+npm init -y
+npm install electron --save-dev --save-exact
+code .
+
+I'm going to use ejs to re-use as much of the client-server html as possible.
+npm install ejs --save
+
+Need to install jquery
+npm install jquery --save
+
+Need to define $ for traditional jQuery syntax to work:
+https://ourcodeworld.com/articles/read/202/how-to-include-and-use-jquery-in-electron-framework
+
+npm install async --save
+
+Deciding on a datastore:
+https://www.techiediaries.com/electron-data-persistence/
+
+I think I'll go with NeDB initially, as it can be bundled with electron. If I need a more powerful db I can
+upgrade to MongoDB as they have the same API.
+
+npm install nedb --save
+
+http://10minbasics.com/nedb-basics/
+https://github.com/louischatriot/nedb
+
+You can use NeDB as an in-memory only datastore or as a persistent datastore. One datastore is the equivalent of a MongoDB collection.
+
+https://github.com/electron/electron/blob/master/docs/tutorial/debugging-main-process.md
+https://vuejs.org/
+
+=========
+
+electron-ejs isn't working out - it's too inflexible. You don't seem to be able to re-initialise the electronEjs object,
+so ejs templates can't be used when launching new browserwindows from main.js.
+Maybe investigate angular, but also condsider backbone.
+https://discuss.atom.io/t/switching-between-pages-tabs/32412/4
+https://stackoverflow.com/questions/36773711/passing-data-to-windows-in-electron#
+http://backbonejs.org/
+
+
+Backbone isn't suitable as it expects to use a restful data API.
+Consider: 
+- electron-mvc: https://www.npmjs.com/package/electron-mvc
+  Looks very basic, and zero documentation.
+- ember: http://emilyfreeman.io/blog/ember-electron, https://guides.emberjs.com/v2.3.0/
+  It requires a rest API too though, and runs a local server.
+- Interesting: photon looks like a very nice layout framework: http://photonkit.com/getting-started/
+  Needs a server too.
+
+Is it worth building a client-server node app and using electron as the UI?
+Why not just stick with the version I had and maybe replace sails with ember?
+Ember has a helper script to package the app for deployment.
+I just need to get rid of mongodb as the whole thinkg is too heavyweight.
+
+

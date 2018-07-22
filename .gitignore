@@ -45,3 +45,10 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# Dependencies.
+node_modules
+bower_components
+
+# Data
+db

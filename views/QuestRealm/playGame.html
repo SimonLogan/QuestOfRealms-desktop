@@ -1,0 +1,52 @@
+<!-- The realm game UI -->
+<script type="text/javascript" src="/js/dependencies/sails.io.js"></script>
+<script type="text/javascript" src="/js/playgame/playGame.js"></script>
+
+
+<h1>Quest of Realms</h1>
+<a href="/">Back to main page</a>
+
+<!-- -->
+<h2>Play Game <%= realm.name %></h2>
+<h3>Playing as <%= realm.playerName %></h3>
+<input type="hidden" id="realmId" value="<%= realm.id %>" />
+
+<link rel="stylesheet" href="/styles/editRealm.css">
+<link rel="stylesheet" href="/styles/playGame.css">
+<script src="//code.jquery.com/jquery-1.10.2.js"></script>
+<script src="//code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+
+<div id="workArea">
+    <input type="hidden" id="playerName" value="<%= realm.playerName %>" />
+    <div id="workPanel" class="displayPanel">
+        <%- partial ('mapPartial.ejs') %>
+        <div id="drawChoicePanel" style="margin-top:10px">
+            <form id="mapDrawModeForm">
+                <fieldset>
+                    <legend>Map drawing mode</legend>
+                       <input type="radio" name="drawChoice" id="drawChoice_autoAll" value="autoAll"><label for="drawChoice_autoAll">Automatically draw the whole map.</label><br>
+                       <input type="radio" name="drawChoice" id="drawChoice_autoVisited" value="autoVisited"><label for="drawChoice_autoVisited">Automatically visited map locations.</label><br>
+                       <input type="radio" name="drawChoice" id="drawChoice_manual" value="manual"><label for="drawChoice_manual">Manually draw visited map locations - old school!</label><br>
+                </fieldset>
+            </form>
+        </div>
+        <div id="mapTilePanel" class="displayPanel">
+        </div>
+    </div>
+    <div id="textPanel" class="displayPanel">
+        <div id="messagePanel">
+            <!-- one possibility
+            <textarea id="messageArea" rows="40" cols="80" readonly></textarea>
+            -->
+            <!-- But experiment with individual input rows as we'll only display
+                 the last 40 rows of updates and I might be able to style rows according
+                 to the mesaage type. Add the text rows with javascript. -->
+            <table id="messageTable"></table>
+        </div>
+        <div id="inputPanel" style="border: 1px solid gray;">
+            <input type="text" id="inputArea" class="messageRow" size="80" autofocus />
+        </div>
+    </div>
+</div>
+
+

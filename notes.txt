@@ -1,0 +1,287 @@
+https://electronjs.org/docs/tutorial/first-app
+https://electronjs.org/docs/tutorial/boilerplates-and-clis
+https://electronforge.io/
+https://github.com/electron-userland/electron-builder
+
+Learn Electron in Less than 60 Minutes - Free Beginner's Course
+https://www.youtube.com/watch?v=2RxHQoiDctI
+
+Native Desktop Apps with Angular and Electron
+https://www.youtube.com/watch?v=u_vMChpZMCk
+
+
+Electron forge
+==============
+
+npm install -g electron-forge
+electron-forge init questofrealms-desktop
+cd questofrealms-desktop
+electron-forge start
+ 
+================
+
+Working through the crypto-app demo from https://www.youtube.com/watch?v=2RxHQoiDctI
+mkdir crypto-app
+cd crypto-app
+
+Create package.json:
+npm init -y
+
+Install electron, and save it as a dev dependency:
+npm install electron --save-dev --save-exact
+
+He uses visual studio code in the demo, so I will to.
+code .
+
+Create a new file called main.js in the app root folder.
+
+Edit the package.json and change
+"main": "index.js" to "main.js"
+
+and
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+to
+  "scripts": {
+    "start": "electron ."
+  },
+
+Open up https://electronjs.org/docs/tutorial/quick-start/
+Scroll down to the boilerplate main.js code under "Writing Your First Electron App". Paste this into main.js
+
+You'll see the boilerplate main.js launches index.html, so create that by copying the code
+from the electron quick-start guide.
+
+Test run the app from the commandline. For convenince you can use "View / Integrated Terminal" in visual studio code for this.
+
+NOTE: ctrl-s in visual studio code only saves the current file. In webstorm it would save all files.
+
+Adding a menu to the app. In main.js, change
+const {app, BrowserWindow} = require('electron')
+to
+const {app, BrowserWindow, Menu} = require('electron')
+
+Add the following to the bottom of the CreateWindow() function
+  var menu = Menu.buildFromTemplate([
+      {
+          label: "Menu",
+          submenu: [
+              {label: 'Adjust Notification Value'},
+              {label: 'CoinMarketCap'},
+              {type: 'separator'},
+              {
+                  label: 'Exit',
+                  click() {
+                      app.quit();
+                  }
+              },
+          ]
+      }
+  ])
+
+  Menu.setApplicationMenu(menu);
+
+shift-alt-downarrow clones a line.
+
+Make menu item 2 launch a browser window.
+Add the following to the top of the file:
+const shell = require('electron').shell
+And change the 'CoinMarketCap' menu item to
+              {
+                  label: 'CoinMarketCap',
+                  click() {
+                      shell.openExternal('http://coinmarketcap.com');
+                  }
+              },
+
+
+Project cleanup.
+Move index.js into a src subfolder and adjust it's reference in main.js accordingly.
+Add index.js, add.html, add.js in src.
+
+Add the following to index.js
+<link rel="stylesheet" href="../assets/css/main.css">
+Create this file, and add.css
+
+Replace the contents of <body> in index.shml with
+    <body>
+      <div class="row">
+        <div id="price-container">
+          <p class="subtext">Current BTC USD</p>
+          <h1 id="price">Loading...</h1>
+        </div>
+        <div id="goal-container">
+          <p><img src="../assets/images/up.svg"><span id="targetPrice">Choose a Target Price</span></p>
+        </div>
+        <div id="right-container">
+          <button id="notifyBtn">Notify me when...</button>
+        </div>
+      </div>
+
+      <script src="index.js"></script>
+    </body>
+
+alt-up/downarrow moves a line.
+
+Edit add.html. Entering ! and hitting enter will populate the page with boilerplate html. Nice.
+Edit it as follows:
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="../assets/css/main.css">
+    <link rel="stylesheet" href="../assets/css/add.css">
+</head>
+<body>
+    <p class="notify">Notify me when BTC reaches...</p>
+
+    <div class="row2">
+        <div>
+            <input id="notifyVal" placeholder="USD">
+        </div>
+        <button id="updateBtn">Update</button>
+    </div>
+
+    <a id="closeBtn">Close Window</a><br>
+
+    <script src="add.js"></script>
+</body>
+</html>
+
+Edit add.css and main.css and paste in the contents from 
+https://coursetro.com/courses/22/Creating-Desktop-Apps-with-Electron-Tutorial
+
+Now make the Notify button work. Add the following to index.js
+const electron = require('electron')
+const path = require('path')
+const BrowserWindow = electron.remote.BrowserWindow
+
+const notifyBtn = document.getElementById('notifyBtn')
+
+notifyBtn.addEventListener('click', function(event) {
+    const modalPath = path.join('file://', __dirname, 'add.html')
+    let win = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 400, height: 200})
+    win.on('close', function() { win = null })
+    win.loadURL(modalPath)
+    win.show()
+})
+
+The "frame: false" is what stops the popup window having a menu bar.
+The popup window is movable because of a rule in add.css.
+
+Fetch the bitcoin price.
+Open index.js and go to the integrated terminal. Install axios
+npm install axios --save   (--save saves it as a dependency).
+
+Add the following to index.js
+const axios = require('axios')
+..
+var price = document.querySelector('h1')
+var targetPrice = document.getElementById('targetPrice')
+
+function getBTC() {
+    axios.get('https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC&tsyms=USD')
+        .then(res => {
+            const cryptos = res.data.BTC.USD
+            price.innerHTML = '$'+cryptos.toLocaleString('en')
+        })
+}
+getBTC()
+setInterval(getBTC, 30000);
+
+
+notifyBtn.addEventListener('click', function(event) {
+    const modalPath = path.join('file://', __dirname, 'add.html')
+    let win = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 400, height: 200})
+    win.on('close', function() { win = null })
+    win.loadURL(modalPath)
+    win.show()
+})
+
+Communicate the target price from the popup window to the main window. This uses electron IPC.
+Process=window in this case.
+
+Add the following to main.js. This is the IPC main hander. It handles messages to and from the other windows.
+const ipc = require('electron').ipcMain
+..
+ipc.on('update-notify-value', function(event, arg) {
+  win.webContents.send('targetPriceVal', arg);
+});
+
+win is bound to the index.html browser window, at the top of main.js:
+win = new BrowserWindow({width: 800, height: 600})
+
+Now add an IPC renderer to add.js. This is what communicates with IPCmain.
+const ipc = electron.ipcRenderer
+..
+updateBtn.addEventListener('click', function() {
+   ipc.send('update-notify-value', document.getElementById('notifyVal').value);
+   var window = remote.getCurrentWindow();
+   window.close()
+});
+
+We also need to add an ipcRenderer to index.js to receive the price display message.
+const ipc = electron.ipcRenderer
+..
+ipc.on('targetPriceVal', function(event, arg) {
+   var targetPriceVal = Number(arg);
+   targetPrice.innerHTML = "$" + targetPriceVal.toLocaleString('en');
+});
+
+Add the desktop notification. Add to index.js
+var targetPriceVal
+
+const notification = {
+   title: 'BTC Alert',
+   body: 'BTC just beat your target price!'
+}
+
+Then update the axios price handler:
+function getBTC() {
+    axios.get('https://min-api.cryptocompare.com/data/pricemulti?fsyms=BTC&tsyms=USD')
+        .then(res => {
+            const cryptos = res.data.BTC.USD
+            price.innerHTML = '$'+cryptos.toLocaleString('en')
+
+            if (targetPrice.innerHTML != '' && targetPriceVal < res.data.BTC.USD) {
+                const myNotification = new window.notification(notification.title, notification)
+            }
+        })
+}
+
+The notification isn't working, but leave that for now.
+Seems to be a windows 10 issue: https://github.com/electron/electron/issues/10864
+
+===================
+
+Make the app into a deployable exe.
+npm install electron-packager --save-dev
+
+Update package.json to add platform-specific deployment scripts:
+See the electron packaging tutorial from Christian Engvall. Copy and paste the example scripts:
+
+  "scripts": {
+    "start": "electron .",
+    "package-mac": "electron-packager . --overwrite --platform=darwin --arch=x64 --icon=assets/icons/mac/icon.icns --prune=true --out=release-builds",
+    "package-win": "electron-packager . electron-tutorial-app --overwrite --asar=true --platform=win32 --arch=ia32 --icon=assets/icons/win/icon.ico --prune=true --out=release-builds --version-string.CompanyName=CE --version-string.FileDescription=CE --version-string.ProductName=\"CryptoApp\"",    
+    "package-linux": "electron-packager . electron-tutorial-app --overwrite --asar=true --platform=linux --arch=x64 --icon=assets/icons/png/1024x1024.png --prune=true --out=release-builds"
+  },
+
+ico format seems to be the same as png format.
+
+npm run package-win
+..
+Wrote new app to release-builds\electron-tutorial-app-win32-ia32
+
+===================
+
+
+
+
+===================
+
+Going further: https://www.youtube.com/watch?v=iyjM39a0MWE
