@@ -221,7 +221,7 @@ ipc.on('editRealm-data', function (event, data) {
             newItem.description = $('#editItemDescription').text();
             newItem.damage = $('#editItemDamage').text();
             thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
-            thisCell[0].save();
+            locationData.sync();
             close();
         };
 
@@ -281,7 +281,7 @@ ipc.on('editRealm-data', function (event, data) {
             newCharacter.health = $('#editCharacterHealth').text();
             newCharacter.drops = $('#editCharacterDrops').text();
             thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
-            thisCell[0].save();
+            locationData.sync();
             close();
         };
 
@@ -679,7 +679,7 @@ ipc.on('editRealm-data', function (event, data) {
             x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
         thisCell[0].attributes.name = $('#locationName').val().trim();
-        thisCell[0].save();
+        locationData.sync();
     });
 
     $(document).on('change', '.itemProperty', function() {
@@ -706,7 +706,7 @@ ipc.on('editRealm-data', function (event, data) {
             thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
         }
 
-        thisCell[0].save();
+        locationData.sync();
     });
 
     $(document).on('change', '.characterProperty', function() {
@@ -724,7 +724,7 @@ ipc.on('editRealm-data', function (event, data) {
         newCharacter.health = $('#characterHealth').text();
         newCharacter.drops = $('#characterDrops').text();
         thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
-        thisCell[0].save();
+        locationData.sync();
     });
 
 });
@@ -933,7 +933,7 @@ function addInventoryItem(droppedItem)
         }
     );
 
-    thisCell.save();
+    locationData.sync();
 }
 
 
@@ -996,7 +996,7 @@ function removeItemFromLocation(droppedItem)
         x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
 
     thisCell.attributes.items.splice(droppedItem.attr('data-index'), 1);
-    thisCell.save();
+    locationData.sync();
 }
 
 
@@ -1010,9 +1010,7 @@ function changeItemLocation(droppedItem, newLocation)
     newLocation[0].attributes['items'].push(originalLocationItems[originalLocationItemIndex]);
     // Remove it from the original location.
     originalLocationItems.splice(originalLocationItemIndex, 1);
-
-    originalLocation[0].save();
-    newLocation[0].save();
+    locationData.sync();
 }
 
 
@@ -1030,7 +1028,7 @@ function addItemToLocation(droppedItem, location)
         }
     );
 
-    location[0].save();
+    locationData.sync();
 }
 
 
@@ -1046,7 +1044,7 @@ function removeCharacterFromLocation(droppedItem)
         x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
 
     thisCell.attributes.characters.splice(droppedItem.attr('data-index'), 1);
-    thisCell.save();
+    locationData.sync();
 }
 
 
@@ -1065,7 +1063,7 @@ function removeCharacterInventoryItem(droppedItem) {
     //var itemData = characterData.inventory[droppedItem.attr('data-index')];
     thisCell.attributes.characters[currentCharacter.attr('data-index')].
        inventory.splice(droppedItem.attr('data-index'), 1);
-    thisCell.save();
+    locationData.sync();
 }
 
 
@@ -1079,9 +1077,7 @@ function changeCharacterLocation(droppedItem, newLocation)
     newLocation[0].attributes['characters'].push(originalLocationCharacters[originalLocationCharacterIndex]);
     // Remove it from the original location.
     originalLocationCharacters.splice(originalLocationCharacterIndex, 1);
-
-    originalLocation[0].save();
-    newLocation[0].save();
+    locationData.sync();
 }
 
 
@@ -1103,7 +1099,7 @@ function addCharacterToLocation(droppedCharacter, location)
         }
     );
 
-    location[0].save();
+    locationData.sync();
 }
 
 
@@ -1167,7 +1163,7 @@ function disableLocationItemEdits()
     $('#itemName').prop('disabled', true);
     $('#itemType').prop('disabled', true);
     $('#itemDescription').prop('disabled', true);
-    $('#editItemProperties').prop('disabled', true).attr('src', 'images/pencil43-disabled.png');
+    $('#editItemProperties').prop('disabled', true).attr('src', '../../assets/images/pencil43-disabled.png');
 }
 
 
@@ -1176,7 +1172,7 @@ function enableLocationItemEdits()
     $('#itemName').prop('disabled', false);
     $('#itemType').prop('disabled', false);
     $('#itemDescription').prop('disabled', false);
-    $('#editItemProperties').prop('disabled', false).attr('src', 'images/pencil43.png');
+    $('#editItemProperties').prop('disabled', false).attr('src', '../../assets/images/pencil43.png');
 }
 
 
@@ -1211,28 +1207,28 @@ function clearLocationItemDetails()
 function enableLocationCharacterEdits()
 {
     $('#characterName').prop('disabled', false);
-    $('#editCharacterProperties').prop('disabled', false).attr('src', 'images/pencil43.png');
+    $('#editCharacterProperties').prop('disabled', false).attr('src', '../../assets/images/pencil43.png');
 }
 
 
 function disableLocationCharacterEdits()
 {
     $('#characterName').prop('disabled', true);
-    $('#editCharacterProperties').prop('disabled', true).attr('src', 'images/pencil43-disabled.png');
+    $('#editCharacterProperties').prop('disabled', true).attr('src', '../../assets/images/pencil43-disabled.png');
 }
 
 
 function enableInventoryItemEdits()
 {
     $('#inventoryItemName').prop('disabled', false);
-    $('#editInventoryItemProperties').prop('disabled', false).attr('src', 'images/pencil43.png');
+    $('#editInventoryItemProperties').prop('disabled', false).attr('src', '../../assets/images/pencil43.png');
 }
 
 
 function disableInventoryItemEdits()
 {
     $('#inventoryItemName').prop('disabled', true);
-    $('#editInventoryItemProperties').prop('disabled', true).attr('src', 'images/pencil43-disabled.png');
+    $('#editInventoryItemProperties').prop('disabled', true).attr('src', '../../assets/images/pencil43-disabled.png');
 }
 
 
@@ -1482,7 +1478,7 @@ function loadEnvPalette(callback) {
                         // to be identified when dropping an item onto the map.
                         "data-category='" + envPaletteData.category + "' " +
                         "data-type='" + item.type + "' " +
-                        "><img src='" + pathroot + "/" + moduleName + "/" + item.image + "'/>";
+                        "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
                     paletteItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -1542,7 +1538,7 @@ function loadItemsPalette(callback) {
                         // to be identified when dropping an item onto the map.
                         "data-category='" + itemPaletteData.category + "' " +
                         "data-type='" + item.type + "' " +
-                        "><img src='" + pathroot + "/" + moduleName + "/" + item.image + "'/>";
+                        "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
                     paletteItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -1602,7 +1598,7 @@ function loadCharactersPalette(callback) {
                         // to be identified when dropping an item onto the map.
                         "data-category='" + characterPaletteData.category + "' " +
                         "data-type='" + character.type + "' " +
-                        "><img src='" + pathroot + "/" + moduleName + "/" + character.image + "'/>";
+                        "><img src='" + pathroot + "/" + moduleName + "/images/" + character.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
                     paletteItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -1704,6 +1700,8 @@ function displayLocationItems(location)
 {
     console.log(Date.now() + ' displayLocationItems at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
 
+    var path = require('path');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
     var target = $('#itemList').html("");
     var itemIndex = 0;
     location.attributes.items.forEach(function(item) {
@@ -1711,7 +1709,7 @@ function displayLocationItems(location)
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + itemIndex++ + "' " +
-            "><img src='" + paletteItem.image + "'/>";
+            "><img src='" + pathroot + item.module + "/images/" + paletteItem.image + "'/>";
         html += "</div>";
         var locationItem = $(html);
         locationItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -1732,6 +1730,8 @@ function displayLocationCharacters(location)
     // currently being displayed, and re-display the same character after the update.
     var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
 
+    var path = require('path');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
     var target = $('#characterList').html("");
     var characterIndex = 0;
     location.attributes.characters.forEach(function(character) {
@@ -1739,7 +1739,7 @@ function displayLocationCharacters(location)
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + characterIndex++ + "' " +
-            "><img src='" + paletteItem.image + "'/>";
+            "><img src='" + pathroot + character.module + "/images/" + paletteItem.image + "'/>";
         html += "</div>";
         var locationCharacter = $(html);
         locationCharacter.draggable({helper: 'clone', revert: 'invalid'});
@@ -1772,6 +1772,8 @@ function displayLocationCharacterInventory(character)
 {
     console.log(Date.now() + ' displayLocationCharacterInventory');
 
+    var path = require('path');
+    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
     var target = $('#inventoryItemList').html("");
     var itemIndex = 0;
     character.inventory.forEach(function(item) {
@@ -1779,7 +1781,7 @@ function displayLocationCharacterInventory(character)
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + itemIndex++ + "' " +
-            "><img src='" + paletteItem.image + "'/>";
+            "><img src='" + pathroot + item.attributes.module + "/images/" + paletteItem.image + "'/>";
         html += "</div>";
         var inventoryItem = $(html);
         inventoryItem.draggable({helper: 'clone', revert: 'invalid'});

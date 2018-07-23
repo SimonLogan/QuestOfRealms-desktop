@@ -7,7 +7,7 @@ module.exports = {
   category: "character",
   attributes: {
     type: "Iron boar",
-    image: "images/IronBoar.png",
+    image: "IronBoar.png",
     description: "Tough, easily tamed animals.",
     additional_info: "Medium armour. Can be domesticated. Found on Endless plains, and in Utropica. Loves to eat Forge Weed.",
     health: 20,

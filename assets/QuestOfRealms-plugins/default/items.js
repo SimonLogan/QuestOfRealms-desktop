@@ -9,34 +9,34 @@ module.exports = {
     {
       type: "long sword",
       use: "weapon",
-      image: "images/longsword.png",
+      image: "longsword.png",
       description: "Useful against more powerful or armoured opponents.",
       damage: 10
     },
     {
       type: "short sword",
       use: "weapon",
-      image: "images/shortsword.png",
+      image: "shortsword.png",
       description: "Useful for close-quarters combat. Easily concealed.",
       damage: 5
     },
     {
       type: "spear",
       use: "weapon",
-      image: "images/spear.png",
+      image: "spear.png",
       description: "medium range weapon.",
       damage: 10
     },
     {
       type: "coin",
       use: "buy",
-      image: "images/coin.png",
+      image: "coin.png",
       description: "coin."
     },
     {
       type: "food",
       use: "food",
-      image: "images/apple.png",
+      image: "apple.png",
       description: "food."
     }
   ]

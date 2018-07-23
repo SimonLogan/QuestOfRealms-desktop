@@ -8,13 +8,13 @@ module.exports = {
   attributes: [
     {
       type: "grassland",
-      image: "images/grassland.png",
+      image: "grassland.png",
       description: "Grassy plains.",
       healthCost: 1
     },
     {
       type: "mountains",
-      image: "images/mountains2.png",
+      image: "mountains2.png",
       description: "Not much grows here.",
       healthcost: 10
     }
