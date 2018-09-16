@@ -1,6 +1,7 @@
 /**
  * Created by Simon on 12/07/2018
  * Manager access to plugin data.
+ * (c) Simon Logan
  */
 
 module.exports = {

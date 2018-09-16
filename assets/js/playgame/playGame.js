@@ -1,6 +1,7 @@
 /**
- * Created by Simon on 28/05/16.
+ * Created by Simon on 28/05/2016.
  * This file implements the interactions for the game UI.
+ * (c) Simon Logan
  */
 
 // Constants

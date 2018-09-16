@@ -1,0 +1,30 @@
+<!-- The edit item dialog -->
+<!-- (c) Simon Logan 2018 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+
+    <link rel="stylesheet" href="../../assets/styles/main.css">
+    <link rel="stylesheet" href="../../assets/styles/editItem.css">
+</head>
+<body>
+    <p class="notify">Edit item properties</p>
+
+    <div class="row2">
+        <div><div class="label">Name:</div><div class="inputField"><input id="itemName"></div></div>
+        <div><div class="label">Type:</div><div class="inputField"><input id="itemType" readonly></div></div>
+        <div><div class="label">Description:</div><div class="inputField"><textarea id="itemDescription"></textarea></div></div>
+        <div><div class="label">Damage:</div><div class="inputField"><input id="itemDamage"></div></div>
+    </div>
+
+    <button id="cancelBtn">Cancel</button>
+    <button id="saveBtn">Save</button>
+
+    <script type="text/javascript" src="../../node_modules/jquery/dist/jquery.js"></script>
+    <script src="../../assets/js/realmEditor/editItem.js"></script>
+</body>
+</html>

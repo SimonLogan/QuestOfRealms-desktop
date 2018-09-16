@@ -1,7 +1,7 @@
 /**
  * Created by Simon on 16/04/2017.
  * Implement default action handlers. Individual character plugins can override these.
- *
+ * (c) Simon Logan
  */
 
 

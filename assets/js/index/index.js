@@ -1,6 +1,7 @@
 /**
  * Created by Simon on 13 May 2018.
  * This file implements the interactions for the QuestOfRealms designer main page.
+ * (c) Simon Logan
  */
 
 window.$ = window.jQuery = require('jquery');

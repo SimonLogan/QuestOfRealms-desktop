@@ -1,0 +1,2 @@
+TODO:
+- I have broken adding map locations. They appear in the map but aren't saved.

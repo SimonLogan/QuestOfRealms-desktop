@@ -1,3 +1,9 @@
+/**
+ * Created by Simon on 05/02/2017.
+ * This file implements shared realm code.
+ * (c) Simon Logan
+ */
+
 var app = require('electron').app;
  
 var workerId = process.env.ELECTRON_WORKER_ID; // worker id useful for logging

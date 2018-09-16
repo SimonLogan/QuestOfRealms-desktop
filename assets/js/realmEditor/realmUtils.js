@@ -1,6 +1,7 @@
 /**
- * Created by Simon on 05/02/17.
- * This file implements shared realm code
+ * Created by Simon on 05/02/2017.
+ * This file implements shared realm code.
+ * (c) Simon Logan
  */
 
 const path = require('path');
@@ -24,7 +25,7 @@ function editRealmDesign(target) {
        // referring page. The game editor will pass this. The front page won't.
        args.data.gameId = $('#gameId').val();
     }
-    //ipc.send('edit-realm', JSON.stringify(args));
+
     ipc.send('edit-realm', args);
 }
 

@@ -1,6 +1,7 @@
 /**
  * Created by Simon on 09/08/17.
  * This file implements the interactions for the game editor page.
+ * (c) Simon Logan
  */
 
 var gameData;

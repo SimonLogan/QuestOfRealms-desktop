@@ -1,15 +1,18 @@
 /**
- * Created by Simon on 05/02/14.
+ * Created by Simon on 05/02/2014.
  * This file implements the interactions for the realm editor page.
+ * (c) Simon Logan
  */
 
 window.$ = window.jQuery = require('jquery');
 require('jqueryui');
 const async = require('async');
 const ipc = require('electron').ipcRenderer;
+const BrowserWindow = require('electron').remote.BrowserWindow;
 const Backbone = require('backbone');
 var Datastore = require('nedb');
 var path = require('path');
+var pluginsPath = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 var mgrPath = path.join(__dirname, "../../assets/js/backend/pluginManager.js");
 var pluginMgr = require(mgrPath);;
 
@@ -64,7 +67,7 @@ var mView;
 var LocationsView = Backbone.View.extend({
     initialize: function () {
         this.listenTo(this.collection, 'reset', this.reset);
-        this.listenTo(this.collection, 'add', this.render);
+        this.listenTo(this.collection, 'add', this.add);
         this.listenTo(this.collection, 'remove', this.remove);
         this.listenTo(this.collection, 'change', this.change);
     },
@@ -74,19 +77,35 @@ var LocationsView = Backbone.View.extend({
             drawMapLocation(item);
         });
     },
-    render: function(item) {
+    add: function(item) {
         if (item != undefined) {
-            console.log("in view.render:  " + JSON.stringify(item));
+            console.log("in view.add:  " + JSON.stringify(item));
             drawMapLocation(item);
         }
     },
     remove: function(item) {
         console.log("in view.remove: " + JSON.stringify(item));
-        var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-        target.html('');
+        // This will find two entries if a map item is being dragged.
+        // changedCells[0] is the original map location.
+        // changedCells[1] is the new location (or the wastebasket).
+        var changedCells = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
+        var oldCell = $(changedCells[0]);
+        oldCell.html('');
+        oldCell.closest('td').css('background-color', '');
+        oldCell.removeClass('draggable mapItem');
 
-        // To allow it to be dragged to the wastebasket.
-        target.removeClass('draggable mapItem');
+        // Populate the relevant location properties if this location is currently
+        // open in the properties window.
+        // use $('#propertiesPanel').attr('data-id');  and look up the location
+        // or add x and y attributes to the propertiesPanel.
+
+        // No use as dragging unselects the selected item
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        if ((selectedMapCell.length > 0) &&
+            (selectedMapCell.attr('data-x') === item.attributes['x']) &&
+            (selectedMapCell.attr('data-y') === item.attributes['y'])) {
+            populateLocationDetails(item, true);
+        }
     },
     change: function(item) {
         console.log("in view.change:  " + JSON.stringify(item));
@@ -100,7 +119,7 @@ var LocationsView = Backbone.View.extend({
         }
 
         target.html('');
-        target.append('<img src="images/' + item.attributes.type + '.png" />');
+        target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + item.attributes.type + ".png'/>");
 
         // To allow it to be dragged to the wastebasket.
         target.addClass('draggable mapItem');
@@ -119,16 +138,19 @@ var LocationsView = Backbone.View.extend({
     }
 });
 
+
 // Called when the realm editor is loaded.
 ipc.on('editRealm-data', function (event, data) {
-    ipc.send('logmsg', 'realmEditor.js:editRealm-data. data=' + JSON.stringify(data));
+    //ipc.send('logmsg', 'realmEditor.js:editRealm-data. data=' + JSON.stringify(data));
     realmId = data.id;
 
-    // Load details of the supported environments, items, characters, and objectives.
+   // Load details of the supported environments, items, characters, and objectives.
    // Populate the various tool menus on the screen with this info.
    // NOTE: Since we have accordion widgets inside tabs, we need to ensure the accordions
    // are populated before the tabs are activated, or the accordions in the items and
    // characters tabs won't display correctly.
+   var x = new Date();
+   console.log("********** starting editRealm-data " + x + "(" + Date.now() + ") **********")
    async.parallel([
         function(callback) {
             openDB(callback);
@@ -148,27 +170,10 @@ ipc.on('editRealm-data', function (event, data) {
         function(callback) {
             loadRealm(realmId, function(error) {
                 if (!error) {
+                    $('#realmName').text("Editing realm " + realmData.name);
+
                     locationData = new MapLocationCollection();
                     mView = new LocationsView({collection: locationData});
-                    ipc.send('logmsg', 'realmEditor.js:locationData=' + JSON.stringify(locationData));
-                    // TODO: it would be nicer to override add() etc in MapLocationCollection
-                    // but I haven't worked out how to call the default Backbone.Collection
-                    // method from there.
-                    // http://backbonejs.org/#Collection-models says something like
-                    // Backbone.Model.prototype.set.apply(this, arguments);
-                    // but that doesn't work.
-                    locationData.on('add', function(data) {
-                        console.log("add");
-                        locationData.sync();
-                    });
-                    locationData.on('change', function(data) {
-                        console.log("change");
-                        locationData.sync();
-                    });
-                    locationData.on('remove', function(data) {
-                        console.log("remove");
-                        locationData.sync();
-                    });
 
                     if (realmData.hasOwnProperty('mapLocations')) {
                         locationData.reset(realmData.mapLocations);
@@ -183,10 +188,10 @@ ipc.on('editRealm-data', function (event, data) {
         }
     ],
     function(err, results) {
-    // Create the tabbed panels
-    $("#paletteInnerPanel").tabs();
-    $("#propertiesInnerPanel").tabs();
-    //if (!err) enableControls();
+        // Create the tabbed panels
+        $("#paletteInnerPanel").tabs();
+        $("#propertiesInnerPanel").tabs();
+        //if (!err) enableControls();
     });
 
     /*
@@ -198,260 +203,127 @@ ipc.on('editRealm-data', function (event, data) {
     /* Dialogs */
 
     // The edit item dialog
-    $(function() {
-        var dialog, form,
-            name = $("#editItemName"),
-            description = $("#editItemDescription"),
-            damage = $("#editItemDamage"),
-            allFields = $([]).add(name).add(description).add(damage);
+   $("#editItemProperties").click(function() {
+       console.log("editItem click");
+       init_data = {'name': $('#itemName').val(),
+                    'type': $('#itemType').text(),
+                    'description': $('#itemDescription').text(),
+                    'damage': $('#itemDamage').text()};
 
-        function close () {
-            form[0].reset();
-            allFields.removeClass("ui-state-error");
-            dialog.dialog("close");
-        };
+       // You can't send messages between renderers. You have to use main.js as a message gub.
+       ipc.send('edit-item', init_data);
+    });
 
-        function save() {
-            var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-            var thisCell = locationData.where({
-                x: selectedItem.attr('data-x'), y:selectedItem.attr('data-y')});
+    // Main is passing back the updated data when save is pressed on the edit item dialog.
+    ipc.on('editItem-data', function (event, data) {
+        console.log('realmEditor.js:editItem-data. data=' + JSON.stringify(data));
+        ipc.send('logmsg', 'realmEditor.js:editItem-data. data=' + JSON.stringify(data));
+        $('#itemName').val(data.name);
+        $('#itemDescription').text(data.description);
+        $('#itemDamage').text(data.damage);
 
-            var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
-            newItem.name = $('#editItemName').val().trim();
-            newItem.description = $('#editItemDescription').text();
-            newItem.damage = $('#editItemDamage').text();
-            thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
-            locationData.sync();
-            close();
-        };
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        var thisCell = locationData.where({
+            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
-        dialog = $("#editItemDialog").dialog({
-            autoOpen: false,
-            height: 600,
-            width: 525,
-            modal: true,
-            buttons: {
-                "Save": save,
-                "Cancel": close
-            },
-            close: close
-        }).css("font-size", "12px");
-
-        form = dialog.find("form").on("submit", function(event) {
-            event.preventDefault();
-            save();
-        });
-
-        $("#editItemProperties").click(function() {
-            $('#editItemName').val($('#itemName').val());
-            $('#editItemType').val($('#itemType').text());
-            $('#editItemDescription').val($('#itemDescription').text());
-            $('#editItemDamage').val($('#itemDamage').text());
-            dialog.dialog("open");
-        });
+        var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
+        var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
+        newItem.name = $('#itemName').val().trim();
+        newItem.description = $('#itemDescription').text();
+        newItem.damage = $('#itemDamage').text();
+        thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
+		locationData.sync();
     });
 
     // The edit character dialog.
-    $(function() {
-        var dialog, form,
-            name = $("#editCharacterName"),
-            description = $("#editCharacterDescription"),
-            addInfo = $("#editCharacterAddInfo"),
-            damage = $("#editCharacterDamage"),
-            health = $("#editCharacterHealth"),
-            drops = $("#editCharacterDrops"),
-            allFields = $([]).add(name).add(description).add(addInfo).add(health).add(damage).add(drops);
+    $("#editCharacterProperties").click(function() {
+        console.log("editCharacter click");
+        init_data = {'name': $('#characterName').val(),
+                     'type': $('#characterType').text(),
+                     'description': $('#characterDescription').text(),
+                     'addInfo': $('#characterAddInfo').text(),
+                     'damage': $('#characterDamage').text(),
+                     'health': $('#characterHealth').text(),
+                     'drops': $('#characterDrops').text()
+                    };
+ 
+        // You can't send messages between renderers. You have to use main.js as a message gub.
+        ipc.send('edit-character', init_data);
+     });
 
-        function close () {
-            form[0].reset();
-            allFields.removeClass("ui-state-error");
-            dialog.dialog("close");
-        };
+    // Main is passing back the updated data when save is pressed on the edit character dialog.
+    ipc.on('editCharacter-data', function (event, data) {
+        console.log('realmEditor.js:editCharacter-data. data=' + JSON.stringify(data));
+        ipc.send('logmsg', 'realmEditor.js:editCharacter-data. data=' + JSON.stringify(data));
+        $('#characterName').val(data.name);
+        $('#characterDescription').text(data.description);
+        $('#characterAddInfo').text(data.addInfo);
+        $('#characterDamage').text(data.damage);
+        $('#characterHealth').text(data.health);
+        $('#characterDrops').text(data.drops);
 
-        function save() {
-            var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-            var thisCell = locationData.where({
-                x: selectedCharacter.attr('data-x'), y:selectedCharacter.attr('data-y')});
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        var thisCell = locationData.where({
+            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
-            var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
-            newCharacter.name = $('#editCharacterName').val().trim();
-            newCharacter.description = $('#editCharacterDescription').text();
-            newCharacter.additionalInfo = $('#editCharacterAddInfo').text();
-            newCharacter.damage = $('#editCharacterDamage').text();
-            newCharacter.health = $('#editCharacterHealth').text();
-            newCharacter.drops = $('#editCharacterDrops').text();
-            thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
-            locationData.sync();
-            close();
-        };
-
-        dialog = $("#editCharacterDialog").dialog({
-            autoOpen: false,
-            height: 600,
-            width: 525,
-            modal: true,
-            buttons: {
-                "Save": save,
-                "Cancel": close
-            },
-            close: close
-        }).css("font-size", "12px");
-
-        form = dialog.find("form").on("submit", function(event) {
-            event.preventDefault();
-            save();
-        });
-
-        $("#editCharacterProperties").click(function() {
-            $('#editCharacterName').val($('#characterName').val());
-            $('#editCharacterType').val($('#characterType').text());
-            $('#editCharacterDescription').val($('#characterDescription').text());
-            $('#editCharacterAddInfo').val($('#characterAddInfo').text());
-            $('#editCharacterDamage').val($('#characterDamage').text());
-            $('#editCharacterHealth').val($('#characterHealth').text());
-            $('#editCharacterDrops').val($('#characterDrops').text());
-            dialog.dialog("open");
-        });
+        var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+        var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
+        newCharacter.name = $('#characterName').val().trim();
+        newCharacter.description = $('#characterDescription').text();
+        newCharacter.addInfo = $('#characterAddInfo').text();
+        newCharacter.damage = $('#characterDamage').text();
+        newCharacter.health = $('#characterHealth').text();
+        newCharacter.drops = $('#characterDrops').text();
+        thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
+		locationData.sync();
     });
 
-    // The edit objective dialog.
-    $(function() {
-        var dialog, form,
-            type = $("#objectiveChoice"),
-            allFields = $([]).add(type);
+    // The add objective form.
+    $("#addObjective").click(function() {
+        $('#editObjectiveForm').show();
+    });
 
-        function save() {
-            var target = $('#objectiveParamsPanel');
-            var paramNames = target.find('td.detailsHeading');
-            var paramValues = target.find('td input');
-            var saveParams = [];
-            $.each(paramNames, function(index) {
-                saveParams.push({
-                    name: $(paramNames[index]).text(),
-                    value: $(paramValues[index]).val()
-                });
-            });
+    $('#objectiveChoice').change(function() {
+        var dropdown = $('#objectiveChoice');
+        var selection = dropdown.find('option:selected');
 
-            // At present all objectives require parameters of some kind.
-            if (saveParams.length === 0) {
-               return;
-            }
-
-            var selection = $('#objectiveChoice').find('option:selected');
-            var objectiveType = selection.text();
-            var description = selection.attr('title');
-            var module = selection.attr('data-module');
-            var filename = selection.attr('data-filename');
-
-            // Do some basic validation of some of the default objective types.
-            // Since objectives are now defined by plugins, custom objectives
-            // must be validated on the server.
-            if (objectiveType === "Start at" || objectiveType === "Navigate to") {
-               var thisCell = locationData.where({
-                  x: saveParams[0].value, y:saveParams[1].value});
-
-               if (thisCell.length === 0) {
-                  alert("Invalid map location.");
-                  return;
-               }
-            }
-
-            // Look up some additional info about the objective.
-
-            if (objectiveType === "Start at") {
-               // Always put the "start at" objective first in the list to make
-               // it clear that it has been set.
-               if (realmData.objectives.length > 0 &&
-                   realmData.objectives[0].type === "Start at") {
-                   realmData.objectives.shift();
-               }
-
-               realmData.objectives.unshift({
-                  type: objectiveType,
-                  description: description,
-                  module: module,
-                  filename: filename,
-                  completed: false,
-                  params: saveParams
-               });
-            } else {
-               // Otherwise add it to the end.
-               realmData.objectives.push({
-                  type: objectiveType,
-                  description: description,
-                  module: module,
-                  filename: filename,
-                  completed: false,
-                  params: saveParams
-               });
-            }
-
-            saveRealm(function() {
-                dialog.dialog("close");
-                displayObjectives();
-            });
+        // Disable the save button if an invalid option is selected.
+        if (selection.attr('disabled') === 'disabled') {
+            $("#objectiveSave").prop('disabled', true);
+        } else {
+            $("#objectiveSave").prop('disabled', false);
         }
 
-        dialog = $("#editObjectiveDialog").dialog({
-            autoOpen: false,
-            height: 600,
-            width: 525,
-            modal: true,
-            buttons: {
-                "Save": save,
-                Cancel: function() {
-                    dialog.dialog("close");
-                }
-            },
-            close: function() {
-                form[0].reset();
-                allFields.removeClass("ui-state-error");
-            }
-        }).css("font-size", "12px");
+        var selectedObjectiveType = selection.text();
+        var moduleName = selection.attr('data-module');
+        var fileName = selection.attr('data-filename');
+        var module = objectivePaletteData.modules[moduleName];
+        var objectiveTypes = module[fileName];
 
-        form = dialog.find("form").on("submit", function(event) {
-            event.preventDefault();
-            save();
-        });
+        for (var i=0; i<objectiveTypes.length; i++) {
+           if (objectiveTypes[i].name === selectedObjectiveType) {
+              var html = "<table>";
+              objectiveTypes[i].parameters.forEach(function (param) {
+                 html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
+                 html += "<td><input type='text'/></td></tr>";
+              });
 
-        $("#addObjective").click(function() {
-            $(dialog.parent().find(':button')[1]).prop('disabled', true);
-            dialog.dialog("open");
-        });
+              html += "</table>";
+              $('#objectiveParamsPanel').html(html);
+              return;
+           }
+        }
 
-        $('#objectiveChoice').change(function() {
-            var dropdown = $('#objectiveChoice');
-            var selection = dropdown.find('option:selected');
+        $('#objectiveParamsPanel').html("");
+    });
 
-            // Disable the save button if an invalid option is selected.
-            if (selection.attr('disabled') === 'disabled') {
-               $($(dialog).parent().find(':button')[1]).prop('disabled', true);
-            } else {
-               $($(dialog).parent().find(':button')[1]).prop('disabled', false);
-            }
+    $("#objectiveSave").click(function() {
+        $('#editObjectiveForm').hide();
+        saveObjective();
+    });
 
-            var selectedObjectiveType = selection.text();
-            var moduleName = selection.attr('data-module');
-            var fileName = selection.attr('data-filename');
-            var module = objectivePaletteData.modules[moduleName];
-            var file = module[fileName];
-
-            for (var i=0; i<file.length; i++) {
-               if (file[i].name === selectedObjectiveType) {
-                  var html = "<table>";
-                  file[i].parameters.forEach(function (param) {
-                     html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
-                     html += "<td><input type='text'/></td></tr>";
-                  });
-
-                  html += "</table>";
-                  $('#objectiveParamsPanel').html(html);
-                  return;
-               }
-            }
-
-            $('#objectiveParamsPanel').html("");
-        });
+    $("#objectiveCancel").click(function() {
+        $('#editObjectiveForm').hide();
     });
 
     $(document).on('click', '.deleteObjective', function(e) {
@@ -468,6 +340,11 @@ ipc.on('editRealm-data', function (event, data) {
         });
     });
 
+    // Navigate back.
+    $(document).on('click', '#breadcrumb', function(e) {
+        ipc.send('frontpage');
+    });
+    
     $(document).on('mouseenter', '.paletteItem', function() {
         if ($(this).prop('id').length == 0)
             return;
@@ -680,6 +557,7 @@ ipc.on('editRealm-data', function (event, data) {
 
         thisCell[0].attributes.name = $('#locationName').val().trim();
         locationData.sync();
+
     });
 
     $(document).on('change', '.itemProperty', function() {
@@ -726,7 +604,6 @@ ipc.on('editRealm-data', function (event, data) {
         thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
         locationData.sync();
     });
-
 });
   
 
@@ -734,6 +611,82 @@ ipc.on('editRealm-data', function (event, data) {
 //
 // Utility functions
 //
+
+function saveObjective() {
+    var target = $('#objectiveParamsPanel');
+    var paramNames = target.find('td.detailsHeading');
+    var paramValues = target.find('td input');
+    var saveParams = [];
+    $.each(paramNames, function(index) {
+        saveParams.push({
+            name: $(paramNames[index]).text(),
+            value: $(paramValues[index]).val()
+        });
+    });
+
+    // At present all objectives require parameters of some kind.
+    if (saveParams.length === 0) {
+       return;
+    }
+
+    var selection = $('#objectiveChoice').find('option:selected');
+    var objectiveType = selection.text();
+    var description = selection.attr('title');
+    var module = selection.attr('data-module');
+    var filename = selection.attr('data-filename');
+
+    // Do some basic validation of some of the default objective types.
+    // Since objectives are now defined by plugins, custom objectives
+    // must be validated on the server.
+    if (objectiveType === "Start at" || objectiveType === "Navigate to") {
+       var thisCell = locationData.where({
+          x: saveParams[0].value, y:saveParams[1].value});
+
+       if (thisCell.length === 0) {
+          alert("Invalid map location.");
+          return;
+       }
+    }
+
+    // Look up some additional info about the objective.
+    if (!realmData.hasOwnProperty('objectives')) {
+        realmData.objectives = [];
+    }
+
+    if (objectiveType === "Start at") {
+       // Always put the "start at" objective first in the list to make
+       // it clear that it has been set.
+       if (realmData.objectives.length > 0 &&
+           realmData.objectives[0].type === "Start at") {
+           realmData.objectives.shift();
+       }
+
+       realmData.objectives.unshift({
+          type: objectiveType,
+          description: description,
+          module: module,
+          filename: filename,
+          completed: false,
+          params: saveParams
+       });
+    } else {
+       // Otherwise add it to the end.
+       realmData.objectives.push({
+          type: objectiveType,
+          description: description,
+          module: module,
+          filename: filename,
+          completed: false,
+          params: saveParams
+       });
+    }
+
+    saveRealm(function() {
+        ipc.send('logmsg', 'realm saved()');
+        displayObjectives();
+    });
+}
+
 
 function openDB(callback) {
     var path = require('path');
@@ -751,16 +704,14 @@ function openDB(callback) {
 
 
 function drawMapLocation(item) {
-    var path = require('path');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-
     // Update the local display with the message data.
     var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
     target.attr('data-env', item.attributes.type);
     target.attr('data-id', item.id);
     target.attr('data-module', item.attributes.module);
     target.html('');
-    target.append("<img src='" + pathroot + item.attributes.module + "/images/" + item.attributes.type + ".png'/>");
+    target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + item.attributes.type + ".png'/>");
+
     // To allow it to be dragged to the wastebasket.
     target.addClass('draggable mapItem');
     target.draggable({helper: 'clone', revert: 'invalid'});
@@ -917,12 +868,12 @@ function addInventoryItem(droppedItem)
     var selectedCharacter = $('#characterList').find('.propertiesPanelItem.selected');
     var characterData = thisCell.attributes.characters[selectedCharacter.attr('data-index')];
 
-    if (thisCell.attributes.characters[selectedCharacter.attr('data-index')].inventory === undefined) {
-       thisCell.attributes.characters[selectedCharacter.attr('data-index')].inventory = [];
+    if (characterData.inventory === undefined) {
+        characterData.inventory = [];
     }
 
     var fullItemDetails = findPaletteItem(itemPaletteData, droppedItem);
-    thisCell.attributes.characters[selectedCharacter.attr('data-index')].inventory.push(
+    characterData.inventory.push(
         {
             type: droppedItem.attr('data-type'),
             module: droppedItem.attr('data-module'),
@@ -934,6 +885,7 @@ function addInventoryItem(droppedItem)
     );
 
     locationData.sync();
+    displayLocationCharacterInventory(characterData);
 }
 
 
@@ -997,6 +949,7 @@ function removeItemFromLocation(droppedItem)
 
     thisCell.attributes.items.splice(droppedItem.attr('data-index'), 1);
     locationData.sync();
+    locationData.trigger('change', thisCell);
 }
 
 
@@ -1029,6 +982,7 @@ function addItemToLocation(droppedItem, location)
     );
 
     locationData.sync();
+    locationData.trigger('change', location[0]);
 }
 
 
@@ -1045,6 +999,7 @@ function removeCharacterFromLocation(droppedItem)
 
     thisCell.attributes.characters.splice(droppedItem.attr('data-index'), 1);
     locationData.sync();
+    locationData.trigger('change', thisCell);
 }
 
 
@@ -1059,11 +1014,11 @@ function removeCharacterInventoryItem(droppedItem) {
         x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
 
     var currentCharacter = $('#characterList').find('.propertiesPanelItem.selected');
-    //var characterData = thisCell.attributes.characters[currentCharacter.attr('data-index')];
-    //var itemData = characterData.inventory[droppedItem.attr('data-index')];
-    thisCell.attributes.characters[currentCharacter.attr('data-index')].
-       inventory.splice(droppedItem.attr('data-index'), 1);
+    var characterData = thisCell.attributes.characters[currentCharacter.attr('data-index')];
+    characterData.inventory.splice(droppedItem.attr('data-index'), 1);
     locationData.sync();
+    locationData.trigger('change', thisCell);
+    //displayLocationCharacterInventory(characterData);
 }
 
 
@@ -1100,6 +1055,7 @@ function addCharacterToLocation(droppedCharacter, location)
     );
 
     locationData.sync();
+    locationData.trigger('change', location[0]);
 }
 
 
@@ -1449,6 +1405,7 @@ function loadEnvPalette(callback) {
         var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 
         var target = $('#paletteEnvList');
+        target.html('');
         var envNum = 1;
 
         // The are several ways to interate over a collection.
@@ -1463,7 +1420,7 @@ function loadEnvPalette(callback) {
         $.each(envPaletteData.modules, function(moduleName) {
             // Some left padding required to stop the accordion triangle overlapping the text.
             // I'm sure this can be sorted out with css somehow.
-            var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + module + "</h3>");
+            var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + moduleName + "</h3>");
             accordion.appendTo(target);
             var childContainer = $("<div></div>");
             for (var fileName in envPaletteData.modules[moduleName]) {
@@ -1509,6 +1466,7 @@ function loadItemsPalette(callback) {
         var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 
         var target = $('#paletteItemList');
+        target.html('');
         var itemNum = 1;
 
         // The are several ways to interate over a collection.
@@ -1569,6 +1527,7 @@ function loadCharactersPalette(callback) {
         var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 
         var target = $('#paletteCharactersList');
+        target.html('');
         var characterNum = 1;
 
         // The are several ways to interate over a collection.
@@ -1781,7 +1740,7 @@ function displayLocationCharacterInventory(character)
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
             "data-index='" + itemIndex++ + "' " +
-            "><img src='" + pathroot + item.attributes.module + "/images/" + paletteItem.image + "'/>";
+            "><img src='" + pathroot + item.module + "/images/" + paletteItem.image + "'/>";
         html += "</div>";
         var inventoryItem = $(html);
         inventoryItem.draggable({helper: 'clone', revert: 'invalid'});
@@ -1817,7 +1776,7 @@ function displayObjectives()
             html += "<tr data-id='" + (i++) + "'>";
             html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.type + "</td>";
             html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
-            html += "<td><input class='deleteObjective' type='image' src='images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
+            html += "<td><input class='deleteObjective' type='image' src='../../assets/images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
             html += "</tr>";
         });
     }

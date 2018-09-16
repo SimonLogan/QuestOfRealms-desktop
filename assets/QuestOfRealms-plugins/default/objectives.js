@@ -1,5 +1,6 @@
 /**
  * Created by Simon on 17/04/2017.
+ * (c) Simon Logan
  */
 
 module.exports = {
