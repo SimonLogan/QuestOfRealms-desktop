@@ -317,50 +317,74 @@ ipc.on('editRealm-data', function (event, data) {
 
     // The add objective form.
     $("#addObjective").click(function() {
-        $('#editObjectiveForm').show();
+        console.log("addObjective click");
+
+        // You can't send messages between renderers. You have to use main.js as a message gub.
+        ipc.send('add-objective', objectivePaletteData);
     });
 
-    $('#objectiveChoice').change(function() {
-        var dropdown = $('#objectiveChoice');
-        var selection = dropdown.find('option:selected');
+    // Main is passing back the updated data when save is pressed on the edit objective dialog.
+    ipc.on('editObjective-data', function (event, data) {
+        console.log('realmEditor.js:editObjective-data. data=' + JSON.stringify(data));
+        ipc.send('logmsg', 'realmEditor.js:editObjective-data. data=' + JSON.stringify(data));
 
-        // Disable the save button if an invalid option is selected.
-        if (selection.attr('disabled') === 'disabled') {
-            $("#objectiveSave").prop('disabled', true);
-        } else {
-            $("#objectiveSave").prop('disabled', false);
+        // At present all objectives require parameters of some kind.
+        if (data.saveParams.length === 0) {
+            ipc.send('save-add-objective-result', {"success": false, "errorMsg": "Missing parameters."});
+            return;
         }
 
-        var selectedObjectiveType = selection.text();
-        var moduleName = selection.attr('data-module');
-        var fileName = selection.attr('data-filename');
-        var module = objectivePaletteData.modules[moduleName];
-        var objectiveTypes = module[fileName];
-
-        for (var i=0; i<objectiveTypes.length; i++) {
-           if (objectiveTypes[i].name === selectedObjectiveType) {
-              var html = "<table>";
-              objectiveTypes[i].parameters.forEach(function (param) {
-                 html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
-                 html += "<td><input type='text'/></td></tr>";
-              });
-
-              html += "</table>";
-              $('#objectiveParamsPanel').html(html);
+        // Do some basic validation of some of the default objective types.
+        // Since objectives are now defined by plugins, custom objectives
+        // must be validated on the server.
+        if (data.objectiveType === "Start at" || data.objectiveType === "Navigate to") {
+           var thisCell = locationData.where({
+              x: data.saveParams[0].value, y:data.saveParams[1].value});
+    
+           if (thisCell.length === 0) {
+              ipc.send('save-add-objective-result', {"success": false, "errorMsg": "Invalid map location."});
               return;
            }
         }
-
-        $('#objectiveParamsPanel').html("");
-    });
-
-    $("#objectiveSave").click(function() {
-        $('#editObjectiveForm').hide();
-        saveObjective();
-    });
-
-    $("#objectiveCancel").click(function() {
-        $('#editObjectiveForm').hide();
+    
+        // Look up some additional info about the objective.
+        if (!realmData.hasOwnProperty('objectives')) {
+            realmData.objectives = [];
+        }
+    
+        if (data.objectiveType === "Start at") {
+           // Always put the "start at" objective first in the list to make
+           // it clear that it has been set.
+           if (realmData.objectives.length > 0 &&
+               realmData.objectives[0].type === "Start at") {
+               realmData.objectives.shift();
+           }
+    
+           realmData.objectives.unshift({
+              type: data.objectiveType,
+              description: data.description,
+              module: data.module,
+              filename: data.filename,
+              completed: false,
+              params: data.saveParams
+           });
+        } else {
+           // Otherwise add it to the end.
+           realmData.objectives.push({
+              type: data.objectiveType,
+              description: data.description,
+              module: data.module,
+              filename: data.filename,
+              completed: false,
+              params: data.saveParams
+           });
+        }
+    
+        saveRealm(function() {
+            ipc.send('logmsg', 'realm saved()');
+            displayObjectives();
+            ipc.send('save-add-objective-result', {"success": true});
+        });
     });
 
     $(document).on('click', '.deleteObjective', function(e) {
@@ -648,82 +672,6 @@ ipc.on('editRealm-data', function (event, data) {
 //
 // Utility functions
 //
-
-function saveObjective() {
-    var target = $('#objectiveParamsPanel');
-    var paramNames = target.find('td.detailsHeading');
-    var paramValues = target.find('td input');
-    var saveParams = [];
-    $.each(paramNames, function(index) {
-        saveParams.push({
-            name: $(paramNames[index]).text(),
-            value: $(paramValues[index]).val()
-        });
-    });
-
-    // At present all objectives require parameters of some kind.
-    if (saveParams.length === 0) {
-       return;
-    }
-
-    var selection = $('#objectiveChoice').find('option:selected');
-    var objectiveType = selection.text();
-    var description = selection.attr('title');
-    var module = selection.attr('data-module');
-    var filename = selection.attr('data-filename');
-
-    // Do some basic validation of some of the default objective types.
-    // Since objectives are now defined by plugins, custom objectives
-    // must be validated on the server.
-    if (objectiveType === "Start at" || objectiveType === "Navigate to") {
-       var thisCell = locationData.where({
-          x: saveParams[0].value, y:saveParams[1].value});
-
-       if (thisCell.length === 0) {
-          alert("Invalid map location.");
-          return;
-       }
-    }
-
-    // Look up some additional info about the objective.
-    if (!realmData.hasOwnProperty('objectives')) {
-        realmData.objectives = [];
-    }
-
-    if (objectiveType === "Start at") {
-       // Always put the "start at" objective first in the list to make
-       // it clear that it has been set.
-       if (realmData.objectives.length > 0 &&
-           realmData.objectives[0].type === "Start at") {
-           realmData.objectives.shift();
-       }
-
-       realmData.objectives.unshift({
-          type: objectiveType,
-          description: description,
-          module: module,
-          filename: filename,
-          completed: false,
-          params: saveParams
-       });
-    } else {
-       // Otherwise add it to the end.
-       realmData.objectives.push({
-          type: objectiveType,
-          description: description,
-          module: module,
-          filename: filename,
-          completed: false,
-          params: saveParams
-       });
-    }
-
-    saveRealm(function() {
-        ipc.send('logmsg', 'realm saved()');
-        displayObjectives();
-    });
-}
-
 
 function openDB(callback) {
     var path = require('path');
@@ -1619,36 +1567,6 @@ function loadObjectivesPalette(callback) {
     try {
         objectivePaletteData = pluginMgr.findPlugins('objective');
         ipc.send('logmsg', 'found plugins:' + JSON.stringify(objectivePaletteData));
-
-        var path = require('path');
-        var fs = require('fs');
-        var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-
-        var html = "<option value='choose' title='choose' disabled selected>Choose</option>";
-
-        // The are several ways to interate over a collection.
-        // Dictionaries (objectivePaletteData.modules):
-        //    $.each(objectivePaletteData.modules, function(moduleName) { ... });
-        //       calls function for each key (in this case, moduleName) in the collection.
-        //    for (var fileName in objectivePaletteData.modules[moduleName]) { ... }
-        //       sets the fileName for each key (in this case, fileName) in the collection.
-        // Arrays (objectivePaletteData.modules[moduleName][fileName]):
-        //    for (var i=0; i<thisEntry.length; i++) { ... }
-        //       iterates over each index number in the array.
-        $.each(objectivePaletteData.modules, function(moduleName) {
-            for (var fileName in objectivePaletteData.modules[moduleName]) {
-                var thisEntry = objectivePaletteData.modules[moduleName][fileName];
-                for (var i=0; i<thisEntry.length; i++) {
-                    html += "<option value='" + i + "' ";
-                    html += "title='" + thisEntry[i].description + "' ";
-                    html += "data-module='" + moduleName + "' ";
-                    html += "data-filename='" + fileName + "' ";
-                    html += ">" + thisEntry[i].name + "</option>";
-                }
-            };
-        });
-
-        $('#objectiveChoice').html(html);
         callback(null);
     } catch(error) {
         ipc.send('logmsg', 'caught error: ' + error);

@@ -14,14 +14,20 @@
 <body>
     <p class="title">Edit Objectives</p>
 
-    <div class="formbody">
-        <!--
-        <div><div class="label">Name:</div><div class="inputField"><input id="itemName"></div></div>
-        <div><div class="label">Type:</div><div class="inputField"><input id="itemType" readonly></div></div>
-        <div><div class="label">Description:</div><div class="inputField"><textarea id="itemDescription" style="width: 320px; height: 80px;"></textarea></div></div>
-        <div><div class="label">Damage:</div><div class="inputField"><input id="itemDamage"></div></div>
-        -->
+    <div class="formbody" style="height: 195px;">
+        <form>
+                <fieldset>
+                    <dl>
+                        <div id="objectiveChoicePanel" style="padding: 5px;">
+                            <div><div class="label">Objective:</div><div class="inputField"><select id="objectiveChoice"></select></div></div>
 
+                        </div>
+                    </dl>
+                    <dl>
+                        <div id="objectiveParamsPanel"></div>
+                    </dl>
+                </fieldset>
+        </form>
     </div>
 
     <div id="buttonContainer">

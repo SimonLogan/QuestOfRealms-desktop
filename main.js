@@ -168,6 +168,40 @@ ipcMain.on('save-edit-inventoryItem', (event, msg) => {
   win.webContents.send('editInventoryItem-data', msg);
 });
 
+// The add objective dialog.
+var editObjectiveDialog;
+ipcMain.on('add-objective', (event, msg) => {
+  console.log("Received add-objective: " + JSON.stringify(msg));
+
+  const editObjectiveModelPath = path.join('file://', __dirname, 'views/QuestRealm/editObjective.html');
+  editObjectiveDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 530, height: 370});
+  editObjectiveDialog.on('close', function() { editObjectiveDialog = null });
+
+  editObjectiveDialog.webContents.once('did-finish-load', function() {
+    console.log("editObjectiveDialog did-finish-load");
+    editObjectiveDialog.webContents.send('init', msg);
+    editObjectiveDialog.webContents.openDevTools();
+  });
+
+  editObjectiveDialog.loadURL(editObjectiveModelPath);
+  editObjectiveDialog.show();
+});
+
+// Save pressed on the the edit objective dialog. Pass the saved data
+// back to the realm editor for validation.
+ipcMain.on('save-add-objective', (event, msg) => {
+  console.log("Received save-add-objective: " + JSON.stringify(msg));
+  win.webContents.send('editObjective-data', msg);
+});
+
+// realmEditor.js has validated the date from the edit objective
+// dialog (via save-add-objective above). Pass the validation result back
+// to the edit objective dialog.
+ipcMain.on('save-add-objective-result', (event, msg) => {
+  console.log("Received save-add-objective-result: " + JSON.stringify(msg));
+  editObjectiveDialog.webContents.send('save-result', msg);
+});
+
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
   // On macOS it is common for applications and their menu bar
