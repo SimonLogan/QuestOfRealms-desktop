@@ -1,5 +1,5 @@
 <!-- The realm template editor -->
-<!-- Simon 2017 -->
+<!-- (c) Simon Logan 2017 -->
 <script type="text/javascript" src="../../assets/js/realmEditor/realmEditor.js"></script>
 
 <h1>Quest of Realms</h1>
@@ -136,59 +136,6 @@
                 </div>
             </div>
         </div>
-
-        <div id="editItemForm" title="Edit Item" style="display:none">
-            <form>
-                <fieldset>
-                    <dl>
-                        <dt><label for="editItemName">Name:</label></dt>
-                        <dd><input type="text" name="editItemName" id="editItemName" value="" class="text ui-widget-content ui-corner-all"></dd>
-    
-                        <dt><label for="editItemType">Type:</label></dt>
-                        <dd><input type="text" name="editItemType" id="editItemType" value="" class="text ui-widget-content ui-corner-all" readonly></dd>
-    
-                        <dt><label for="editItemDescription">Description:</label></dt>
-                        <dd><textarea name="editItemDescription" id="editItemDescription" value="" class="text ui-widget-content ui-corner-all"></textarea></dd>
-    
-                        <dt><label for="editItemDamage">Damage:</label></dt>
-                        <dd><input type="text" name="editItemDamage" id="editItemDamage" value="" class="text ui-widget-content ui-corner-all"></dd>
-                    </dl>
-                    <!-- Allow form submission with keyboard without duplicating the dialog button -->
-                    <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
-                </fieldset>
-            </form>
-        </div>
-
-        <div id="editCharacterForm" title="Edit Character" style="display:none">
-            <form>
-                <fieldset>
-                    <dl>
-                        <dt><label for="editCharacterName">Name:</label></dt>
-                        <dd><input type="text" name="editCharacterName" id="editCharacterName" value="" class="text ui-widget-content ui-corner-all"></dd>
-    
-                        <dt><label for="editCharacterType">Type:</label></dt>
-                        <dd><input type="text" name="editCharacterType" id="editCharacterType" value="" class="text ui-widget-content ui-corner-all" readonly></dd>
-    
-                        <dt><label for="editCharacterDescription">Description:</label></dt>
-                        <dd><textarea name="editCharacterDescription" id="editCharacterDescription" value="" class="text ui-widget-content ui-corner-all"></textarea></dd>
-    
-                        <dt><label for="editCharacterAddInfo">Additional Info:</label></dt>
-                        <dd><textarea name="editCharacterAddInfo" id="editCharacterAddInfo" value="" class="text ui-widget-content ui-corner-all"></textarea></dd>
-    
-                        <dt><label for="editCharacterDamage">Damage:</label></dt>
-                        <dd><input type="text" name="editCharacterDamage" id="editCharacterDamage" value="" class="text ui-widget-content ui-corner-all"></dd>
-    
-                        <dt><label for="editCharacterHealth">Health:</label></dt>
-                        <dd><input type="text" name="editCharacterHealth" id="editCharacterHealth" value="" class="text ui-widget-content ui-corner-all"></dd>
-    
-                        <dt><label for="editCharacterDrops">Drops:</label></dt>
-                        <dd><input type="text" name="editCharacterDrops" id="editCharacterDrops" value="" class="text ui-widget-content ui-corner-all"></dd>
-                    </dl>
-                    <!-- Allow form submission with keyboard without duplicating the dialog button -->
-                    <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
-                </fieldset>
-            </form>
-        </div>
     </div>
 
     <div id="workPanel" style="margin: 10px;">
@@ -299,6 +246,7 @@
                 </div>
             </div>
 
+            <!---->
             <div id="editObjectiveForm" title="Edit Objective" style="display:none">
                 <form>
                     <fieldset>
@@ -317,6 +265,7 @@
                     </fieldset>
                 </form>
             </div>
+            <!---->
         </div>
     </div>
 </div>

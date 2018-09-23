@@ -98,7 +98,7 @@ ipcMain.on('edit-item', (event, msg) => {
   console.log("Received edit-item: " + JSON.stringify(msg));
 
   const editItemModelPath = path.join('file://', __dirname, 'views/QuestRealm/editItem.html');
-  let editItemDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 800, height: 600});
+  let editItemDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 540, height: 410});
   editItemDialog.on('close', function() { editItemDialog = null });
 
   editItemDialog.webContents.once('did-finish-load', function() {
@@ -118,11 +118,12 @@ ipcMain.on('save-edit-item', (event, msg) => {
   win.webContents.send('editItem-data', msg);
 });
 
+// The edit character dialog.
 ipcMain.on('edit-character', (event, msg) => {
   console.log("Received edit-character: " + JSON.stringify(msg));
 
   const editCharacterModelPath = path.join('file://', __dirname, 'views/QuestRealm/editCharacter.html');
-  let editCharacterDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 800, height: 600});
+  let editCharacterDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 530, height: 640});
   editCharacterDialog.on('close', function() { editCharacterDialog = null });
 
   editCharacterDialog.webContents.once('did-finish-load', function() {
@@ -140,6 +141,31 @@ ipcMain.on('edit-character', (event, msg) => {
 ipcMain.on('save-edit-character', (event, msg) => {
   console.log("Received save-edit-character: " + JSON.stringify(msg));
   win.webContents.send('editCharacter-data', msg);
+});
+
+// The edit character inventory item dialog.
+ipcMain.on('edit-inventoryItem', (event, msg) => {
+  console.log("Received edit-inventoryItem: " + JSON.stringify(msg));
+
+  const editItemModelPath = path.join('file://', __dirname, 'views/QuestRealm/editInventoryItem.html');
+  let editItemDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 540, height: 410});
+  editItemDialog.on('close', function() { editItemDialog = null });
+
+  editItemDialog.webContents.once('did-finish-load', function() {
+    console.log("editInventoryItemDialog did-finish-load");
+    editItemDialog.webContents.send('init', msg);
+    editItemDialog.webContents.openDevTools();
+  });
+
+  editItemDialog.loadURL(editItemModelPath);
+  editItemDialog.show();
+});
+
+// Save pressed on the the edit inventory item dialog. Pass the saved data
+// back to the realm editor.
+ipcMain.on('save-edit-inventoryItem', (event, msg) => {
+  console.log("Received save-edit-inventoryItem: " + JSON.stringify(msg));
+  win.webContents.send('editInventoryItem-data', msg);
 });
 
 // Quit when all windows are closed.

@@ -227,11 +227,11 @@ ipc.on('editRealm-data', function (event, data) {
             x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
         var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
-        var newItem = thisCell[0].attributes.items[selectedItem.attr('data-index')];
-        newItem.name = $('#itemName').val().trim();
-        newItem.description = $('#itemDescription').text();
-        newItem.damage = $('#itemDamage').text();
-        thisCell[0].attributes.items[selectedItem.attr('data-index')] = newItem;
+        var itemToUpdate = thisCell[0].attributes.items[selectedItem.attr('data-index')];
+        itemToUpdate.name = data.name.trim();
+        itemToUpdate.description = data.description.trim();
+        itemToUpdate.damage = data.damage;
+
 		locationData.sync();
     });
 
@@ -267,16 +267,53 @@ ipc.on('editRealm-data', function (event, data) {
             x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
 
         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-        var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
-        newCharacter.name = $('#characterName').val().trim();
-        newCharacter.description = $('#characterDescription').text();
-        newCharacter.addInfo = $('#characterAddInfo').text();
-        newCharacter.damage = $('#characterDamage').text();
-        newCharacter.health = $('#characterHealth').text();
-        newCharacter.drops = $('#characterDrops').text();
-        thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
+        var characterToUpdate = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
+        characterToUpdate.name = data.name.trim();
+        characterToUpdate.description = data.description.trim();
+        characterToUpdate.addInfo = data.addInfo.trim();
+        characterToUpdate.damage = data.damage;
+        characterToUpdate.health = data.health;
+        characterToUpdate.drops = data.drops.trim();
+
 		locationData.sync();
     });
+
+    // The edit character inventory item dialog.
+    $("#editInventoryItemProperties").click(function() {
+        console.log("editInventoryItem click");
+        init_data = {'name': $('#inventoryItemName').val(),
+                     'type': $('#inventoryItemType').text(),
+                     'description': $('#inventoryItemDescription').text(),
+                     'damage': $('#inventoryItemDamage').text()};
+ 
+        // You can't send messages between renderers. You have to use main.js as a message gub.
+        ipc.send('edit-inventoryItem', init_data);
+     });
+ 
+     // Main is passing back the updated data when save is pressed on the edit item dialog.
+     ipc.on('editInventoryItem-data', function (event, data) {
+         console.log('realmEditor.js:editInventoryItem-data. data=' + JSON.stringify(data));
+         ipc.send('logmsg', 'realmEditor.js:editInventoryItem-data. data=' + JSON.stringify(data));
+         $('#inventoryItemName').val(data.name);
+         $('#inventoryItemDescription').text(data.description);
+         $('#inventoryItemDamage').text(data.damage);
+ 
+         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+         var thisCell = locationData.where({
+             x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
+ 
+         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+         var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
+
+         var selectInventoryItem = $('#inventoryItemList').find(".propertiesPanelItem.selected");
+         var inventoryItemToUpdate = newCharacter.inventory[selectInventoryItem.attr('data-index')];
+         inventoryItemToUpdate.name = data.name.trim();
+         inventoryItemToUpdate.description = data.description.trim();
+         inventoryItemToUpdate.damage = data.damage;
+
+         thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
+         locationData.sync();
+     });
 
     // The add objective form.
     $("#addObjective").click(function() {
