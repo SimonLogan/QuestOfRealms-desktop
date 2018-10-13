@@ -69,6 +69,15 @@ app.on('ready', createWindow);
 
 // Handle communication from other pages.
 
+ipcMain.on('edit-game', (event, args) => {
+  console.log("Received edit-game. args:" + JSON.stringify(args));
+  win.webContents.once('did-finish-load', function() {
+    win.webContents.send('editGame-data', args.data);
+    win.webContents.openDevTools();
+  });
+  win.loadURL(args.url);
+});
+
 ipcMain.on('edit-realm', (event, args) => {
   console.log("Received edit-realm. args:" + JSON.stringify(args));
   win.webContents.once('did-finish-load', function() {

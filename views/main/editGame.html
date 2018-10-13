@@ -1,0 +1,56 @@
+<!-- The edit game UI -->
+<!-- (c) Simon Logan 2017 -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <link rel="stylesheet" href="../../assets/styles/index.css">
+</head>
+<body>
+    <script type="text/javascript">window.$ = window.jQuery = require('jquery')</script>
+    <script type="text/javascript" src="../../assets/js/gameEditor/gameEditor.js"></script>
+    <script type="text/javascript" src="../../assets/js/realmEditor/realmUtils.js"></script>
+
+    <h1>Quest of Realms</h1>
+    <div id="page_title" style="margin-top: 10px;">Edit Game</div>
+    <input id="gameId" type="hidden">
+
+    <hr>
+    <div id="realmDesignsPanel">
+        <h2>Available Realms</h2>
+        <div>Realms are building blocks from which to assemble games.
+             Realms can be re-used in different games, and wired together in different orders.</div>
+        <br>
+        <div id="availableRealmsList"></div>
+    </div>
+    
+    <div id="createRealmDesignPanel" style="margin-top: 20px;">
+        <input type="button" id="showCreateRealmDesignButton" value="New Realm" />
+    
+        <div id="realmDesignContainer" style="display: none;">
+            <h2>Add New Realm</h2>
+            <div id="realmDesignForm">
+                <div class="inputRow"><label class="inputLabel" for="realmName">Name:</label><input type="text" id="realmName" /></div>
+                <div class="inputRow"><label class="inputLabel" for="realmDescription">Description:</label><input type="text" id="realmDescription" /></div>
+                <div class="inputRow"><label class="inputLabel" for="realmWidth">Width:</label><input type="number" id="realmWidth" /></div>
+                <div class="inputRow"><label class="inputLabel" for="realmHeight">Height:</label><input type="number" id="realmHeight" /></div>
+                <div class="inputRow"><input type="button" id="createRealmButton" value="Create!" /></div>
+            </div>
+        </div>
+    </div>
+    <hr>
+
+    <hr>
+
+    <div id="realmsInGamePanel">
+        <h2>Realms in the Game</h2>
+        <div id="gameRealmsList"></div>
+    </div>
+    
+    <div id="saveContainer" style="margin-top: 10px; display:none"><button id="saveButton" /></div>
+
+</body>
+</html>

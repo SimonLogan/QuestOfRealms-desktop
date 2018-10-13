@@ -19,7 +19,7 @@ function editRealmDesign(target) {
     // when drawing the page.
 
     var args = {url: 'file://' + __dirname + '/../QuestRealm/editRealm.html',
-                data: {id:target.closest('tr').attr('id')}};
+                data: {id: target.closest('tr').attr('id')}};
     if ($('#gameId').length) {
        // The gameId is for the breadcrumb trail to allow you to come back to the
        // referring page. The game editor will pass this. The front page won't.
@@ -31,7 +31,7 @@ function editRealmDesign(target) {
 
 
 // The "Delete" button was clicked on one of the Realm Designs table rows.
-function deleteRealmDesign(target, db_collections) {
+function deleteRealmDesign(target, db_collections, callback) {
     // The name of the realm is contained in one of the other <td> elements
     // of the row that contains the button that was clicked. Since this is a
     // sibling of the <td> that contained the button, we use $(target.closest('tr')
@@ -44,24 +44,9 @@ function deleteRealmDesign(target, db_collections) {
     // Show a dialog with "OK" and "Cancel" buttons. If you click "OK" it will call the
     // function below.
     if (confirm("Are you sure you want to delete realm " + realmName + "?")) {
-        db_collections.questrealms.remove ({_id:id}, {});
-
-        // Submit an AJAX POST request to the "/deleteRealm" route.
-        /*
-        $.post(
-            '/deleteRealm',
-            // passing in the id of the realm to delete.
-            {id: id},
-            // and when it completes, call this function.
-            function (data) {
-                // to re-display the Realm Designs table.
-                loadAndDisplayAvailableRealms();
-            }
-        ).fail(function(res){
-            // There was an error. Display a dialog to show it.
-            alert("Error: " + JSON.parse(res.responseText).error);
+        db_collections.questrealms.remove ({_id:id}, function (err, numRemoved) {
+            callback(numRemoved);
         });
-        */
     }
 }
 
@@ -77,22 +62,28 @@ function createRealmDesign(db_collections, callback) {
     var createDate = new Date();
 
     // Do it here for now.
+
     db_collections.questrealms.find({name : realmName}, function(err, realms) {
         console.log("createRealmDesign(" + realmName + ") found: " + JSON.stringify(realms));
 
-        if (0 == realms.length) {
-            console.log("Create new realm");
-            var newRealm = {
-                name: realmName,
-                description: realmDesc,
-                width: realmWidth,
-                height: realmHeight,
-                updatedAt: createDate
-            }
-
-            db_collections.questrealms.insert(newRealm);
+        if (realms.length > 0) {
+            alert("Realm name " + realmName + " already exists.");
             callback();
+            return;
         }
+
+        console.log("Create new realm");
+        var newRealm = {
+            name: realmName,
+            description: realmDesc,
+            width: realmWidth,
+            height: realmHeight,
+            updatedAt: createDate
+        }
+
+        db_collections.questrealms.insert(newRealm, function (err, dbRealm) {
+            callback(dbRealm);
+        });
     });
 
 

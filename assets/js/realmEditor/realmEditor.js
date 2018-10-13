@@ -1,7 +1,7 @@
 /**
  * Created by Simon on 05/02/2014.
  * This file implements the interactions for the realm editor page.
- * (c) Simon Logan
+ * (c) Simon Logan 2014
  */
 
 window.$ = window.jQuery = require('jquery');
@@ -143,6 +143,7 @@ var LocationsView = Backbone.View.extend({
 ipc.on('editRealm-data', function (event, data) {
     //ipc.send('logmsg', 'realmEditor.js:editRealm-data. data=' + JSON.stringify(data));
     realmId = data.id;
+    $('#breadcrumb').attr('data-gameId', data.gameId);
 
    // Load details of the supported environments, items, characters, and objectives.
    // Populate the various tool menus on the screen with this info.
@@ -403,7 +404,9 @@ ipc.on('editRealm-data', function (event, data) {
 
     // Navigate back.
     $(document).on('click', '#breadcrumb', function(e) {
-        ipc.send('frontpage');
+        var args = {url: 'file://' + __dirname + '/../main/editGame.html',
+                    data: {id: $('#breadcrumb').attr('data-gameId')}};
+        ipc.send('edit-game', args);
     });
     
     $(document).on('mouseenter', '.paletteItem', function() {

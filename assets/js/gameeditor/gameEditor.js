@@ -1,19 +1,58 @@
 /**
- * Created by Simon on 09/08/17.
+ * Created by Simon on 29/09/2018.
  * This file implements the interactions for the game editor page.
- * (c) Simon Logan
+ * (c) Simon Logan 2018
  */
+
+"use strict";
+
+window.$ = window.jQuery = require('jquery');
+require('jqueryui');
+const async = require('async');
+const ipc = require('electron').ipcRenderer;
+var Datastore = require('nedb');
+
+var db_collections = {
+    questrealms: null,
+    games: null
+}
 
 var gameData;
 var availableRealms = {};
 
-TableDisplayMode = {
+const TableDisplayMode = {
     SHOW_WHEN_EMPTY : 0,
     HIDE_WHEN_EMPTY : 1
 }
 
-// When the page has finished rendering...
-$(document).ready(function() {
+// Called when the realm editor is loaded.
+ipc.on('editGame-data', function (event, data) {
+    //ipc.send('logmsg', 'realmEditor.js:editRealm-data. data=' + JSON.stringify(data));
+
+   // Load the game and avaialble relams and call the functions below when they have been
+   // retrieved. You need to use this callback approach because the AJAX calls are
+   // asynchronous. This means the code here won't wait for them to complete,
+   // so you have to provide a function that can be called when the data is ready.
+   var x = new Date();
+   console.log("********** starting editGame-data " + x + "(" + Date.now() + ") **********")
+   async.parallel([
+        function(callback) {
+            openDB(callback);
+        },
+        function(callback) {
+            loadAndDisplayAvailableRealms(callback);
+        },
+        function(callback) {
+            loadAndDisplayGame(data.id, callback);
+        }
+    ],
+    function(err, results) {
+        // Create the tabbed panels
+        //$("#paletteInnerPanel").tabs();
+        //$("#propertiesInnerPanel").tabs();
+        if (!err) enableControls();
+    });
+
    // Get the id of the realm we're editing so that we can look it up with AJAX.
    // This value comes from the HTML element with id="realmId".
    // The jQuery selectors $(#XXX) below select the elements by id.
@@ -25,29 +64,28 @@ $(document).ready(function() {
    //        realm: {
    //            id: realm.id
    //       }
-   var gameId = $('#gameId').val();
-
-   // Load the game and avaialble relams and call the functions below when they have been
-   // retrieved. You need to use this callback approach because the AJAX calls are
-   // asynchronous. This means the code here won't wait for them to complete,
-   // so you have to provide a function that can be called when the data is ready.
-   async.parallel([
-       function(callback) {
-          loadAndDisplayAvailableRealms(callback);
-       },
-       function(callback) {
-          loadAndDisplayGame(callback);
-       },
-   ],
-   function(err, results) {
-      if (!err) enableControls();
-   });
+   //var gameId = $('#gameId').val();
 });
 
 
 //
 // Utility functions
 //
+
+function openDB(callback) {
+    var path = require('path');
+    var dbPath = path.join(__dirname, "../../db/");
+    ipc.send('logmsg', 'openDB:' + dbPath);
+
+    db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
+    ipc.send('logmsg', "after openDB, db_collections.questrealms = " + db_collections.questrealms);
+
+    db_collections.games = new Datastore({ filename: dbPath + '/games.db', autoload: true });
+    ipc.send('logmsg', "after openDB, db_collections.games = " + db_collections.games);
+
+    callback(null);
+}
+
 
 function enableControls() {
     $('#gameName').text("Game Designer: Editing game " + gameData.name);
@@ -67,7 +105,11 @@ function enableControls() {
 
      // Handle clicking the "Create!" button on the "New Realm" form.
     $('#createRealmButton').click(function() {
-        createRealmDesign();
+        createRealmDesign(db_collections, function(newRealm) {
+            $('#createRealmDesignPanel').hide();
+            availableRealms[newRealm._id] = newRealm;
+            displayAvailableRealms();
+        });
     });
 
     // Allow creation of new games by handling clicks on the "New Game" button.
@@ -103,7 +145,7 @@ function displayGameDetails(displayMode) {
     var row = 0;
     var body = "";
     for (var i = 0; i < gameData.realms.length; i++) {
-        var realmId = gameData.realms[i].templateRealmId;
+        var realmId = gameData.realms[i]._id;
         var rowClass = "realmListOddRow";
         if (0 == (++row % 2)) rowClass = "realmListEvenRow";
 
@@ -155,138 +197,186 @@ function displayGameDetails(displayMode) {
 }
 
 
-function loadAndDisplayGame(callback)
+function loadAndDisplayGame(gameId, callback)
 {
     console.log(Date.now() + ' loadAndDisplayGame');
 
-    $.get(
-        '/fetchGame',
-        { "id": $('#gameId').val() },
-        function (data) {
-            gameData = data;
-            displayGameDetails(TableDisplayMode.HIDE_WHEN_EMPTY);
-
-            // Let the caller know we're finished.
-            callback();
-        }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
-        callback("Failed to load games");
+    db_collections.games.find({_id: gameId}, function (err, data) {
+        ipc.send('logmsg', "loadGame found data: " + JSON.stringify(data));
+        gameData = data[0];
+        $('#gameId').val(gameData._id);
+        $('#page_title').text("Edit Game " + gameData.name);
+        displayGameDetails(TableDisplayMode.HIDE_WHEN_EMPTY);
+        callback(null);
     });
 }
 
 
-// Load the details of the existing realms from the server using the "/fetchRealms" API.
-// This URL is mapped to a controller on the server using a route in config/routes.js which tells
-// sails that a call to "/fetchRealms" should call the fetchRealms() function in QuestRealmController.js:
-//    '/fetchRealms' : {
-//        controller: 'questRealm',
-//            action: 'fetchRealms'
-//    }
-function loadAndDisplayAvailableRealms(callback) {
-    // Use jQuery to send an AJAX GET request to the server.
-    $.get(
-        // using the URL
-        '/fetchRealms',
-        // and when the server has a result it should call this function and pass the result
-        // in the "data" parameter.
-        function (data) {
-            // Create the body of the "Realm Designs" table.
-            var header = "<table class='realmList'>";
-            header += "<tr><th class='realmListName'>Name</th>";
-            header += "<th class='realmListDescription'>Description</th>";
-            header += "<th>Create Date</th>";
-            header += "<th>Edit</th>";
-            header += "<th>Delete</th>";
-            header += "<th>Add to Game</th>";
+function displayAvailableRealms() {
+    // Create the body of the "Realm Designs" table.
+    var header = "<table class='realmList'>";
+    header += "<tr><th class='realmListName'>Name</th>";
+    header += "<th class='realmListDescription'>Description</th>";
+    header += "<th>Create Date</th>";
+    header += "<th>Edit</th>";
+    header += "<th>Delete</th>";
+    header += "<th>Add to Game</th>";
 
-            // Removae any existing "add" button click handlers.
-            $('.editRealmDesign').off();
-            $('.deleteRealmDesign').off();
-            $('.addToGame').off();
+    // Remove any existing "add" button click handlers.
+    $('.editRealmDesign').off();
+    $('.deleteRealmDesign').off();
+    $('.addToGame').off();
 
-            // Add a row to the table for each realm that the server sent back.
-            var row = 0;
-            var body = "";
-            for (var i = 0; i < data.length; i++) {
-                availableRealms[data[i].id] = data[i];
-
-                var rowClass = "realmListOddRow";
-
-                // Make even numbered table rows a different colour.
-                if (0 == (++row % 2)) rowClass = "realmListEvenRow";
-                body += "<tr id='" + data[i].id + "' class='" + rowClass + "'>";
-                body += "<td>" + data[i].name + "</td>";
-                body += "<td>" + data[i].description + "</td>";
-                body += "<td>" + data[i].updatedAt + "</td>";
-                body += "<td><input type='button' class='editRealmDesign' value='Edit'/></td>";
-                body += "<td><input type='button' class='deleteRealmDesign' value='Delete'/></td>";
-                body += "<td align='center'><input type='button' class='addToGame' value='Add'/></td>";
-                body += "</tr>";
-            };
-
-            if (body.length === 0) {
-                $('#availableRealmsList').html("");
-                $('#realmDesignsPanel').hide();
-            } else {
-                // A jQuery selector $('#XXX') selects an HTML element using its 'id' attribute.
-                $('#availableRealmsList').html(header + body);
-                $('#realmDesignsPanel').show();
-
-                // Now add the new handler functions for the buttons on the new table rows.
-                $('.editRealmDesign').on('click', function () {
-                    editRealmDesign($(this));
-                });
-
-                $('.deleteRealmDesign').on('click', function () {
-                    deleteRealmDesign($(this));
-                });
-
-                $('.addToGame').on('click', function () {
-                    addToGame($(this));
-                });
-            }
-
-            if (callback) callback();
+    // Add a row to the table for each realm that the server sent back.
+    var row = 0;
+    var body = "";
+    for (var key in availableRealms)
+    {
+        if (!availableRealms.hasOwnProperty(key)) {
+            continue;
         }
-    // If the AJAX call fails it should call this function.
-    ).fail(function(res){
-        alert("Error: " + res.getResponseHeader("error"));
-        if (callback) callback("Failed to load realms");
+
+        var thisRealm = availableRealms[key];
+        var rowClass = "realmListOddRow";
+
+        // Make even numbered table rows a different colour.
+        if (0 == (++row % 2)) rowClass = "realmListEvenRow";
+        body += "<tr id='" + thisRealm._id + "' class='" + rowClass + "'>";
+        body += "<td>" + thisRealm.name + "</td>";
+        body += "<td>" + thisRealm.description + "</td>";
+        body += "<td>" + thisRealm.updatedAt.toLocaleString('en-GB') + "</td>";
+        body += "<td><input type='button' class='editRealmDesign' value='Edit'/></td>";
+        body += "<td><input type='button' class='deleteRealmDesign' value='Delete'/></td>";
+        body += "<td align='center'><input type='button' class='addToGame' value='Add'/></td>";
+        body += "</tr>";
+    };
+
+    if (body.length === 0) {
+        $('#availableRealmsList').html("");
+        //$('#realmDesignsPanel').hide();
+    } else {
+        // A jQuery selector $('#XXX') selects an HTML element using its 'id' attribute.
+        $('#availableRealmsList').html(header + body);
+        $('#realmDesignsPanel').show();
+
+        // Now add the new handler functions for the buttons on the new table rows.
+        $('.editRealmDesign').on('click', function () {
+            editRealmDesign($(this));
+        });
+
+        $('.deleteRealmDesign').on('click', function () {
+            var realmId = $(this).closest('tr').attr('id');
+            deleteRealmDesign($(this), db_collections, function(numRemoved) {
+                if (!numRemoved) {
+                    console.log("Failed to delete realm");
+                    return;
+                }
+
+                // Remove the deleted realm from the local collection rather
+                // than reloading all from the db.
+                for (var key in availableRealms)
+                {
+                    if (!availableRealms.hasOwnProperty(key)) {
+                        // Should never happen.
+                        continue;
+                    }
+
+                    if (key === realmId) {
+                        delete availableRealms[key];
+                        break;
+                    }
+                }
+
+                displayAvailableRealms();
+            });
+        });
+
+        $('.addToGame').on('click', function () {
+            addToGame($(this));
+        });
+    }
+}
+
+
+function loadAndDisplayAvailableRealms(callback) {
+    db_collections.questrealms.find({}, function (err, data) {
+        console.log("loadAndDisplayAvailableRealms found data: " + JSON.stringify(data));
+        
+        for (var i = 0; i < data.length; i++) {
+           availableRealms[data[i]._id] = data[i];
+        }
+
+        displayAvailableRealms();
+
+        if (callback) {
+            callback();
+        }
     });
+}
+
+
+// Check that the specified realm meets the criteria for inclusion in a game:
+// - it must have a valid "start at" objective.
+function checkRealm(realmId) {
+    console.log("********************* in checkRealm. id = " + realmId);
+
+    if (!realmId in availableRealms) {
+        // Should only happen if there is a programming error.
+        alert("Realm does not exist");
+    }
+
+    // Check the 'start at' objective.
+    // The realm must have at least a "start at" objective before a game can be created.
+    var realm = availableRealms[realmId];
+    var startPoint = null;
+    if (realm.objectives) {
+        for (var i = 0; i < realm.objectives.length; i++) {
+            if (realm.objectives[i].type === "Start at") {
+                startPoint = realm.objectives[i];
+                break;
+            }
+        }
+    }
+
+    if (null === startPoint) {
+        console.log("checkRealm: no \"start at\" objective set.");
+        alert("No \"start at\" objective set");
+        return false;
+    }
+
+    // Don't validate that the maplocation actually exists, as that was done when
+    // adding the "start at" objective.
+    // TODO: Could the location be removed after adding the objective?
+    console.log("checkRealm: realmId: " + realm._id +
+                " startpoint: " +
+                " x:" + startPoint.params[0].value +
+                " y:" + startPoint.params[1].value);
+
+    return true;
 }
 
 
 function addToGame(target) {
     console.log("Add to game");
     var gameId = $('#gameId').val();
-    var templateRealmId = target.closest("tr").attr('id');
+    var realmId = target.closest("tr").attr('id');
 
-    if ($('#gameRealmsList tr[data-templateRealmId=' + templateRealmId + ']').length === 1) {
+    if ($('#gameRealmsList tr[data-templateRealmId=' + realmId + ']').length === 1) {
        // The realm is already in the game.
        return;
     }
 
     // Check the realm to ensure it is valid for adding to the game.
     // If not, disable the button so the check doesn't have to be repeated.
-    $.post(
-        '/checkRealm',
-        { id: templateRealmId },
-        function (data) {
-            if (data.hasOwnProperty('error')) {
-               target.prop('disabled', true);
-               target.attr('title', data.error);
-               alert(data.error);
-               return;
-            }
+    if (!checkRealm(realmId)) {
+        // Will have already shown an error message.
+        return;
+    }
 
-            gameData.realms.push({templateRealmId: templateRealmId});
-            $('#saveContainer').show();
-            displayGameDetails();
-        }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
-    });
+    gameData.realms.push(availableRealms[realmId]);
+    $('#saveContainer').show();
+    $('#createRealmDesignPanel').hide();
+    displayGameDetails();
 }
 
 
