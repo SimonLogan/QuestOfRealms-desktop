@@ -20,10 +20,10 @@ function editRealmDesign(target) {
 
     var args = {url: 'file://' + __dirname + '/../QuestRealm/editRealm.html',
                 data: {id: target.closest('tr').attr('id')}};
-    if ($('#gameId').length) {
+    if ($('#breadcrumb').length) {
        // The gameId is for the breadcrumb trail to allow you to come back to the
        // referring page. The game editor will pass this. The front page won't.
-       args.data.gameId = $('#gameId').val();
+       args.data.gameId = $('#breadcrumb').attr('data-gameId');
     }
 
     ipc.send('edit-realm', args);

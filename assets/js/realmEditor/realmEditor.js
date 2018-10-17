@@ -8,7 +8,6 @@ window.$ = window.jQuery = require('jquery');
 require('jqueryui');
 const async = require('async');
 const ipc = require('electron').ipcRenderer;
-const BrowserWindow = require('electron').remote.BrowserWindow;
 const Backbone = require('backbone');
 var Datastore = require('nedb');
 var path = require('path');
@@ -795,8 +794,12 @@ function addMapLocation(realmId, droppedItem, originalLocation, newLocation)
 
     ipc.send('logmsg', 'addMapLocation(): updated locationData=' + JSON.stringify(locationData));
 
-    if (droppedItem.is('.mapItem'))
+    if (droppedItem.is('.mapItem')) {
         removeMapLocation(droppedItem.attr('data-x'), droppedItem.attr('data-y'));
+    }
+
+    locationData.sync();
+    //locationData.trigger('change', location[0]);
 }
 
 
@@ -807,6 +810,8 @@ function removeMapLocation(x, y)
     if (models.length > 0) {
         models[0].destroy();
         locationData.remove(models[0]);
+        locationData.sync();
+        //locationData.trigger('change', location[0]);
     }
 }
 
@@ -1006,7 +1011,6 @@ function removeCharacterInventoryItem(droppedItem) {
     characterData.inventory.splice(droppedItem.attr('data-index'), 1);
     locationData.sync();
     locationData.trigger('change', thisCell);
-    //displayLocationCharacterInventory(characterData);
 }
 
 

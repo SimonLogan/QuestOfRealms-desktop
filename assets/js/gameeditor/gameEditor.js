@@ -53,18 +53,10 @@ ipc.on('editGame-data', function (event, data) {
         if (!err) enableControls();
     });
 
-   // Get the id of the realm we're editing so that we can look it up with AJAX.
-   // This value comes from the HTML element with id="realmId".
-   // The jQuery selectors $(#XXX) below select the elements by id.
-   // The data was placed into this element in the first place by the template parameter
-   //    value="<%= realm.id %>"
-   // which gets its value from the data passed to the view function by editRealm() in
-   // api/controllers/QuestRealmcontroller.js:
-   //    return res.view("questRealm/editRealm", {
-   //        realm: {
-   //            id: realm.id
-   //       }
-   //var gameId = $('#gameId').val();
+    // Navigate back.
+    $(document).on('click', '#breadcrumb', function(e) {
+        ipc.send('frontpage');
+    });
 });
 
 
@@ -145,16 +137,16 @@ function displayGameDetails(displayMode) {
     var row = 0;
     var body = "";
     for (var i = 0; i < gameData.realms.length; i++) {
-        var realmId = gameData.realms[i]._id;
+        var realmId = gameData.realms[i];
         var rowClass = "realmListOddRow";
         if (0 == (++row % 2)) rowClass = "realmListEvenRow";
 
         // For now this table only displays the realm name and description, and we only
         // need to be able to add and remove realms from the game table. No need to store
         // any further details of the realm in this table.
-        // data-templateRealmId links to id on the available realms table, so we can
+        // data-realmId links to id on the available realms table, so we can
         // check if the row already exists in the game table.
-        body += "<tr data-templateRealmId='" + realmId + "' class='" + rowClass + "'>";
+        body += "<tr data-realmId='" + realmId + "' class='" + rowClass + "'>";
         body += "<td>" + availableRealms[realmId].name + "</td>";
         body += "<td>" + availableRealms[realmId].description + "</td>";
         body += "<td align='center'><input type='button' class='removeFromGame' value='Remove'/></td>";
@@ -204,9 +196,20 @@ function loadAndDisplayGame(gameId, callback)
     db_collections.games.find({_id: gameId}, function (err, data) {
         ipc.send('logmsg', "loadGame found data: " + JSON.stringify(data));
         gameData = data[0];
-        $('#gameId').val(gameData._id);
+        $('#breadcrumb').attr('data-gameId', gameData._id);
         $('#page_title').text("Edit Game " + gameData.name);
         displayGameDetails(TableDisplayMode.HIDE_WHEN_EMPTY);
+        callback(null);
+    });
+}
+
+
+function saveGame(callback)
+{
+    console.log(Date.now() + ' saveGame');
+    db_collections.games.update({_id: gameData._id}, gameData, {}, function (err, numReplaced) {
+        console.log("saveGame err:" + err);
+        console.log("saveGame numReplaced:" + numReplaced);
         callback(null);
     });
 }
@@ -358,10 +361,9 @@ function checkRealm(realmId) {
 
 function addToGame(target) {
     console.log("Add to game");
-    var gameId = $('#gameId').val();
     var realmId = target.closest("tr").attr('id');
 
-    if ($('#gameRealmsList tr[data-templateRealmId=' + realmId + ']').length === 1) {
+    if (gameData.realms.indexOf(realmId) >= 0) {
        // The realm is already in the game.
        return;
     }
@@ -373,102 +375,69 @@ function addToGame(target) {
         return;
     }
 
-    gameData.realms.push(availableRealms[realmId]);
-    $('#saveContainer').show();
-    $('#createRealmDesignPanel').hide();
-    displayGameDetails();
+    gameData.realms.push(realmId);
+    // Automatic save
+    saveGame(function() {
+        displayGameDetails();
+    });
 }
 
 
 function removeFromGame(target) {
     console.log("Remove from game");
-    var gameId = $('#gameId').val();
-    var templateRealmId = target.closest("tr").attr('data-templateRealmId');
+    var realmId = target.closest("tr").attr('data-realmId');
+    var gameRealmIndex = gameData.realms.indexOf(realmId);
+    if (gameRealmIndex < 0) {
+        // The realm is not in the game.
+        return;
+     }
 
-    if ($('#gameRealmsList tr[data-templateRealmId=' + templateRealmId + ']').length === 0) {
-       // The realm is not in the game.
-       return;
-    }
+    gameData.realms.splice(gameRealmIndex, 1);
 
-    for (var i = 0; i < gameData.realms.length; i++) {
-       if (gameData.realms[i].templateRealmId === templateRealmId) {
-           gameData.realms.splice(i, 1);
-           $('#saveContainer').show();
-           break;
-       }
-    }
-
+    // Automatic save
+    saveGame(function() {
     displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
+    return;
+    }) 
 }
 
 
 function moveRealmUp(target) {
     console.log("Move realm up");
-    var gameId = $('#gameId').val();
-    var templateRealmId = target.closest("tr").attr('data-templateRealmId');
-
-    if ($('#gameRealmsList tr[data-templateRealmId=' + templateRealmId + ']').length === 0) {
+    var realmId = target.closest("tr").attr('data-realmId');
+    var gameRealmIndex = gameData.realms.indexOf(realmId);
+    if (gameRealmIndex < 0) {
        // The realm is not in the game.
        return;
     }
 
     // If we're moving an item up, start searching at the 2nd position.
-    for (var i = 1; i < gameData.realms.length; i++) {
-       if (gameData.realms[i].templateRealmId === templateRealmId) {
-           var temp = gameData.realms[i - 1];
-           gameData.realms[i - 1] = gameData.realms[i];
-           gameData.realms[i] = temp;
-           $('#saveContainer').show();
-           break;
-       }
-    }
-
-    displayGameDetails();
+    var temp = gameData.realms[gameRealmIndex - 1];
+    gameData.realms[gameRealmIndex - 1] = gameData.realms[gameRealmIndex];
+    gameData.realms[gameRealmIndex] = temp;
+    // Automatic save
+    saveGame(function() {
+     displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
+     return;
+    });
 }
 
 
 function moveRealmDown(target) {
     console.log("Move realm down");
-    var gameId = $('#gameId').val();
-    var templateRealmId = target.closest("tr").attr('data-templateRealmId');
-
-    if ($('#gameRealmsList tr[data-templateRealmId=' + templateRealmId + ']').length === 0) {
+    var realmId = target.closest("tr").attr('data-realmId');
+    var gameRealmIndex = gameData.realms.indexOf(realmId);
+    if (gameRealmIndex < 0) {
        // The realm is not in the game.
        return;
     }
 
-    // If we're moving an item down, stop searching one position before the end.
-    for (var i = 0; i < gameData.realms.length - 1; i++) {
-       if (gameData.realms[i].templateRealmId === templateRealmId) {
-           var temp = gameData.realms[i + 1];
-           gameData.realms[i + 1] = gameData.realms[i];
-           gameData.realms[i] = temp;
-           $('#saveContainer').show();
-           break;
-       }
-    }
-
-    displayGameDetails();
+    var temp = gameData.realms[gameRealmIndex + 1];
+    gameData.realms[gameRealmIndex + 1] = gameData.realms[gameRealmIndex];
+    gameData.realms[gameRealmIndex] = temp;
+    // Automatic save
+    saveGame(function() {
+    displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
+    return;
+    })
 }
-
-
-function updateGameRealms(target) {
-    console.log("updateGameRealms");
-    var gameId = $('#gameId').val();
-
-    $.post(
-        '/updateGameRealms',
-        {
-            gameId: gameId,
-            realms: gameData.realms
-        },
-        function (data) {
-            $('#saveContainer').hide();
-            gameData = data;
-            displayGameDetails(TableDisplayMode.HIDE_WHEN_EMPTY);
-        }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
-    });
-}
-
