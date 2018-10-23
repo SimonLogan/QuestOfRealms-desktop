@@ -31,7 +31,7 @@ $(document).ready(function() {
            openDB(callback);
        },
        function(callback) {
-           loadGames(callback);
+            loadAndDisplayAvailableGames(callback);
        }
    ],
    function(err, results) {
@@ -75,55 +75,72 @@ function openDB(callback) {
 }
 
 
-function loadGames(callback) {
-    db_collections.games.find({}, function (err, data) {
-        console.log("loadGames found data: " + JSON.stringify(data));
+function displayAvailableGames() {
+    var header = "<table class='realmList'>";
+    header += "<tr><th class='realmListName'>Name</th>";
+    header += "<th class='realmListDescription'>Description</th>";
+    header += "<th>Create Date</th>";
+    header += "<th>Edit</th>";
+    header += "<th>Delete</th>";
 
-        var header = "<table class='realmList'>";
-        header += "<tr><th class='realmListName'>Name</th>";
-        header += "<th class='realmListDescription'>Description</th>";
-        header += "<th>Create Date</th>";
-        header += "<th>Edit</th>";
-        header += "<th>Delete</th>";
-
-        var row = 0;
-        var body = "";
-        data.forEach(function(game) {
-            var rowClass = "realmListOddRow";
-            if (0 == (++row % 2)) rowClass = "realmListEvenRow";
-            body += "<tr id='" + game._id + "' class='" + rowClass + "'>";
-            body += "<td class='gameName'>" + game.name + "</td>";
-            body += "<td>" + game.description + "</td>";
-
-            var updateTime = game.updatedAt.toLocaleDateString(
-                "en-GB", 
-                {day: 'numeric', month: 'long', year: 'numeric',
-                 hour:'numeric', minute:'numeric', second:'numeric'});
-            body += "<td>" + updateTime + "</td>";
-
-            body += "<td><input type='button' class='editGame' value='Edit'/></td>";
-            body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
-            body += "</tr>";
-        });
-
-        $('#gameList').html("");
-        $('.editGame').off();
-        $('.deleteGame').off();
-        $('.createInstance').off();
-
-        if (body.length > 0) {
-            $('#gameList').html(header + body);
-
-            $('.editGame').on('click', function () {
-                editGame($(this));
-            });
-
-            $('.deleteGame').on('click', function () {
-                deleteGame($(this));
-            });
+    var row = 0;
+    var body = "";
+    for (var key in availableGames)
+    {
+        if (!availableGames.hasOwnProperty(key)) {
+            continue;
         }
 
-        callback();
+        var thisGame = availableGames[key];
+        var rowClass = "realmListOddRow";
+        if (0 == (++row % 2)) rowClass = "realmListEvenRow";
+        body += "<tr id='" + thisGame._id + "' class='" + rowClass + "'>";
+        body += "<td class='gameName'>" + thisGame.name + "</td>";
+        body += "<td>" + thisGame.description + "</td>";
+
+        var updateTime = thisGame.updatedAt.toLocaleDateString(
+            "en-GB", 
+            {day: 'numeric', month: 'long', year: 'numeric',
+             hour:'numeric', minute:'numeric', second:'numeric'});
+        body += "<td>" + updateTime + "</td>";
+
+        body += "<td><input type='button' class='editGame' value='Edit'/></td>";
+        body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
+        body += "</tr>";
+    };
+
+    $('#gameList').html("");
+    $('.editGame').off();
+    $('.deleteGame').off();
+    $('.createInstance').off();
+
+    if (body.length > 0) {
+        $('#gameList').html(header + body);
+
+        $('.editGame').on('click', function () {
+            editGame($(this));
+        });
+
+        $('.deleteGame').on('click', function () {
+            deleteGame($(this));
+        });
+    }
+}
+
+
+function loadAndDisplayAvailableGames(callback) {
+    db_collections.games.find({}, function (err, data) {
+        console.log("loadAndDisplayAvailableGames found data: " + JSON.stringify(data));
+
+        for (var i = 0; i < data.length; i++) {
+            availableGames[data[i]._id] = data[i];
+         }
+ 
+         displayAvailableGames();
+ 
+         if (callback) {
+             callback();
+         }
     });
 }
 
@@ -209,18 +226,35 @@ function deleteGame(target) {
     // above for more details.
     var name = $(target.closest('tr').find('td')[0]).text();
     var id = target.closest('tr').attr('id');
-    if (confirm("Are you sure you want to delete game " + name)) {
-        $.post(
-            '/deleteGame',
-            {id: id},
-            function (data) {
-                loadGames();
-                loadGameInstances();
+
+    if (confirm("Are you sure you want to delete game " + name + "?")) {
+        db_collections.games.remove ({_id:id}, function (err, numRemoved) {
+            if (err) {
+                console.error("Failed to delete game. Error: " + err);
+                return;
             }
-        ).fail(function(res){
-            alert("Error: " + JSON.parse(res.responseText).error);
-            loadGames();
-            loadGameInstances();
+
+            if (!numRemoved) {
+                console.error("Failed to delete game.");
+                return;
+            }
+
+            // Remove the deleted realm from the local collection rather
+            // than reloading all from the db.
+            for (var key in availableGames)
+            {
+                if (!availableGames.hasOwnProperty(key)) {
+                    // Should never happen.
+                    continue;
+                }
+
+                if (key === id) {
+                    delete availableGames[key];
+                    break;
+                }
+            }
+
+            displayAvailableGames();
         });
     }
 }
