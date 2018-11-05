@@ -86,29 +86,6 @@ function createRealmDesign(db_collections, callback) {
         });
     });
 
-
-    // =========================================================
-    // Submit an AJAX POST request to create the realm.
-    // This is how the server version does it.
-    /*
-    $.post(
-        '/createRealm',
-        // passing in the required information
-        {
-            name: realmName,
-            description: realmDesc,
-            width: realmWidth,
-            height: realmHeight
-        },
-        // and if the creation is successful, launch the realm editor for the new realm.
-        function (data) {
-            window.location = "/editRealm?id=" + data.id + "&gameId=" + $('#gameId').val();
-        }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
-    });
-    */
-
     // Alternatively, use an electron-worker process. Not sure if this
     // is really needed.
     /*

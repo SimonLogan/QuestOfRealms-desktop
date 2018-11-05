@@ -25,7 +25,18 @@
         <div id="gameList"></div>
         <input type="button" id="showCreateGameButton" value="New Game" />
     </div>
-    
+
+    <div id="exportGamePanel" style="margin-top: 20px; display: none;">
+        <input type="hidden" id="exportGameId">
+        <h2>Export Game</h2>
+        Specify a name and optional description when exporting a playable game instance.
+        <div id="exportGameForm">
+            <div class="inputRow"><label class="inputLabel" for="gameName">Game Name:</label><input type="text" id="exportGameName"/></div>
+            <div class="inputRow"><label class="inputLabel" for="gameDescription">Description:</label><input type="text" id="exportGameDescription" /></div>
+            <div class="inputRow"><input type="button" id="exportGameButton" value="Export" /></div>
+        </div>
+    </div>
+
     <div id="createGamePanel" style="margin-top: 20px; display: none;">
         <h2>Create New Game</h2>
         <div id="newGameForm">

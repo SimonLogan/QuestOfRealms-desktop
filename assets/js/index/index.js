@@ -10,13 +10,13 @@ window.$ = window.jQuery = require('jquery');
 const async = require('async');
 const electron = require('electron');
 const ipc = electron.ipcRenderer;
-const BrowserWindow = electron.remote.BrowserWindow;
 
 var Datastore = require('nedb');
 var availableGames = {};
 
 var db_collections = {
-    questrealms: null
+    questrealms: null,
+    games: null
 }
 
 // When the page has finished rendering...
@@ -52,6 +52,20 @@ $(document).ready(function() {
    $('#createGameButton').click(function() {
       createGame()
    });
+
+   // Only enable the export game button if a name has been specified.
+   $('#exportGameName').on('keyup', function() {
+      if ($(this).val().trim()) {
+        $('#exportGameButton').prop('disabled', false);
+      } else {
+        $('#exportGameButton').prop('disabled', true);
+      }
+   });
+
+   // Handle clicking the "Export" button on the "Export game" form.
+   $('#exportGameButton').click(function() {
+      exportGame()
+   });
 });
 
 
@@ -68,6 +82,9 @@ function openDB(callback) {
     var path = require('path');
     var dbPath = path.join(__dirname, "../../db/");
 
+    db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
+    console.log("after openDB, db_collections.questrealms = " + db_collections.questrealms);
+
     db_collections.games = new Datastore({ filename: dbPath + '/games.db', autoload: true });
     console.log("after openDB, db_collections.games = " + db_collections.games);
 
@@ -82,6 +99,7 @@ function displayAvailableGames() {
     header += "<th>Create Date</th>";
     header += "<th>Edit</th>";
     header += "<th>Delete</th>";
+    header += "<th>Export</th>";
 
     var row = 0;
     var body = "";
@@ -106,13 +124,14 @@ function displayAvailableGames() {
 
         body += "<td><input type='button' class='editGame' value='Edit'/></td>";
         body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
+        body += "<td><input type='button' class='exportGame' value='Export'/></td>";
         body += "</tr>";
     };
 
     $('#gameList').html("");
     $('.editGame').off();
     $('.deleteGame').off();
-    $('.createInstance').off();
+    $('.exportGame').off();
 
     if (body.length > 0) {
         $('#gameList').html(header + body);
@@ -123,6 +142,13 @@ function displayAvailableGames() {
 
         $('.deleteGame').on('click', function () {
             deleteGame($(this));
+        });
+
+        $('.exportGame').on('click', function () {
+            // Record which game you are exporting.
+            $('#exportGameId').val($(this).closest('tr').attr('id'));
+            $('#exportGamePanel').show();
+            $('#exportGameButton').prop('disabled', true);
         });
     }
 }
@@ -257,4 +283,306 @@ function deleteGame(target) {
             displayAvailableGames();
         });
     }
+}
+
+
+// Clear any data that was typed into the "Export Game" form so that it is
+// blank the next time it is displayed.
+function cleanAndHideExportGamePanel()
+{
+    // Select the panel using its 'id' attribute.
+    var panel = $('#exportGamePanel');
+    panel.hide();
+    // Find all the text fields on the panel and clear their contents.
+    panel.find('input[type=text]').val('');
+}
+
+
+// Export the modules required by this game.
+function exportModules(tmpDir, moduleRequirements, exportCallback) {
+    console.log("export modules");
+    var fs = require('fs');
+    var targetPathRoot = path.join(tmpDir, "/modules");
+
+    fs.mkdir(targetPathRoot, {recursive: false}, (err) => {
+        if (err) {
+            exportCallback(err);
+            return;
+        }
+
+        var sourcePathRoot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+        var ncp = require('ncp').ncp;
+        ncp.limit = 16;
+    
+        async.forEachOf(
+            moduleRequirements.modules,
+            function(moduleDetails, moduleName, callback) {
+                if (!moduleRequirements.modules.hasOwnProperty(moduleName)) {           
+                    callback();
+                    return;
+                }
+
+                // Export the whole module.
+                var targetPath = path.join(targetPathRoot, moduleName);
+                var sourcePath = path.join(sourcePathRoot, moduleName);
+                console.log("trying to export module " + sourcePath + " to " + targetPath);
+
+                fs.mkdir(targetPath, {recursive: false}, (err) => {
+                    if (err) throw err;
+
+                    // Use ncp for recursive file copy.
+                    // https://www.npmjs.com/package/ncp
+                    ncp(sourcePath, targetPath, function (err) {
+                        if (err) {
+                            console.error(err);
+                            callback(err);
+                            return;
+                        }
+
+                        // Completed this module successfully.
+                        callback();
+                    });
+                });
+            },
+            function(err) {
+                exportCallback(err);
+            }
+        );
+    });
+}
+
+
+// Add the collectionItem <module / filename / type> hierarchy to the
+// modules collection if it does not already exist.
+function updateCollectionModules(collectionItem, modules) {
+    if (0 === collectionItem.length) {
+        return;
+    }
+
+    if (!(collectionItem.module in modules.modules)) {
+        modules.modules[collectionItem.module] = {};
+    }
+
+    if (!(collectionItem.filename in modules.modules[collectionItem.module])) {
+        modules.modules[collectionItem.module][collectionItem.filename] = [];
+    }
+
+    if (modules.modules[collectionItem.module][collectionItem.filename].indexOf(collectionItem.type) === -1) {
+        modules.modules[collectionItem.module][collectionItem.filename].push(collectionItem.type);
+    }
+}
+
+
+// Extract a unique set of all the modules required by this realm.
+function findRealmModules(newRealm, moduleRequirements) {
+    if (!moduleRequirements.hasOwnProperty('modules')) {
+        moduleRequirements['modules'] = {};
+    }
+
+    // Cover the environments for the map locations
+    newRealm.mapLocations.forEach(function(mapLocation) {
+        updateCollectionModules(mapLocation, moduleRequirements);
+
+        // Cover the items and characters from each map location.
+        mapLocation.items.forEach(function(item) {
+            updateCollectionModules(item, moduleRequirements);
+        });
+
+        mapLocation.characters.forEach(function(character) {
+            updateCollectionModules(character, moduleRequirements);
+        });
+    });
+
+    console.log("leaving updateRealmModules: " + JSON.stringify(moduleRequirements));
+}
+
+
+// Write a file that contains a list of all the
+// <module / filename / type> requirements of this game.
+// This is just a human-readable helpful guide - the system
+// won't use this file when importing a game, but will instead
+// generate the manifest at import time to be sure it is in sync
+// what the actual requirements from the database.
+function writeGameManifest(tmpdir, moduleRequirements) {
+    var fs = require('fs');
+
+    try {
+        fs.appendFileSync(tmpdir + '/manifest.json', JSON.stringify(moduleRequirements));
+        console.log('manifest.json created.');
+    } catch (err) {
+        /* Handle the error */
+        console.error("Failed to create manifest.json: " + err);
+    }
+}
+
+
+// Export the specified directory to a zipfile names gameName.zip
+// Uses archiver: https://www.npmjs.com/package/archiver
+function createZipFile(tmpDir, gameName, callback) {
+    // This code is based on the example from the archiver documentation.
+    var fs = require('fs');
+    var archiver = require('archiver');
+
+    // Create a file to stream archive data to.
+    var output = fs.createWriteStream(tmpDir + '/../' + gameName + '.zip');
+    var archive = archiver('zip', {
+        zlib: { level: 9 } // Sets the compression level.
+    });
+
+    // listen for all archive data to be written
+    // 'close' event is fired only when a file descriptor is involved
+    output.on('close', function() {
+        console.log(archive.pointer() + ' total bytes');
+        callback();
+    });
+
+    // This event is fired when the data source is drained no matter what was the data source.
+    // It is not part of this library but rather from the NodeJS Stream API.
+    // @see: https://nodejs.org/api/stream.html#stream_event_end
+    output.on('end', function() {
+        console.log('Data has been drained');
+    });
+
+    // Good practice to catch warnings (ie stat failures and other non-blocking errors)
+    archive.on('warning', function(err) {
+        if (err.code === 'ENOENT') {
+           // log warning
+        } else {
+           // throw error
+        throw err;
+        }
+    });
+    
+    // Good practice to catch this error explicitly
+    archive.on('error', function(err) {
+        throw err;
+    });
+ 
+    // Pipe archive data to the file
+    archive.pipe(output);
+
+    // Append files from a sub-directory, putting its contents at the root of archive
+    archive.directory(tmpDir, false);
+
+    // Finalize the archive (i.e. we are done appending files but streams have to finish yet)
+    // 'close', 'end' or 'finish' may be fired right after calling this method so register them beforehand
+    archive.finalize();
+}
+
+
+function exportGame() {
+    // Create a temporary working directory.
+    var fs = require('fs');
+    var os = require('os');
+
+    // https://nodejs.org/api/fs.html
+    fs.mkdtemp(path.join(os.tmpdir(), 'questexport-'), (err, tmpDir) => {
+        if (err) throw err;
+
+        // Export the game and the realms from the master db.
+        var gameId = $('#exportGameId').val().trim();
+        var gameDB = new Datastore({ filename: tmpDir + '/game.db', autoload: true });
+        var realmDB = new Datastore({ filename: tmpDir + '/questrealms.db', autoload: true });
+        var exportFileName = $('#exportGameName').val();
+
+        db_collections.games.find({'_id': gameId}, function (err, gameData) {    
+            if (err) {
+                console.error("Failed to find db");
+                return;
+            }
+    
+            // There are several steps in the game export process, which must happen
+            // in sequence, despite some being asynchronous.
+            async.waterfall([
+                function(callback) {
+                    // Export the game db entry.
+                    gameDB.insert(gameData[0], function (err, newGame) {
+                        if (err) {
+                            alert("Error: " + JSON.stringify(err));
+                            callback(err);
+                        }
+
+                        callback(null);
+                    });
+                },
+                function(callback) {
+                    // Export the realm db entries. Record the module dependencies
+                    // for use in subsequent stages.
+                    var moduleRequirements = {};
+
+                    // Iterate over the game realms, exporting each in turn.
+                    async.eachSeries(
+                        gameData[0].realms,
+                        function(realmId, callback) {    
+                            db_collections.questrealms.find({'_id': realmId}, function (err, realmData) {
+                                if (err) {
+                                    console.error("Failed to find realm " + realmId);
+                                    callback(err);
+                                }
+                                
+                                realmDB.insert(realmData[0], function (err, newRealm) {
+                                    if (err) {
+                                        alert("Error: " + JSON.stringify(err));
+                                        callback(err);
+                                    }
+
+                                    // Keep track of the module dependencies.
+                                    findRealmModules(newRealm, moduleRequirements);
+
+                                    // Move on to the next realm.
+                                    callback();
+                                });
+                            });
+                        },
+                        function(err) {
+                            // All done processing the realms, or aborted early with an error.
+                            console.log("realms done. err: " + err + ", modules: " + JSON.stringify(moduleRequirements));
+                            if (err) {
+                               callback(err);
+                               return;
+                            }
+
+                            callback(err, moduleRequirements)
+                        }
+                    );
+                },
+                function(moduleRequirements, callback) {
+                    // This function is synchronous, so no callback arg required.
+                    writeGameManifest(tmpDir, moduleRequirements);
+                    callback(null, moduleRequirements);
+                },
+                function(moduleRequirements, callback) {
+                    // This function is asynchronous, so needs a callback arg.
+                    exportModules(tmpDir, moduleRequirements, function(err) {
+                        callback(err);
+                    });
+                },
+                function(callback) {
+                    console.log("before create zip file");
+                    createZipFile(tmpDir, exportFileName, function() {
+                        console.log("after create zip file");
+                        callback();
+                    });
+                },
+                function(callback) {
+                    console.log("remove tmpdir");
+                    var rimraf = require('rimraf');
+                    rimraf(tmpDir, function(err) {
+                        callback(err);
+                    });
+                }
+            ],
+            function(err) {
+                // All done processing the games and realms, or aborted early with an error.
+                if (err) {
+                    console.error("Failed to export game: " + err);
+                    return;
+                }
+
+                console.log("all done.");
+                cleanAndHideExportGamePanel();
+                alert("Exported game to " + os.tmpdir() + "/" + exportFileName);
+            });
+        });
+    });
 }
