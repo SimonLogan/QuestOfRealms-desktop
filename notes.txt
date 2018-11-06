@@ -262,7 +262,9 @@ Make the app into a deployable exe.
 npm install electron-packager --save-dev
 
 Update package.json to add platform-specific deployment scripts:
-See the electron packaging tutorial from Christian Engvall. Copy and paste the example scripts:
+See the electron packaging tutorial from Christian Engvall. 
+https://www.christianengvall.se/electron-packager-tutorial/
+Copy and paste the example scripts:
 
   "scripts": {
     "start": "electron .",
@@ -271,11 +273,20 @@ See the electron packaging tutorial from Christian Engvall. Copy and paste the e
     "package-linux": "electron-packager . electron-tutorial-app --overwrite --asar=true --platform=linux --arch=x64 --icon=assets/icons/png/1024x1024.png --prune=true --out=release-builds"
   },
 
-ico format seems to be the same as png format.
+Make a png image and convert to .ico with https://www.online-convert.com
 
 npm run package-win
 ..
 Wrote new app to release-builds\electron-tutorial-app-win32-ia32
+
+Yo ucan't use local paths in the packages app. Use:
+var electron = require('electron');
+const app = electron.remote.app;
+var dbPath = app.getPath('userData') + "/db/";
+
+This will choose
+C:\Users\Simon\AppData\Roaming\questofrealms-designer-desktop/db/
+for both dev and packages versions.
 
 ===================
 

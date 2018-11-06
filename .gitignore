@@ -52,3 +52,6 @@ bower_components
 
 # Data
 db
+
+# Compiled binaries
+release-builds

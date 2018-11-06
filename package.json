@@ -4,13 +4,15 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "package-win": "electron-packager . QuestOfRealms-designer --overwrite --platform=win32 --arch=ia32 --icon=assets/icons/win/icon.ico --prune=true --out=release-builds --version-string.CompanyName=CE --version-string.FileDescription=\"Quest Of Realms designer.\" --version-string.ProductName=\"QuestOfRealms-designer\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "electron": "2.0.0"
+    "electron": "2.0.0",
+    "electron-packager": "^12.2.0"
   },
   "dependencies": {
     "archiver": "^3.0.0",

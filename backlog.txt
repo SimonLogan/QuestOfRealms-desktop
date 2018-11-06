@@ -1,0 +1,13 @@
+Backlog
+
+Game editor
+===========
+
+- Add Mac & Linux scripts for compiling Electron binaries.
+- Code tidyup.
+
+
+Player
+======
+
+Not yet implemented.

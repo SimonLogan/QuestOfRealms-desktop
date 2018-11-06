@@ -79,8 +79,10 @@ function enableControls() {
 
 
 function openDB(callback) {
-    var path = require('path');
-    var dbPath = path.join(__dirname, "../../db/");
+    var electron = require('electron');
+    const app = electron.remote.app;
+    var dbPath = app.getPath('userData') + "/db/";
+    console.log("opendb path " + dbPath);
 
     db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
     console.log("after openDB, db_collections.questrealms = " + db_collections.questrealms);
