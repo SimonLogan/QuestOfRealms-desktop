@@ -213,7 +213,7 @@ function createGame() {
         console.log("created game: " + JSON.stringify(newGame));
 
         // Build a URL to invoke the game editor.
-        var args = {url: 'file://' + __dirname + '/editGame.html',
+        var args = {url: 'file://' + __dirname + '/../gameEditor/editGame.html',
                     data: {id: newGame._id}};
         ipc.send('edit-game', args);
     });
@@ -229,7 +229,7 @@ function editGame(target) {
     var gameId = target.closest('tr').attr('id');
 
     // Send an ipc command to the main window to tell it to load new html.
-    var args = {url: 'file://' + __dirname + '/editGame.html',
+    var args = {url: 'file://' + __dirname + '/../gameEditor/editGame.html',
                 data: {id: gameId}};
     ipc.send('edit-game', args);
 }

@@ -13,12 +13,12 @@ function editRealmDesign(target) {
     // was clicked. The jQuery selector target.closest('tr') traverses the
     // parents of the element that was clicked until it finds one of type "<tr>".
     // "window.location =" will redirect the user to the new web page. In this case
-    // the "/editRealm" route (in config/routes.js) will render the questRealm/editRealm
+    // the "/editRealm" route (in config/routes.js) will render the realmEditor/editRealm
     // view instead of returning JSON data. This view will pass the realm data to
-    // views/questRealm/editRealm.ejs where it can be referenced using template parameters
+    // views/realmEditor/editRealm.ejs where it can be referenced using template parameters
     // when drawing the page.
 
-    var args = {url: 'file://' + __dirname + '/../QuestRealm/editRealm.html',
+    var args = {url: 'file://' + __dirname + '/../realmEditor/editRealm.html',
                 data: {id: target.closest('tr').attr('id')}};
     if ($('#breadcrumb').length) {
        // The gameId is for the breadcrumb trail to allow you to come back to the

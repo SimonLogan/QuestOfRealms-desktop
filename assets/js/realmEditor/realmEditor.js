@@ -403,7 +403,7 @@ ipc.on('editRealm-data', function (event, data) {
 
     // Navigate back.
     $(document).on('click', '#breadcrumb', function(e) {
-        var args = {url: 'file://' + __dirname + '/../main/editGame.html',
+        var args = {url: 'file://' + __dirname + '/../gameEditor/editGame.html',
                     data: {id: $('#breadcrumb').attr('data-gameId')}};
         ipc.send('edit-game', args);
     });

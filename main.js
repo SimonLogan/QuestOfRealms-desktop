@@ -106,7 +106,7 @@ ipcMain.on('logmsg', (event, msg) => {
 ipcMain.on('edit-item', (event, msg) => {
   console.log("Received edit-item: " + JSON.stringify(msg));
 
-  const editItemModelPath = path.join('file://', __dirname, 'views/QuestRealm/editItem.html');
+  const editItemModelPath = path.join('file://', __dirname, 'views/realmEditor/editItem.html');
   let editItemDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 540, height: 410});
   editItemDialog.on('close', function() { editItemDialog = null });
 
@@ -131,7 +131,7 @@ ipcMain.on('save-edit-item', (event, msg) => {
 ipcMain.on('edit-character', (event, msg) => {
   console.log("Received edit-character: " + JSON.stringify(msg));
 
-  const editCharacterModelPath = path.join('file://', __dirname, 'views/QuestRealm/editCharacter.html');
+  const editCharacterModelPath = path.join('file://', __dirname, 'views/realmEditor/editCharacter.html');
   let editCharacterDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 530, height: 640});
   editCharacterDialog.on('close', function() { editCharacterDialog = null });
 
@@ -156,7 +156,7 @@ ipcMain.on('save-edit-character', (event, msg) => {
 ipcMain.on('edit-inventoryItem', (event, msg) => {
   console.log("Received edit-inventoryItem: " + JSON.stringify(msg));
 
-  const editItemModelPath = path.join('file://', __dirname, 'views/QuestRealm/editInventoryItem.html');
+  const editItemModelPath = path.join('file://', __dirname, 'views/realmEditor/editInventoryItem.html');
   let editItemDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 540, height: 410});
   editItemDialog.on('close', function() { editItemDialog = null });
 
@@ -182,7 +182,7 @@ var editObjectiveDialog;
 ipcMain.on('add-objective', (event, msg) => {
   console.log("Received add-objective: " + JSON.stringify(msg));
 
-  const editObjectiveModelPath = path.join('file://', __dirname, 'views/QuestRealm/editObjective.html');
+  const editObjectiveModelPath = path.join('file://', __dirname, 'views/realmEditor/editObjective.html');
   editObjectiveDialog = new BrowserWindow({ frame: false, transparent: true, alwaysOnTop: true, width: 530, height: 370});
   editObjectiveDialog.on('close', function() { editObjectiveDialog = null });
 

@@ -5,7 +5,21 @@ Game editor
 
 - Add Mac & Linux scripts for compiling Electron binaries.
 - Code tidyup.
-
+- Fix db access error
+  Occasionally when navigating between index, game, realm you see an error like this
+  Uncaught TypeError: Cannot read property 'name' of undefined
+    at displayGameDetails (file:///C:/Users/Simon/Documents/GitHub/QuestOfRealms-desktop/assets/js/gameEditor/gameEditor.js:150:51)
+    at file:///C:/Users/Simon/Documents/GitHub/QuestOfRealms-desktop/assets/js/gameEditor/gameEditor.js:201:9
+    at newArguments.(anonymous function) (C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\lib\executor.js:29:17)
+    at Cursor.execFn (C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\lib\datastore.js:484:12)
+    at callback (C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\lib\cursor.js:126:19)
+    at C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\lib\cursor.js:193:12
+    at C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\lib\datastore.js:329:14
+    at Object.async.eachSeries (C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\node_modules\async\lib\async.js:130:20)
+    at C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\lib\datastore.js:323:11
+    at fn (C:\Users\Simon\Documents\GitHub\QuestOfRealms-desktop\node_modules\nedb\node_modules\async\lib\async.js:582:34)
+   I suspect a race between the nedb internal housekeeping and the loading of the dbs separately on each screen.
+   I think we need central db management - possibly using the electron worker thread.
 
 Player
 ======
