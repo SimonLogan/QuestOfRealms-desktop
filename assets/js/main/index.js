@@ -10,14 +10,9 @@ window.$ = window.jQuery = require('jquery');
 const async = require('async');
 const electron = require('electron');
 const ipc = electron.ipcRenderer;
-
 var Datastore = require('nedb');
+const dbWrapper = require('../../assets/js/utils/dbWrapper');
 var availableGames = {};
-
-var db_collections = {
-    questrealms: null,
-    games: null
-}
 
 // When the page has finished rendering...
 $(document).ready(function() {
@@ -26,12 +21,12 @@ $(document).ready(function() {
    // retrieved. You need to use this callback approach because the AJAX calls are
    // asynchronous. This means the code here won't wait for them to complete,
    // so you have to provide a function that can be called when the data is ready.
-   async.parallel([
+   async.waterfall([
        function(callback) {
-           openDB(callback);
+           dbWrapper.openDB(callback);
        },
        function(callback) {
-            loadAndDisplayAvailableGames(callback);
+           loadAndDisplayAvailableGames(callback);
        }
    ],
    function(err, results) {
@@ -75,22 +70,6 @@ $(document).ready(function() {
 
 function enableControls() {
     console.log("enableControls");
-}
-
-
-function openDB(callback) {
-    var electron = require('electron');
-    const app = electron.remote.app;
-    var dbPath = app.getPath('userData') + "/db/";
-    console.log("opendb path " + dbPath);
-
-    db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
-    console.log("after openDB, db_collections.questrealms = " + db_collections.questrealms);
-
-    db_collections.games = new Datastore({ filename: dbPath + '/games.db', autoload: true });
-    console.log("after openDB, db_collections.games = " + db_collections.games);
-
-    callback();
 }
 
 
@@ -157,6 +136,7 @@ function displayAvailableGames() {
 
 
 function loadAndDisplayAvailableGames(callback) {
+    var db_collections = dbWrapper.getDBs();
     db_collections.games.find({}, function (err, data) {
         console.log("loadAndDisplayAvailableGames found data: " + JSON.stringify(data));
 
@@ -204,6 +184,8 @@ function createGame() {
        realms: [],
        updatedAt: new Date(Date.now())
     };
+
+    var db_collections = dbWrapper.getDBs();
     db_collections.games.insert(game, function (err, newGame) {
         if (err) {
             alert("Error: " + JSON.stringify(err));
@@ -256,6 +238,7 @@ function deleteGame(target) {
     var id = target.closest('tr').attr('id');
 
     if (confirm("Are you sure you want to delete game " + name + "?")) {
+        var db_collections = dbWrapper.getDBs();
         db_collections.games.remove ({_id:id}, function (err, numRemoved) {
             if (err) {
                 console.error("Failed to delete game. Error: " + err);
@@ -487,6 +470,7 @@ function exportGame() {
         var realmDB = new Datastore({ filename: tmpDir + '/questrealms.db', autoload: true });
         var exportFileName = $('#exportGameName').val();
 
+        var db_collections = dbWrapper.getDBs();
         db_collections.games.find({'_id': gameId}, function (err, gameData) {    
             if (err) {
                 console.error("Failed to find db");

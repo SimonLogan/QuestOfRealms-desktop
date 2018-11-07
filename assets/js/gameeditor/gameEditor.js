@@ -10,12 +10,7 @@ window.$ = window.jQuery = require('jquery');
 require('jqueryui');
 const async = require('async');
 const ipc = require('electron').ipcRenderer;
-var Datastore = require('nedb');
-
-var db_collections = {
-    questrealms: null,
-    games: null
-}
+const dbWrapper = require('../../assets/js/utils/dbWrapper');
 
 var gameData;
 var availableRealms = {};
@@ -35,9 +30,9 @@ ipc.on('editGame-data', function (event, data) {
    // so you have to provide a function that can be called when the data is ready.
    var x = new Date();
    console.log("********** starting editGame-data " + x + "(" + Date.now() + ") **********")
-   async.parallel([
+   async.waterfall([
         function(callback) {
-            openDB(callback);
+            dbWrapper.openDB(callback);
         },
         function(callback) {
             loadAndDisplayAvailableRealms(callback);
@@ -62,23 +57,6 @@ ipc.on('editGame-data', function (event, data) {
 // Utility functions
 //
 
-function openDB(callback) {
-    var electron = require('electron');
-    const app = electron.remote.app;
-    var dbPath = app.getPath('userData') + "/db/";
-    console.log("opendb path " + dbPath);
-    ipc.send('logmsg', 'openDB:' + dbPath);
-
-    db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
-    ipc.send('logmsg', "after openDB, db_collections.questrealms = " + db_collections.questrealms);
-
-    db_collections.games = new Datastore({ filename: dbPath + '/games.db', autoload: true });
-    ipc.send('logmsg', "after openDB, db_collections.games = " + db_collections.games);
-
-    callback(null);
-}
-
-
 function enableControls() {
     $('#gameName').text("Game Designer: Editing game " + gameData.name);
 
@@ -97,7 +75,7 @@ function enableControls() {
 
      // Handle clicking the "Create!" button on the "New Realm" form.
     $('#createRealmButton').click(function() {
-        createRealmDesign(db_collections, function(newRealm) {
+        createRealmDesign(function(newRealm) {
             $('#createRealmDesignPanel').hide();
             availableRealms[newRealm._id] = newRealm;
             displayAvailableRealms();
@@ -193,6 +171,7 @@ function loadAndDisplayGame(gameId, callback)
 {
     console.log(Date.now() + ' loadAndDisplayGame');
 
+    var db_collections = dbWrapper.getDBs();
     db_collections.games.find({_id: gameId}, function (err, data) {
         ipc.send('logmsg', "loadGame found data: " + JSON.stringify(data));
         gameData = data[0];
@@ -207,6 +186,8 @@ function loadAndDisplayGame(gameId, callback)
 function saveGame(callback)
 {
     console.log(Date.now() + ' saveGame');
+
+    var db_collections = dbWrapper.getDBs();
     db_collections.games.update({_id: gameData._id}, gameData, {}, function (err, numReplaced) {
         console.log("saveGame err:" + err);
         console.log("saveGame numReplaced:" + numReplaced);
@@ -269,7 +250,7 @@ function displayAvailableRealms() {
 
         $('.deleteRealmDesign').on('click', function () {
             var realmId = $(this).closest('tr').attr('id');
-            deleteRealmDesign($(this), db_collections, function(numRemoved) {
+            deleteRealmDesign($(this), function(numRemoved) {
                 if (!numRemoved) {
                     console.log("Failed to delete realm");
                     return;
@@ -302,6 +283,7 @@ function displayAvailableRealms() {
 
 
 function loadAndDisplayAvailableRealms(callback) {
+    var db_collections = dbWrapper.getDBs();
     db_collections.questrealms.find({}, function (err, data) {
         console.log("loadAndDisplayAvailableRealms found data: " + JSON.stringify(data));
         

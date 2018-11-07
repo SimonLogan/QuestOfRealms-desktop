@@ -31,7 +31,7 @@ function editRealmDesign(target) {
 
 
 // The "Delete" button was clicked on one of the Realm Designs table rows.
-function deleteRealmDesign(target, db_collections, callback) {
+function deleteRealmDesign(target, callback) {
     // The name of the realm is contained in one of the other <td> elements
     // of the row that contains the button that was clicked. Since this is a
     // sibling of the <td> that contained the button, we use $(target.closest('tr')
@@ -44,6 +44,7 @@ function deleteRealmDesign(target, db_collections, callback) {
     // Show a dialog with "OK" and "Cancel" buttons. If you click "OK" it will call the
     // function below.
     if (confirm("Are you sure you want to delete realm " + realmName + "?")) {
+        var db_collections = dbWrapper.getDBs();
         db_collections.questrealms.remove ({_id:id}, function (err, numRemoved) {
             callback(numRemoved);
         });
@@ -52,7 +53,7 @@ function deleteRealmDesign(target, db_collections, callback) {
 
 
 // The "Create!" button on the "New Realm Design" form was pressed.
-function createRealmDesign(db_collections, callback) {
+function createRealmDesign(callback) {
     // Select the values the user supplied using the id attributes of the relevant
     // screen fields.
     var realmName = $('#realmName').val().trim();
@@ -62,7 +63,7 @@ function createRealmDesign(db_collections, callback) {
     var createDate = new Date();
 
     // Do it here for now.
-
+    var db_collections = dbWrapper.getDBs();
     db_collections.questrealms.find({name : realmName}, function(err, realms) {
         console.log("createRealmDesign(" + realmName + ") found: " + JSON.stringify(realms));
 

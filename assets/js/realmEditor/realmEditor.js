@@ -9,7 +9,7 @@ require('jqueryui');
 const async = require('async');
 const ipc = require('electron').ipcRenderer;
 const Backbone = require('backbone');
-var Datastore = require('nedb');
+const dbWrapper = require('../../assets/js/utils/dbWrapper');
 var path = require('path');
 var pluginsPath = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 var mgrPath = path.join(__dirname, "../../assets/js/backend/pluginManager.js");
@@ -22,10 +22,6 @@ var envPaletteData;
 var itemPaletteData;
 var characterPaletteData;
 var objectivePaletteData;
-
-var db_collections = {
-    questrealms: null
-}
 
 PaletteItemType = {
     ENV : 0,
@@ -153,7 +149,7 @@ ipc.on('editRealm-data', function (event, data) {
    console.log("********** starting editRealm-data " + x + "(" + Date.now() + ") **********")
    async.parallel([
         function(callback) {
-            openDB(callback);
+            dbWrapper.openDB(callback);
         },
         function(callback) {
             loadEnvPalette(callback);
@@ -674,23 +670,6 @@ ipc.on('editRealm-data', function (event, data) {
 //
 // Utility functions
 //
-
-function openDB(callback) {
-    var electron = require('electron');
-    const app = electron.remote.app;
-    var dbPath = app.getPath('userData') + "/db/";
-    console.log("opendb path " + dbPath);
-    ipc.send('logmsg', 'openDB:' + dbPath);
-
-    db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
-    ipc.send('logmsg', "after openDB, db_collections.questrealm = " + db_collections.questrealms);
-
-    db_collections.games = new Datastore({ filename: dbPath + '/games.db', autoload: true });
-    ipc.send('logmsg', "after openDB, db_collections.games = " + db_collections.games);
-
-    callback(null);
-}
-
 
 function drawMapLocation(item) {
     // Update the local display with the message data.
@@ -1587,6 +1566,7 @@ function loadObjectivesPalette(callback) {
 function loadRealm(realmId, callback) {
     ipc.send('logmsg', 'load realm ' + realmId);
 
+    var db_collections = dbWrapper.getDBs();
     db_collections.questrealms.find({_id: realmId}, function (err, data) {
         ipc.send('logmsg', "loadRealm found data: " + JSON.stringify(data));
         realmData = data[0];
@@ -1752,6 +1732,7 @@ function displayObjectives()
 function saveRealm(callback)
 {
     console.log(Date.now() + ' saveRealm');
+    var db_collections = dbWrapper.getDBs();
     db_collections.questrealms.update({_id: realmId}, realmData, {}, function (err, numReplaced) {
         console.log("saveRealm err:" + err);
         console.log("saveRealm numReplaced:" + numReplaced);
