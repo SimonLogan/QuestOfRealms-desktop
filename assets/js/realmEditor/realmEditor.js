@@ -147,7 +147,7 @@ ipc.on('editRealm-data', function (event, data) {
    // characters tabs won't display correctly.
    var x = new Date();
    console.log("********** starting editRealm-data " + x + "(" + Date.now() + ") **********")
-   async.parallel([
+   async.waterfall([
         function(callback) {
             dbWrapper.openDB(callback);
         },
