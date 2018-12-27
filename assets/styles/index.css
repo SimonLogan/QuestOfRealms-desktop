@@ -38,3 +38,7 @@ label.inputLabel {
     width:100px;
     display:inline-block
 }
+
+.panelStyle {
+    margin-top: 20px;
+}

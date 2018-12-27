@@ -14,7 +14,7 @@ module.exports = {
     openDB: function (callback) {
         var electron = require('electron');
         const app = electron.remote.app;
-        var dbPath = app.getPath('userData') + "/db/";
+        var dbPath = app.getPath('userData') + "/QuestOfRealms/designer/db/";
         console.log("opendb path " + dbPath + ", __dirname " + __dirname);
 
         db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });

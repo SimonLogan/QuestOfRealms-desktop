@@ -12,26 +12,44 @@ const electron = require('electron');
 const ipc = electron.ipcRenderer;
 var Datastore = require('nedb');
 const dbWrapper = require('../../assets/js/utils/dbWrapper');
-var availableGames = {};
+var availableGameDesigns = {};
+var availableGames = [];
 
 // When the page has finished rendering...
 $(document).ready(function() {
+    // Load the data and call the functions below when it has been
+    // retrieved. You need to use this callback approach because the AJAX calls are
+    // asynchronous. This means the code here won't wait for them to complete,
+    // so you have to provide a function that can be called when the data is ready.
+    // TODO: Only do this the first time design mode is selected.
+    async.waterfall([
+        function(callback) {
+            dbWrapper.openDB(callback);
+        },
+        function(callback) {
+            loadAndDisplayAvailableGameDesigns(callback);
+        },
+        function(callback) {
+            loadAndDisplayAvailableGames(callback);
+        },
+    ],
+    function(err, results) {
+        if (!err) enableControls();
+    });
 
-   // Load the avaialble games and call the functions below when they have been
-   // retrieved. You need to use this callback approach because the AJAX calls are
-   // asynchronous. This means the code here won't wait for them to complete,
-   // so you have to provide a function that can be called when the data is ready.
-   async.waterfall([
-       function(callback) {
-           dbWrapper.openDB(callback);
-       },
-       function(callback) {
-           loadAndDisplayAvailableGames(callback);
-       }
-   ],
-   function(err, results) {
-      if (!err) enableControls();
-   });
+    $('#designMode').on('click', function() {
+        $(this).prop('disabled', true);
+        $('#designContainer').show();
+        $('#gameMode').prop('disabled', false);
+        $('#playContainer').hide();
+    });
+
+    $('#gameMode').on('click', function() {
+        $(this).prop('disabled', true);
+        $('#playContainer').show();
+        $('#designMode').prop('disabled', false);
+        $('#designContainer').hide();
+    });
 
    // Allow creation of new games by handling clicks on the "New Game" button.
    // The jQuery selector $('#showCreateGameButton') selects the button by its "id" attribute.
@@ -39,7 +57,7 @@ $(document).ready(function() {
        console.log("showCreateGameButton.press");
       // $(this) is the button you just clicked.
       $(this).hide();
-      $('#createGamePanel').show();
+      $('#createGameDesignPanel').show();
       $('#createGameButton').prop('disabled', false);
    });
 
@@ -59,8 +77,31 @@ $(document).ready(function() {
 
    // Handle clicking the "Export" button on the "Export game" form.
    $('#exportGameButton').click(function() {
-      exportGame()
+      exportGame();
    });
+
+
+   // Handle clicking the "Import" button on the Game form.
+   $('#importGameButton').click(function() {
+      const {dialog} = require('electron').remote;
+
+      dialog.showOpenDialog({
+          properties: ['openFile']
+      }, function (chosenPath) {
+          if (chosenPath !== undefined) {
+              importGame(chosenPath[0], function(err, gameName) {
+                  if (err) {
+                      alert(err);
+                      return;
+                  }
+
+                  // Refresh the games table.
+                  loadAndDisplayAvailableGames(function() {});
+              });
+          }
+      });
+   });
+
 });
 
 
@@ -70,10 +111,15 @@ $(document).ready(function() {
 
 function enableControls() {
     console.log("enableControls");
+    var controls = ['#designMode', '#gameMode', '#showCreateGameButton', '#createGameButton', '#exportGameButton'];
+    for (var i = 0; i < controls.length; i++) {
+        $(controls[i]).prop('disabled', false);
+        $(controls[i]).attr('title', '');
+    }
 }
 
 
-function displayAvailableGames() {
+function displayAvailableGameDesigns() {
     var header = "<table class='realmList'>";
     header += "<tr><th class='realmListName'>Name</th>";
     header += "<th class='realmListDescription'>Description</th>";
@@ -84,13 +130,13 @@ function displayAvailableGames() {
 
     var row = 0;
     var body = "";
-    for (var key in availableGames)
+    for (var key in availableGameDesigns)
     {
-        if (!availableGames.hasOwnProperty(key)) {
+        if (!availableGameDesigns.hasOwnProperty(key)) {
             continue;
         }
 
-        var thisGame = availableGames[key];
+        var thisGame = availableGameDesigns[key];
         var rowClass = "realmListOddRow";
         if (0 == (++row % 2)) rowClass = "realmListEvenRow";
         body += "<tr id='" + thisGame._id + "' class='" + rowClass + "'>";
@@ -103,29 +149,29 @@ function displayAvailableGames() {
              hour:'numeric', minute:'numeric', second:'numeric'});
         body += "<td>" + updateTime + "</td>";
 
-        body += "<td><input type='button' class='editGame' value='Edit'/></td>";
-        body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
-        body += "<td><input type='button' class='exportGame' value='Export'/></td>";
+        body += "<td><input type='button' class='editGameDesign' value='Edit'/></td>";
+        body += "<td><input type='button' class='deleteGameDesign' value='Delete'/></td>";
+        body += "<td><input type='button' class='exportGameDesign' value='Export'/></td>";
         body += "</tr>";
     };
 
-    $('#gameList').html("");
-    $('.editGame').off();
-    $('.deleteGame').off();
-    $('.exportGame').off();
+    $('#gameDesignList').html("");
+    $('.editGameDesign').off();
+    $('.deleteGameDesign').off();
+    $('.exportGameDesign').off();
 
     if (body.length > 0) {
-        $('#gameList').html(header + body);
+        $('#gameDesignList').html(header + body);
 
-        $('.editGame').on('click', function () {
-            editGame($(this));
+        $('.editGameDesign').on('click', function () {
+            editGameDesign($(this));
         });
 
-        $('.deleteGame').on('click', function () {
-            deleteGame($(this));
+        $('.deleteGameDesign').on('click', function () {
+            deleteGameDesign($(this));
         });
 
-        $('.exportGame').on('click', function () {
+        $('.exportGameDesign').on('click', function () {
             // Record which game you are exporting.
             $('#exportGameId').val($(this).closest('tr').attr('id'));
             $('#exportGamePanel').show();
@@ -135,21 +181,103 @@ function displayAvailableGames() {
 }
 
 
-function loadAndDisplayAvailableGames(callback) {
+function displayAvailableGames() {
+    console.log(JSON.stringify(availableGames));
+
+    var header = "<table class='realmList'>";
+    header += "<tr><th class='realmListName'>Name</th>";
+    header += "<th class='realmListDescription'>Description</th>";
+    header += "<th>Play</th>";
+    header += "<th>Delete</th>";
+
+    var row = 0;
+    var body = "";
+    for (var i=0; i<availableGames.length; i++)
+    {
+        var thisGame = availableGames[i];
+        var rowClass = "realmListOddRow";
+        if (0 == (++row % 2)) rowClass = "realmListEvenRow";
+        body += "<tr id='" + i + "' class='" + rowClass + "'>";
+        body += "<td class='gameName'>" + thisGame.manifest.name + "</td>";
+        body += "<td>" + thisGame.manifest.description + "</td>";
+        body += "<td><input type='button' class='playGame' value='Play'/></td>";
+        body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
+        body += "</tr>";
+    };
+
+    $('#gameList').html("");
+    $('.deleteGame').off();
+    $('.playGame').off();
+
+    if (body.length > 0) {
+        $('#gameList').html(header + body);
+
+        $('.deleteGame').on('click', function () {
+            deleteGame($(this));
+        });
+
+        $('.playGame').on('click', function () {
+            // Record which game you are exporting.
+            //$('#exportGameId').val($(this).closest('tr').attr('id'));
+            //$('#exportGamePanel').show();
+            //$('#exportGameButton').prop('disabled', true);
+        });
+    }
+}
+
+
+// Game designs (in design mode).
+function loadAndDisplayAvailableGameDesigns(callback) {
     var db_collections = dbWrapper.getDBs();
     db_collections.games.find({}, function (err, data) {
-        console.log("loadAndDisplayAvailableGames found data: " + JSON.stringify(data));
+        console.log("loadAndDisplayAvailableGameDesigns found data: " + JSON.stringify(data));
 
         for (var i = 0; i < data.length; i++) {
-            availableGames[data[i]._id] = data[i];
+            availableGameDesigns[data[i]._id] = data[i];
          }
  
-         displayAvailableGames();
+         displayAvailableGameDesigns();
  
          if (callback) {
              callback();
          }
     });
+}
+
+
+// Playable games (in game mode).
+function loadAndDisplayAvailableGames(callback) {
+    const app = electron.remote.app;
+    var gameBasedir = app.getPath('userData') + "/games/";
+
+    // from https://stackoverflow.com/questions/18112204/get-all-directories-within-directory-nodejs
+    const { lstatSync, readdirSync } = require('fs');
+    const path = require('path');
+    const isDirectory = source => lstatSync(path.resolve(gameBasedir, source)).isDirectory();
+    // is equivalent to
+    // const isDirectory = function(source) { return lstatSync(path.resolve(gameBasedir, source)).isDirectory() };
+    // I don't find the shorter syntax terribly helpful.
+
+    const getDirectories = source => readdirSync(source).filter(isDirectory);
+    var res = getDirectories(gameBasedir);
+    availableGames = [];
+    $.each(res, function(index, dirname) {
+        var gamePath = path.join(gameBasedir, dirname);
+        console.log("Checking game at path:" + gamePath);
+
+        var manifest = readManifest(gamePath);
+        if (0 === Object.keys(manifest).length) {
+           console.error("Ignoring path " + gamePath + " - Failed to read manifest.json.");
+           return;
+        }
+
+        availableGames.push({'dir': dirname, 'manifest': manifest});
+    });
+
+    // This need to wait until the manifests have been read.
+    // Ideally change readManifest() to be synchronous. 
+    displayAvailableGames();
+    callback();
 }
 
 
@@ -161,9 +289,9 @@ function createGame() {
     // $.each() is a jQuery function to iterate over a collection, calling the supplied
     // function for each entry, passing in the array index and the array value.
     // We supply the collection using a jQuery selector that looks for a <td> with class
-    // "gameName" on each row of any table inside the gameList div.
+    // "gameName" on each row of any table inside the gameDesignList div.
     var nameExists = false;
-    $.each($('#gameList tr td.gameName'), function (index, value) {
+    $.each($('#gameDesignList tr td.gameName'), function (index, value) {
         if ($(value).text() == gameName) {
             nameExists = true;
             return false; // Stop looping
@@ -175,7 +303,7 @@ function createGame() {
         return;
     }
 
-    cleanAndHideCreateGamePanel();
+    cleanAndHideCreateGameDesignPanel();
 
     // Create an empty game.
     var game = {
@@ -202,8 +330,8 @@ function createGame() {
 }
 
 
-// The "Edit" button was clicked on one of the Games table rows.
-function editGame(target) {
+// The "Edit" button was clicked on one of the Game designs table rows.
+function editGameDesign(target) {
     // Build a URL to invoke the game editor, passing the id of the row that
     // was clicked. The jQuery selector target.closest('tr') traverses the
     // parents of the element that was clicked until it finds one of type "<tr>",
@@ -219,13 +347,55 @@ function editGame(target) {
 
 // Clear any data that was typed into the "Create Game" form so that it is
 // blank the next time it is displayed.
-function cleanAndHideCreateGamePanel()
+function cleanAndHideCreateGameDesignPanel()
 {
     // Select the panel using its 'id' attribute.
-    var panel = $('#createGamePanel');
+    var panel = $('#createGameDesignPanel');
     panel.hide();
     // Find all the text fields on the panel and clear their contents.
     panel.find('input[type=text]').val('');
+}
+
+
+// The "Delete" button was pressed on a row in the "Game Designs" table.
+function deleteGameDesign(target) {
+    // Find the name and id of the game design in question by navigating to
+    // the relevent form elements. See the explanations of jQuery selectors
+    // above for more details.
+    var name = $(target.closest('tr').find('td')[0]).text();
+    var id = target.closest('tr').attr('id');
+
+    if (confirm("Are you sure you want to delete game design " + name + "?")) {
+        var db_collections = dbWrapper.getDBs();
+        db_collections.games.remove ({_id:id}, function (err, numRemoved) {
+            if (err) {
+                console.error("Failed to delete game design. Error: " + err);
+                return;
+            }
+
+            if (!numRemoved) {
+                console.error("Failed to delete game design.");
+                return;
+            }
+
+            // Remove the deleted realm from the local collection rather
+            // than reloading all from the db.
+            for (var key in availableGameDesigns)
+            {
+                if (!availableGameDesigns.hasOwnProperty(key)) {
+                    // Should never happen.
+                    continue;
+                }
+
+                if (key === id) {
+                    delete availableGameDesigns[key];
+                    break;
+                }
+            }
+
+            displayAvailableGameDesigns();
+        });
+    }
 }
 
 
@@ -235,37 +405,12 @@ function deleteGame(target) {
     // relevent form elements. See the explanations of jQuery selectors
     // above for more details.
     var name = $(target.closest('tr').find('td')[0]).text();
-    var id = target.closest('tr').attr('id');
-
     if (confirm("Are you sure you want to delete game " + name + "?")) {
-        var db_collections = dbWrapper.getDBs();
-        db_collections.games.remove ({_id:id}, function (err, numRemoved) {
-            if (err) {
-                console.error("Failed to delete game. Error: " + err);
-                return;
+        var id = target.closest('tr').attr('id');
+        removeGameDirectory(id, function(err) {
+            if (!err) {
+                displayAvailableGames();
             }
-
-            if (!numRemoved) {
-                console.error("Failed to delete game.");
-                return;
-            }
-
-            // Remove the deleted realm from the local collection rather
-            // than reloading all from the db.
-            for (var key in availableGames)
-            {
-                if (!availableGames.hasOwnProperty(key)) {
-                    // Should never happen.
-                    continue;
-                }
-
-                if (key === id) {
-                    delete availableGames[key];
-                    break;
-                }
-            }
-
-            displayAvailableGames();
         });
     }
 }
@@ -280,6 +425,29 @@ function cleanAndHideExportGamePanel()
     panel.hide();
     // Find all the text fields on the panel and clear their contents.
     panel.find('input[type=text]').val('');
+}
+
+
+// Remove the game from the filesystem.
+function removeGameDirectory(gameId, callback) {
+    const app = electron.remote.app;
+    var gameDir = app.getPath('userData') + "/games/" + availableGames[gameId].dir;
+    console.log("removeGameDirectory game name: " +
+                availableGames[gameId].manifest.name +
+                ", dir: " + gameDir);
+
+    var rimraf = require('rimraf');
+    rimraf(gameDir, function(err) {
+        if (err) {
+            var errMsg = "Failed to remove game directory " + gameDir;
+            console.error(errMsg);
+            callback(errMsg);
+            return;
+        }
+
+        availableGames.splice(gameId, 1);
+        callback();
+    });
 }
 
 
@@ -388,11 +556,11 @@ function findRealmModules(newRealm, moduleRequirements) {
 // won't use this file when importing a game, but will instead
 // generate the manifest at import time to be sure it is in sync
 // what the actual requirements from the database.
-function writeGameManifest(tmpdir, moduleRequirements) {
+function writeGameManifest(tmpdir, manifestData) {
     var fs = require('fs');
 
     try {
-        fs.appendFileSync(tmpdir + '/manifest.json', JSON.stringify(moduleRequirements));
+        fs.appendFileSync(tmpdir + '/manifest.json', JSON.stringify(manifestData));
         console.log('manifest.json created.');
     } catch (err) {
         /* Handle the error */
@@ -455,10 +623,11 @@ function createZipFile(tmpDir, gameName, callback) {
 }
 
 
-function exportGame() {
+function exportGame_orig() {
     // Create a temporary working directory.
     var fs = require('fs');
     var os = require('os');
+    const app = electron.remote.app;
 
     // https://nodejs.org/api/fs.html
     fs.mkdtemp(path.join(os.tmpdir(), 'questexport-'), (err, tmpDir) => {
@@ -488,13 +657,16 @@ function exportGame() {
                             callback(err);
                         }
 
-                        callback(null);
+                        callback(null, newGame);
                     });
                 },
-                function(callback) {
+                function(newGame, callback) {
                     // Export the realm db entries. Record the module dependencies
                     // for use in subsequent stages.
-                    var moduleRequirements = {};
+                    var manifestData = {
+                        'name': newGame.name,
+                        'description': newGame.description,
+                    };
 
                     // Iterate over the game realms, exporting each in turn.
                     async.eachSeries(
@@ -513,7 +685,7 @@ function exportGame() {
                                     }
 
                                     // Keep track of the module dependencies.
-                                    findRealmModules(newRealm, moduleRequirements);
+                                    findRealmModules(newRealm, manifestData);
 
                                     // Move on to the next realm.
                                     callback();
@@ -522,24 +694,24 @@ function exportGame() {
                         },
                         function(err) {
                             // All done processing the realms, or aborted early with an error.
-                            console.log("realms done. err: " + err + ", modules: " + JSON.stringify(moduleRequirements));
+                            console.log("realms done. err: " + err + ", modules: " + JSON.stringify(manifestData));
                             if (err) {
                                callback(err);
                                return;
                             }
 
-                            callback(err, moduleRequirements)
+                            callback(err, manifestData)
                         }
                     );
                 },
-                function(moduleRequirements, callback) {
+                function(manifestData, callback) {
                     // This function is synchronous, so no callback arg required.
-                    writeGameManifest(tmpDir, moduleRequirements);
-                    callback(null, moduleRequirements);
+                    writeGameManifest(tmpDir, manifestData);
+                    callback(null, manifestData);
                 },
-                function(moduleRequirements, callback) {
+                function(manifestData, callback) {
                     // This function is asynchronous, so needs a callback arg.
-                    exportModules(tmpDir, moduleRequirements, function(err) {
+                    exportModules(tmpDir, manifestData, function(err) {
                         callback(err);
                     });
                 },
@@ -569,6 +741,270 @@ function exportGame() {
                 cleanAndHideExportGamePanel();
                 alert("Exported game to " + os.tmpdir() + "/" + exportFileName);
             });
+        });
+    });
+}
+
+function exportGame() {
+    // Create a temporary working directory.
+    var fs = require('fs');
+    const app = electron.remote.app;
+    var gameBasedir = app.getPath('userData') + "/exported-games/";
+
+    // Export the game and the realms from the master db.
+    var exportFileName = $('#exportGameName').val();
+    var gameDir = path.join(gameBasedir, exportFileName);
+    var gameId = $('#exportGameId').val().trim();
+
+    var db_collections = dbWrapper.getDBs();
+    db_collections.games.find({'_id': gameId}, function (err, gameData) {    
+        if (err) {
+            console.error("Failed to find db");
+            return;
+        }
+
+        // There are several steps in the game export process, which must happen
+        // in sequence, despite some being asynchronous.
+        async.waterfall([
+            function(callback) {
+                var fullExportFileName = path.join(gameBasedir, exportFileName + ".zip");
+                fs.access(fullExportFileName, fs.constants.F_OK, function(err) {
+                    console.log(`${fullExportFileName} ${err ? 'does not exist' : 'exists'}`);
+                    if (err) {
+                        if (err.code === "ENOENT") {
+                            // Good, we want it to not exist.
+                            callback(null);
+                        } else {
+                            callback(err);
+                        }
+                    } else {
+                        callback(`Game ${fullExportFileName} already exists.`);
+                    }
+                });
+            },
+            // Should be able to do the mkdir in one step with the { recursive: true }
+            // option to fs.mkdir() but that isn't working in the current version
+            // of node.
+            function(callback) {
+                fs.mkdir(gameBasedir, function(err) {
+                    if (err && err.code !== "EEXIST") {
+                        console.log("Info: " + JSON.stringify(err));
+                    }
+
+                    callback(null);
+                });
+            },
+            function(callback) {
+                fs.mkdir(gameDir, function(err) {
+                    if (err) {
+                        alert("Error: " + JSON.stringify(err));
+                    }
+
+                    callback(err);
+                });
+            },
+            function(callback) {
+                // Export the game db entry.
+                var gameDB = new Datastore({ filename: gameDir + '/game.db', autoload: true });
+
+                gameDB.insert(gameData[0], function (err, newGame) {
+                    if (err) {
+                        alert("Error: " + JSON.stringify(err));
+                        callback(err);
+                    }
+
+                    callback(null, newGame);
+                });
+            },
+            function(newGame, callback) {
+                // Export the realm db entries. Record the module dependencies
+                // for use in subsequent stages.
+                var manifestData = {
+                    'name': newGame.name,
+                    'description': newGame.description,
+                };
+
+                // Iterate over the game realms, exporting each in turn.
+                async.eachSeries(
+                    gameData[0].realms,
+                    function(realmId, callback) {    
+                        db_collections.questrealms.find({'_id': realmId}, function (err, realmData) {
+                            if (err) {
+                                console.error("Failed to find realm " + realmId);
+                                callback(err);
+                            }
+                            
+                            var realmDB = new Datastore({ filename: gameDir + '/questrealms.db', autoload: true });
+                            realmDB.insert(realmData[0], function (err, newRealm) {
+                                if (err) {
+                                    alert("Error: " + JSON.stringify(err));
+                                    callback(err);
+                                }
+
+                                // Keep track of the module dependencies.
+                                findRealmModules(newRealm, manifestData);
+
+                                // Move on to the next realm.
+                                callback();
+                            });
+                        });
+                    },
+                    function(err) {
+                        // All done processing the realms, or aborted early with an error.
+                        console.log("realms done. err: " + err + ", modules: " + JSON.stringify(manifestData));
+                        if (err) {
+                            callback(err);
+                            return;
+                        }
+
+                        callback(err, manifestData)
+                    }
+                );
+            },
+            function(manifestData, callback) {
+                // This function is synchronous, so no callback arg required.
+                writeGameManifest(gameDir, manifestData);
+                callback(null, manifestData);
+            },
+            function(manifestData, callback) {
+                // This function is asynchronous, so needs a callback arg.
+                exportModules(gameDir, manifestData, function(err) {
+                    callback(err);
+                });
+            },
+            function(callback) {
+                console.log("before create zip file");
+                createZipFile(gameDir, exportFileName, function() {
+                    console.log("after create zip file");
+                    callback();
+                });
+            },
+            function(callback) {
+                console.log("remove tmpdir");
+                var rimraf = require('rimraf');
+                rimraf(gameDir, function(err) {
+                    callback(err);
+                });
+            }
+        ],
+        function(err) {
+            // All done processing the games and realms, or aborted early with an error.
+            if (err) {
+                console.error("Failed to export game: " + err);
+                alert("Failed to export game: " + err);
+                return;
+            }
+
+            console.log("all done.");
+            cleanAndHideExportGamePanel();
+            alert("Exported game to " + gameDir);
+        });
+    });
+}
+
+// Extract the specified zipfile
+// Uses decompress-zip: https://www.npmjs.com/package/decompress-zip
+function extractZipFile(gameBasedir, filename, callback) {
+    var fs = require('fs');
+
+    // https://nodejs.org/api/fs.html
+    fs.mkdtemp(gameBasedir, (err, tmpDir) => {
+        if (err) throw err;
+
+        console.log("game tempdir: " + tmpDir);
+
+        var DecompressZip = require('decompress-zip');
+        var unzipper = new DecompressZip(filename)
+        
+        unzipper.on('error', function (err) {
+            console.log('Caught an error');
+            callback(err)
+        });
+        
+        unzipper.on('extract', function (log) {
+            console.log('Finished extracting');
+            callback(null, tmpDir)
+        });
+
+        unzipper.on('progress', function (fileIndex, fileCount) {
+            console.log('Extracted file ' + (fileIndex + 1) + ' of ' + fileCount);
+        });
+        
+        unzipper.extract({
+            path: tmpDir,
+            filter: function (file) {
+                console.log("File: " + JSON.stringify(file));
+                return file.type !== "SymbolicLink";
+            }
+        });
+    });
+}
+
+
+function readManifest(dir) {
+    const fs = require('fs');
+
+    var manifest = fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8');
+    // How to detect an error?
+
+    manifest = JSON.parse(manifest);
+    console.log("manifest: " + JSON.stringify(manifest));
+    if (!manifest.name) {
+        console.error("No name in manifest.json.");
+        return {};
+    }
+
+    return manifest;
+}
+
+
+function importGame(filename, callback) {
+    // Create a temporary working directory.
+    var fs = require('fs');
+    const app = electron.remote.app;
+    var gameBasedir = app.getPath('userData') + "/games/";
+    console.log("gameBasedir: " + gameBasedir);
+    
+    // Ensure the game parent directory exists.
+    if (!fs.existsSync(gameBasedir)) {
+        fs.mkdirSync(gameBasedir);
+    }
+
+    extractZipFile(gameBasedir, filename, function(err, tmpDir) {
+        console.log("Post-extraction");
+        if (err) {
+            callback("Failed to extract game. error:" + err);
+            return;
+        }
+
+        console.log("Extracted game into " + tmpDir);
+
+        // Read the game name from manifest.json
+        var manifest = readManifest(tmpDir);
+        if (0 === Object.keys(manifest).length) {
+            // TODO: clean up the tmp dir.
+            callback("Failed to read manifest.json.");
+            return;
+        }
+
+        // Security check - ensure the name hasn't been edited to
+        // try and break out of the games sandbox.
+        if (manifest.name.indexOf('../') !== -1) {
+            callback("Invalid name '" + manifest.name + "' in manifest.json.");
+            return;
+        }
+
+        var newGameName = path.join(path.dirname(tmpDir), manifest.name);
+        console.log("rename " + tmpDir + " to " + newGameName);
+
+        fs.rename(tmpDir, newGameName, function(err) {
+            if (err) {
+                // TODO: clean up the tmp dir.
+                callback("Failed to rename " + tmpDir + " to " + newGameName + ", err: " + err);
+                return;
+            }
+
+            callback(null, manifest.name);
         });
     });
 }

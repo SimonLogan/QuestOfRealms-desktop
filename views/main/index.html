@@ -18,31 +18,51 @@
     <!--<div><a href="credits">Credits</a></div>-->
     <div style="margin-top: 10px;">Start page</div>
 
-    <hr>
-    <div id="gamesPanel">
-        <h2>Games</h2>
-        <div>These are designs for games.</div>
-        <div id="gameList"></div>
-        <input type="button" id="showCreateGameButton" value="New Game" />
+    <div id="modePanel">
+        <h3>Choose mode</h3>
+        <button id="designMode" disabled title="Loading data...">Design mode</button>
+        <button id="gameMode" disabled title="Loading data...">Game mode</button>
     </div>
 
-    <div id="exportGamePanel" style="margin-top: 20px; display: none;">
-        <input type="hidden" id="exportGameId">
-        <h2>Export Game</h2>
-        Specify a name and optional description when exporting a playable game instance.
-        <div id="exportGameForm">
-            <div class="inputRow"><label class="inputLabel" for="gameName">Game Name:</label><input type="text" id="exportGameName"/></div>
-            <div class="inputRow"><label class="inputLabel" for="gameDescription">Description:</label><input type="text" id="exportGameDescription" /></div>
-            <div class="inputRow"><input type="button" id="exportGameButton" value="Export" /></div>
+    <hr>
+
+    <div id="designContainer" style="display: none;">
+        <div id="gameDesignsPanel" class="panelStyle">
+            <h2>Game designs</h2>
+            <div>These are designs for games. You can export a game design as a playable game instance.</div>
+            <div id="gameDesignList"></div>
+            <div class="panelStyle">
+                <input type="button" id="showCreateGameButton" value="New game design" />
+            </div>
+        </div>
+
+        <div id="exportGamePanel" class="panelStyle" style="display:none">
+            <input type="hidden" id="exportGameId">
+            <h2>Export playable game</h2>
+            Specify a name and optional description when exporting a playable game instance.
+            <div id="exportGameForm">
+                <div class="inputRow"><label class="inputLabel" for="gameName">Game Name:</label><input type="text" id="exportGameName"/></div>
+                <div class="inputRow"><label class="inputLabel" for="gameDescription">Description:</label><input type="text" id="exportGameDescription" /></div>
+                <div class="inputRow"><input type="button" id="exportGameButton" value="Export" /></div>
+            </div>
+        </div>
+
+        <div id="createGameDesignPanel" class="panelStyle" style="display:none">
+            <h2>Create new game design</h2>
+            <div id="newGameForm">
+                <div class="inputRow"><label class="inputLabel" for="gameName">Name:</label><input type="text" id="gameName" /></div>
+                <div class="inputRow"><label class="inputLabel" for="gameDescription">Description:</label><input type="text" id="gameDescription" /></div>
+                <div class="inputRow"><input type="button" id="createGameButton" value="Create" /></div>
+            </div>
         </div>
     </div>
 
-    <div id="createGamePanel" style="margin-top: 20px; display: none;">
-        <h2>Create New Game</h2>
-        <div id="newGameForm">
-            <div class="inputRow"><label class="inputLabel" for="gameName">Game Name:</label><input type="text" id="gameName" /></div>
-            <div class="inputRow"><label class="inputLabel" for="gameDescription">Description:</label><input type="text" id="gameDescription" /></div>
-            <div class="inputRow"><input type="button" id="createGameButton" value="Create" /></div>
+    <div id="playContainer" style="display: none;">
+        <div id="gamesPanel" class="panelStyle">
+            <h2>Games</h2>
+            <div>These are playable games.</div>
+            <div id="gameList"></div>
+            <input type="button" id="importGameButton" value="Import Game" />
         </div>
     </div>
 </body>
