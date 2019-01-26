@@ -77,14 +77,24 @@ $(document).ready(function() {
 
    // Handle clicking the "Export" button on the "Export game" form.
    $('#exportGameButton').click(function() {
-      exportGame();
+    const {dialog} = require('electron').remote;
+    dialog.showOpenDialog({
+        properties: ['openDirectory']
+    }, function (chosenPath) {
+        if (chosenPath !== undefined) {
+            exportGame(chosenPath[0], function(err) {
+                if (err) {
+                    alert(err);
+                    return;
+                }
+            });
+        }
+    });
    });
-
 
    // Handle clicking the "Import" button on the Game form.
    $('#importGameButton').click(function() {
       const {dialog} = require('electron').remote;
-
       dialog.showOpenDialog({
           properties: ['openFile']
       }, function (chosenPath) {
@@ -101,7 +111,6 @@ $(document).ready(function() {
           }
       });
    });
-
 });
 
 
@@ -436,8 +445,7 @@ function removeGameDirectory(gameId, callback) {
                 availableGames[gameId].manifest.name +
                 ", dir: " + gameDir);
 
-    var rimraf = require('rimraf');
-    rimraf(gameDir, function(err) {
+    removeDirectory(gameDir, function(err) {
         if (err) {
             var errMsg = "Failed to remove game directory " + gameDir;
             console.error(errMsg);
@@ -446,6 +454,21 @@ function removeGameDirectory(gameId, callback) {
         }
 
         availableGames.splice(gameId, 1);
+        callback();
+    });
+}
+
+// Recursively remove the specified directory
+function removeDirectory(pathName, callback) {
+    var rimraf = require('rimraf');
+    rimraf(pathName, function(err) {
+        if (err) {
+            var errMsg = "Failed to remove directory " + pathName;
+            console.error(errMsg);
+            callback(errMsg);
+            return;
+        }
+
         callback();
     });
 }
@@ -745,11 +768,166 @@ function exportGame_orig() {
     });
 }
 
-function exportGame() {
+function exportGame_v1() {
     // Create a temporary working directory.
     var fs = require('fs');
     const app = electron.remote.app;
     var gameBasedir = app.getPath('userData') + "/exported-games/";
+
+    // Export the game and the realms from the master db.
+    var exportFileName = $('#exportGameName').val();
+    var gameDir = path.join(gameBasedir, exportFileName);
+    var gameId = $('#exportGameId').val().trim();
+
+    var db_collections = dbWrapper.getDBs();
+    db_collections.games.find({'_id': gameId}, function (err, gameData) {    
+        if (err) {
+            console.error("Failed to find db");
+            return;
+        }
+
+        // There are several steps in the game export process, which must happen
+        // in sequence, despite some being asynchronous.
+        async.waterfall([
+            function(callback) {
+                var fullExportFileName = path.join(gameBasedir, exportFileName + ".zip");
+                fs.access(fullExportFileName, fs.constants.F_OK, function(err) {
+                    console.log(`${fullExportFileName} ${err ? 'does not exist' : 'exists'}`);
+                    if (err) {
+                        if (err.code === "ENOENT") {
+                            // Good, we want it to not exist.
+                            callback(null);
+                        } else {
+                            callback(err);
+                        }
+                    } else {
+                        callback(`Game ${fullExportFileName} already exists.`);
+                    }
+                });
+            },
+            // Should be able to do the mkdir in one step with the { recursive: true }
+            // option to fs.mkdir() but that isn't working in the current version
+            // of node.
+            function(callback) {
+                fs.mkdir(gameBasedir, function(err) {
+                    if (err && err.code !== "EEXIST") {
+                        console.log("Info: " + JSON.stringify(err));
+                    }
+
+                    callback(null);
+                });
+            },
+            function(callback) {
+                fs.mkdir(gameDir, function(err) {
+                    if (err) {
+                        alert("Error: " + JSON.stringify(err));
+                    }
+
+                    callback(err);
+                });
+            },
+            function(callback) {
+                // Export the game db entry.
+                var gameDB = new Datastore({ filename: gameDir + '/game.db', autoload: true });
+
+                gameDB.insert(gameData[0], function (err, newGame) {
+                    if (err) {
+                        alert("Error: " + JSON.stringify(err));
+                        callback(err);
+                    }
+
+                    callback(null, newGame);
+                });
+            },
+            function(newGame, callback) {
+                // Export the realm db entries. Record the module dependencies
+                // for use in subsequent stages.
+                var manifestData = {
+                    'name': newGame.name,
+                    'description': newGame.description,
+                };
+
+                // Iterate over the game realms, exporting each in turn.
+                async.eachSeries(
+                    gameData[0].realms,
+                    function(realmId, callback) {    
+                        db_collections.questrealms.find({'_id': realmId}, function (err, realmData) {
+                            if (err) {
+                                console.error("Failed to find realm " + realmId);
+                                callback(err);
+                            }
+                            
+                            var realmDB = new Datastore({ filename: gameDir + '/questrealms.db', autoload: true });
+                            realmDB.insert(realmData[0], function (err, newRealm) {
+                                if (err) {
+                                    alert("Error: " + JSON.stringify(err));
+                                    callback(err);
+                                }
+
+                                // Keep track of the module dependencies.
+                                findRealmModules(newRealm, manifestData);
+
+                                // Move on to the next realm.
+                                callback();
+                            });
+                        });
+                    },
+                    function(err) {
+                        // All done processing the realms, or aborted early with an error.
+                        console.log("realms done. err: " + err + ", modules: " + JSON.stringify(manifestData));
+                        if (err) {
+                            callback(err);
+                            return;
+                        }
+
+                        callback(err, manifestData)
+                    }
+                );
+            },
+            function(manifestData, callback) {
+                // This function is synchronous, so no callback arg required.
+                writeGameManifest(gameDir, manifestData);
+                callback(null, manifestData);
+            },
+            function(manifestData, callback) {
+                // This function is asynchronous, so needs a callback arg.
+                exportModules(gameDir, manifestData, function(err) {
+                    callback(err);
+                });
+            },
+            function(callback) {
+                console.log("before create zip file");
+                createZipFile(gameDir, exportFileName, function() {
+                    console.log("after create zip file");
+                    callback();
+                });
+            },
+            function(callback) {
+                console.log("remove tmpdir");
+                var rimraf = require('rimraf');
+                rimraf(gameDir, function(err) {
+                    callback(err);
+                });
+            }
+        ],
+        function(err) {
+            // All done processing the games and realms, or aborted early with an error.
+            if (err) {
+                console.error("Failed to export game: " + err);
+                alert("Failed to export game: " + err);
+                return;
+            }
+
+            console.log("all done.");
+            cleanAndHideExportGamePanel();
+            alert("Exported game to " + gameDir);
+        });
+    });
+}
+
+function exportGame(gameBasedir, callback) {
+    // Create a temporary working directory.
+    var fs = require('fs');
 
     // Export the game and the realms from the master db.
     var exportFileName = $('#exportGameName').val();
@@ -979,32 +1157,62 @@ function importGame(filename, callback) {
 
         console.log("Extracted game into " + tmpDir);
 
+        var errMsg = "";
         // Read the game name from manifest.json
         var manifest = readManifest(tmpDir);
         if (0 === Object.keys(manifest).length) {
-            // TODO: clean up the tmp dir.
-            callback("Failed to read manifest.json.");
-            return;
+            errMsg = "Failed to read manifest.json.";
+        } else {
+            // Security check - ensure the name hasn't been edited to
+            // try and break out of the games sandbox.
+            if (manifest.name.indexOf('../') !== -1) {
+                errMsg = "Invalid name '" + manifest.name + "' in manifest.json.";
+            }
         }
 
-        // Security check - ensure the name hasn't been edited to
-        // try and break out of the games sandbox.
-        if (manifest.name.indexOf('../') !== -1) {
-            callback("Invalid name '" + manifest.name + "' in manifest.json.");
-            return;
+        // Cleanup after failures above.
+        if (errMsg) {
+            removeDirectory(tmpDir, function(err) {
+                if (err) {
+                    errMsg = "Failed to remove temp directory " + tmpDir;
+                    console.error(errMsg);
+                    callback(errMsg);
+                    return;
+                }
+
+                console.log(errMsg);
+                callback(errMsg);
+                return;
+            });
         }
 
         var newGameName = path.join(path.dirname(tmpDir), manifest.name);
-        console.log("rename " + tmpDir + " to " + newGameName);
+        if (fs.existsSync(newGameName)) {
+            removeDirectory(tmpDir, function(err) {
+                if (err) {
+                    var errMsg = "Failed to remove temp directory " + tmpDir;
+                    console.error(errMsg);
+                    callback(errMsg);
+                    return;
+                }
 
-        fs.rename(tmpDir, newGameName, function(err) {
-            if (err) {
-                // TODO: clean up the tmp dir.
-                callback("Failed to rename " + tmpDir + " to " + newGameName + ", err: " + err);
+                var errMsg = "Game " + newGameName + " already exists";
+                console.log(errMsg);
+                callback(errMsg);
                 return;
-            }
+            });
+        } else {
+            console.log("rename " + tmpDir + " to " + newGameName);
 
-            callback(null, manifest.name);
-        });
+            fs.rename(tmpDir, newGameName, function(err) {
+                if (err) {
+                    // TODO: clean up the tmp dir.
+                    callback("Failed to rename " + tmpDir + " to " + newGameName + ", err: " + err);
+                    return;
+                }
+
+                callback(null, manifest.name);
+            });
+        }
     });
 }
