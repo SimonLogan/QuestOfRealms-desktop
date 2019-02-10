@@ -259,6 +259,14 @@ function loadAndDisplayAvailableGames(callback) {
     const app = electron.remote.app;
     var gameBasedir = app.getPath('userData') + "/games/";
 
+    var fs = require('fs');
+    console.log("gameBasedir: " + gameBasedir);
+    
+    // Ensure the game parent directory exists.
+    if (!fs.existsSync(gameBasedir)) {
+        fs.mkdirSync(gameBasedir);
+    }
+
     // from https://stackoverflow.com/questions/18112204/get-all-directories-within-directory-nodejs
     const { lstatSync, readdirSync } = require('fs');
     const path = require('path');
@@ -1085,12 +1093,22 @@ function exportGame(gameBasedir, callback) {
 function extractZipFile(gameBasedir, filename, callback) {
     var fs = require('fs');
 
+    // Add a trailing delimiter. This is required by fs.mkdtemp()
+    // Although "/" is hardcoded, path.join() will use a platform-specific
+    // delimiter.
+    gameBasedir = path.join(gameBasedir, "/");
     // https://nodejs.org/api/fs.html
     fs.mkdtemp(gameBasedir, (err, tmpDir) => {
         if (err) throw err;
 
-        console.log("game tempdir: " + tmpDir);
+        // On windows mkdtemp() seems to create unix-format paths (with / delimiters).
+        // Internally, decompress-zip uses path.join() to check the extracted files
+        // and it uses the platform-specific delimiter (\ on windows), causing a
+        // path comparison error on windows. Perform a dummy path.join() operation
+        // to force the tmpDir to use the correct delimiters for your platform.
+        tmpDir = path.join(tmpDir, "");
 
+        console.log("game tempdir: " + tmpDir);
         var DecompressZip = require('decompress-zip');
         var unzipper = new DecompressZip(filename)
         
@@ -1106,10 +1124,12 @@ function extractZipFile(gameBasedir, filename, callback) {
 
         unzipper.on('progress', function (fileIndex, fileCount) {
             console.log('Extracted file ' + (fileIndex + 1) + ' of ' + fileCount);
-        });
-        
+        });        
+
+        console.log("Extracting archive [" + filename + "] to [" + tmpDir + "]");
         unzipper.extract({
             path: tmpDir,
+            restrict: true,
             filter: function (file) {
                 console.log("File: " + JSON.stringify(file));
                 return file.type !== "SymbolicLink";
@@ -1140,7 +1160,7 @@ function importGame(filename, callback) {
     // Create a temporary working directory.
     var fs = require('fs');
     const app = electron.remote.app;
-    var gameBasedir = app.getPath('userData') + "/games/";
+    var gameBasedir = path.join(app.getPath('userData'), "games");
     console.log("gameBasedir: " + gameBasedir);
     
     // Ensure the game parent directory exists.
