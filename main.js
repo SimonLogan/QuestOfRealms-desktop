@@ -211,6 +211,42 @@ ipcMain.on('save-add-objective-result', (event, msg) => {
   editObjectiveDialog.webContents.send('save-result', msg);
 });
 
+// Launch the play game window.
+ipcMain.on('play-game', (event, args) => {
+  console.log("Received play-game. args:" + JSON.stringify(args));
+  win.webContents.once('did-finish-load', function() {
+    win.webContents.send('playGame-data', args.data);
+    win.webContents.openDevTools();
+  });
+  win.loadURL(args.url);
+});
+
+ipcMain.on('edit-player-name', (event, msg) => {
+  console.log("Received edit-player_name: " + JSON.stringify(msg));
+
+  const playerNameModelPath = path.join('file://', __dirname, 'views/playGame/playerName.html');
+  let playerNameDialog = new BrowserWindow(
+    { parent: win, modal: true, frame: false, transparent: true,
+      alwaysOnTop: true, width: 540, height: 220});
+  playerNameDialog.on('close', function() { playerNameDialog = null });
+
+  playerNameDialog.webContents.once('did-finish-load', function() {
+    console.log("playerNameDialog did-finish-load");
+    playerNameDialog.webContents.send('init', msg);
+    playerNameDialog.webContents.openDevTools();
+  });
+
+  playerNameDialog.loadURL(playerNameModelPath);
+  playerNameDialog.show();
+});
+
+// Save pressed on the the edit player name dialog. Pass the saved data
+// back to the game window.
+ipcMain.on('save-player-name', (event, msg) => {
+  console.log("Received save-player-name: " + JSON.stringify(msg));
+  win.webContents.send('playerName-data', msg);
+});
+
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {
   // On macOS it is common for applications and their menu bar

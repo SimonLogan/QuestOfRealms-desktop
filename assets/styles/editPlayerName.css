@@ -1,0 +1,59 @@
+/* Based on cypto_app::add.css */
+
+html, body {
+    background: rgba(226, 226, 226, 1.0);
+    height:100%;
+}
+
+body {
+    color:#000;
+    overflow: hidden;
+}
+
+p.title {
+    background:#C3C3C3;
+    margin:0;
+    padding: 20px;
+    text-transform:uppercase;
+    -webkit-app-region: drag;
+}
+
+.formbody {
+    padding:20px;
+    overflow: hidden;
+}
+
+.formbody > div {
+   margin-bottom: 5px;
+}
+
+.formbody textarea {
+    resize: none;
+ }
+
+div.label {
+    width: 150px;
+    margin-right: 10px;
+    display: inline-block;
+}
+
+div.inputField {
+    display: inline-block;
+}
+
+input {
+    padding:12px;
+}
+
+#buttonContainer {
+    background:#C3C3C3;
+    margin:0;
+    padding: 20px;
+    height: 100px;
+}
+
+#closeBtn {
+    cursor:pointer;
+    padding:20px;
+    text-decoration:underline;
+}

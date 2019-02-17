@@ -32,7 +32,7 @@ ipc.on('editGame-data', function (event, data) {
    console.log("********** starting editGame-data " + x + "(" + Date.now() + ") **********")
    async.waterfall([
         function(callback) {
-            dbWrapper.openDB(callback);
+            dbWrapper.openDesignerDB(callback);
         },
         function(callback) {
             loadAndDisplayAvailableRealms(callback);

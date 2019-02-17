@@ -42,3 +42,20 @@
 .terrainCell {
     background-color:#F0E6DB
 }
+
+.characterIcon {
+    position:absolute;
+    margin-left: 1em;
+}
+
+.itemIcon {
+    position:absolute;
+    margin-left: 2em;
+    margin-top: 1em;
+}
+
+.playerIcon {
+    position:absolute;
+    margin-left: 0.5em;
+    margin-top: 1em;
+}

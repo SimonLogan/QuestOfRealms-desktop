@@ -11,9 +11,10 @@ var Datastore = require('nedb');
 var db_collections = {};
 
 module.exports = {
-    openDB: function (callback) {
+    openDesignerDB: function (callback) {
         var electron = require('electron');
         const app = electron.remote.app;
+
         var dbPath = app.getPath('userData') + "/QuestOfRealms/designer/db/";
         console.log("opendb path " + dbPath + ", __dirname " + __dirname);
 
@@ -22,6 +23,20 @@ module.exports = {
 
         db_collections.games = new Datastore({ filename: dbPath + '/games.db', autoload: true });
         console.log("openDB, loaded db_collections.games = " + db_collections.games);
+
+        callback(null);
+    },
+    openGameDB: function (callback, dbPath=null) {
+        var electron = require('electron');
+        const app = electron.remote.app;
+
+        console.log("opendb path " + dbPath + ", __dirname " + __dirname);
+
+        db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
+        console.log("openDB loaded db_collections.questrealm = " + db_collections.questrealms);
+
+        db_collections.game = new Datastore({ filename: dbPath + '/game.db', autoload: true });
+        console.log("openDB, loaded db_collections.game = " + db_collections.game);
 
         callback(null);
     },

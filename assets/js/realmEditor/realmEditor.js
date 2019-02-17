@@ -58,7 +58,6 @@ var MapLocationCollection = Backbone.Collection.extend({
 var locationData;
 var mView;
 
-
 var LocationsView = Backbone.View.extend({
     initialize: function () {
         this.listenTo(this.collection, 'reset', this.reset);
@@ -149,7 +148,7 @@ ipc.on('editRealm-data', function (event, data) {
    console.log("********** starting editRealm-data " + x + "(" + Date.now() + ") **********")
    async.waterfall([
         function(callback) {
-            dbWrapper.openDB(callback);
+            dbWrapper.openDesignerDB(callback);
         },
         function(callback) {
             loadEnvPalette(callback);
@@ -691,7 +690,9 @@ function drawMapGrid(realmWidth, realmHeight)
     var mapTable = $('#mapTable');
     var tableContents = '';
 
-    /* Being an html table, it has to be drawn from the top left to
+    /* Draw the empty grid with axis labels.
+
+       Being an html table, it has to be drawn from the top left to
        bottom right, but we want to label the cells with the origin
        at the bottom left.
     */
@@ -765,6 +766,8 @@ function addMapLocation(realmId, droppedItem, originalLocation, newLocation)
     // TODO: add + remove is ok for the game designer but in game mode
     // TODO: we'll need to find a way to handle updates properly.
     var newObj = locationData.add({
+        // Using an ES2015 template literal.
+        //id: `${newLocation.attr('data-x')}_${newLocation.attr('data-y')}`,
         x: newLocation.attr('data-x'),
         y: newLocation.attr('data-y'),
         type: environment,

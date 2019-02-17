@@ -1,53 +1,81 @@
-<!-- The realm game UI -->
+<!-- The play game UI -->
 <!-- (c) Simon Logan 2017 -->
-<script type="text/javascript" src="/js/dependencies/sails.io.js"></script>
-<script type="text/javascript" src="/js/playGame/playGame.js"></script>
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Play Game</title>
+    <link rel="stylesheet" href="../../assets/styles/index.css">
+    <link rel="stylesheet" href="../../assets/styles/editRealm.css">
+    <link rel="stylesheet" href="../../assets/styles/playGame.css">
+    <link rel="stylesheet" href="../../node_modules/jqueryui/jquery-ui.css">
+</head>
+<body>
+    <script type="text/javascript" src="../../assets/js/playGame/playGame.js"></script>
 
-<h1>Quest of Realms</h1>
-<a href="/">Back to main page</a>
+    <!-- TODO: script task to copy this to a better location.-->
+    <script type="text/javascript" src="../../node_modules/jqueryui/jquery-ui.js"></script>
 
-<!-- -->
-<h2>Play Game <%= realm.name %></h2>
-<h3>Playing as <%= realm.playerName %></h3>
-<input type="hidden" id="realmId" value="<%= realm.id %>" />
+    <script type="text/javascript" src="../../assets/js/backend/pluginManager.js"></script>
 
-<link rel="stylesheet" href="/styles/editRealm.css">
-<link rel="stylesheet" href="/styles/playGame.css">
-<script src="//code.jquery.com/jquery-1.10.2.js"></script>
-<script src="//code.jquery.com/ui/1.11.1/jquery-ui.js"></script>
+    <h1>Quest of Realms</h1>
+    <a href="/">Back to main page</a>
 
-<div id="workArea">
-    <input type="hidden" id="playerName" value="<%= realm.playerName %>" />
-    <div id="workPanel" class="displayPanel">
-        <%- partial ('mapPartial.ejs') %>
-        <div id="drawChoicePanel" style="margin-top:10px">
-            <form id="mapDrawModeForm">
-                <fieldset>
-                    <legend>Map drawing mode</legend>
-                       <input type="radio" name="drawChoice" id="drawChoice_autoAll" value="autoAll"><label for="drawChoice_autoAll">Automatically draw the whole map.</label><br>
-                       <input type="radio" name="drawChoice" id="drawChoice_autoVisited" value="autoVisited"><label for="drawChoice_autoVisited">Automatically visited map locations.</label><br>
-                       <input type="radio" name="drawChoice" id="drawChoice_manual" value="manual"><label for="drawChoice_manual">Manually draw visited map locations - old school!</label><br>
-                </fieldset>
-            </form>
+    <!-- -->
+    <h2 id="page_title">Play Game</h2>
+    <h3 id="playing_as">Playing as</h3>
+
+    <div id="workArea">
+        <input type="hidden" id="playerName" value="<%= realm.playerName %>" />
+        <div id="workPanel" class="displayPanel">
+            <div id="mapPanel">
+                <div>
+                    <div id = "mapContainer">
+                        <table id="mapTable" style="border-spacing:1px; border-collapse:collapse">
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div id="drawChoicePanel" style="margin-top:10px">
+                <form id="mapDrawModeForm">
+                    <fieldset>
+                        <legend>Map drawing mode</legend>
+                        <input type="radio" name="drawChoice" id="drawChoice_autoAll" value="autoAll"><label for="drawChoice_autoAll">Automatically draw the whole map.</label><br>
+                        <input type="radio" name="drawChoice" id="drawChoice_autoVisited" value="autoVisited"><label for="drawChoice_autoVisited">Automatically draw visited map locations.</label><br>
+                        <input type="radio" name="drawChoice" id="drawChoice_manual" value="manual" disabled><label for="drawChoice_manual">Manually draw visited map locations - old school!</label><br>
+                    </fieldset>
+                </form>
+            </div>
+            <div id="mapTilePanel" class="displayPanel">
+            </div>
         </div>
-        <div id="mapTilePanel" class="displayPanel">
+        <div id="textPanel" class="displayPanel">
+            <div id="messagePanel">
+                <!-- Experiment with individual input rows as we'll only display
+                     the last 40 rows of updates and I might be able to style rows according
+                     to the message type. Add the text rows with javascript. -->
+                <table id="messageTable"></table>
+            </div>
+            <div id="inputPanel" style="border: 1px solid gray;">
+                <input type="text" id="inputArea" class="messageRow" size="80" autofocus />
+            </div>
         </div>
     </div>
-    <div id="textPanel" class="displayPanel">
-        <div id="messagePanel">
-            <!-- one possibility
-            <textarea id="messageArea" rows="40" cols="80" readonly></textarea>
-            -->
-            <!-- But experiment with individual input rows as we'll only display
-                 the last 40 rows of updates and I might be able to style rows according
-                 to the mesaage type. Add the text rows with javascript. -->
-            <table id="messageTable"></table>
-        </div>
-        <div id="inputPanel" style="border: 1px solid gray;">
-            <input type="text" id="inputArea" class="messageRow" size="80" autofocus />
-        </div>
+
+    <div id="playerNameDialog" title="Player name" style="visibility: hidden">
+        <form>
+            <fieldset>
+                <dl>
+                    <dt><label for="playerName">Name:</label></dt>
+                    <dd><input type="text" name="playerName" id="playerName" value="" class="text ui-widget-content ui-corner-all"></dd>
+                </dl>
+                <!-- Allow form submission with keyboard without duplicating the dialog button -->
+                <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
     </div>
-</div>
-
-
+</body>
+</html>

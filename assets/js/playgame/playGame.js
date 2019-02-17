@@ -4,28 +4,141 @@
  * (c) Simon Logan
  */
 
+// Global data
+window.$ = window.jQuery = require('jquery');
+const electron = require('electron');
+const async = require('async');
+const ipc = require('electron').ipcRenderer;
+const Backbone = require('backbone');
+const dbWrapper = require('../../assets/js/utils/dbWrapper');
+var path = require('path');
+var pluginsPath = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+
 // Constants
 describeDetailEnum = {
     TERRAIN_ONLY: 0,
     TERRAIN_AND_CONTENTS: 1
 };
 
-// Global data
+mapDrawModeEnum = {
+    AUTO_ALL: 'autoAll',
+    AUTO_VISITED: 'autoVisited',
+    MANUAL: 'manual'
+}
+
+// Backbone is a Model-View-Controller (MVC) framework. Extend the
+// default Model with additional attributes that we need.
+var MapLocation = Backbone.Model.extend({});
+
+// Maintain a local collection of map locations. This will be synchronized (both ways)
+// with the server and so allows multi-user access to the data.
+
+var MapLocationCollection = Backbone.Collection.extend({
+    // Extend the default collection with functionality that we need.
+    model: MapLocation,
+    sync: function() {
+        ipc.send('logmsg', 'MapLocationCollection.sync()');
+
+        // Filter out all the Backbone.Model fields. We just want to
+        // save the raw data.
+        currentRealmData.mapLocations = this.models.map(thisModel => thisModel.attributes);
+        saveRealm(function() {
+            ipc.send('logmsg', 'realm saved()');
+        });
+    }
+});
 
 // The game data. This will be retrieved initially and then kept updated
 // via socket messages.
 var gameData;
 var currentRealmData;
-var maplocationData;
 
-// Socket management.
-// If joining a multiplayer game that is already in progress, you may receive game update
-// messages before you have finished processing the initial data-load operations. Set a busy
-// flag so that these messages are queued for subsequent processing.
-// This can be tested by calling the dummyCommand API as shown below.
-var gamesocket;
-var messageQueue = [];
-var busy = true;
+// The maplocations from the current realm will be loaded into a
+// backbone collection so the associated view can be automatically updated.
+var locationData = new MapLocationCollection();
+
+var mView;
+
+var LocationsView = Backbone.View.extend({
+    initialize: function () {
+        this.listenTo(this.collection, 'reset', this.reset);
+        this.listenTo(this.collection, 'add', this.add);
+        this.listenTo(this.collection, 'remove', this.remove);
+        this.listenTo(this.collection, 'change', this.change);
+    },
+    reset: function(data) {
+        console.log("in view.reset:  " + JSON.stringify(data));
+        data.forEach(function(item) {
+            drawMapLocation(item);
+        });
+
+        buildMessageArea();
+        var player = gameData.player;
+        $('#playing_as').text("Playing as " + player.name);
+        var playerLocation = findLocation(player.location.x, player.location.y);
+        displayMessageBlock(describeMyLocation(playerLocation));
+    },
+    add: function(item) {
+        if (item != undefined) {
+            console.log("in view.add:  " + JSON.stringify(item));
+            drawMapLocation(item);
+        }
+    },
+    remove: function(item) {
+        console.log("in view.remove: " + JSON.stringify(item));
+        // This will find two entries if a map item is being dragged.
+        // changedCells[0] is the original map location.
+        // changedCells[1] is the new location (or the wastebasket).
+        var changedCells = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
+        var oldCell = $(changedCells[0]);
+        oldCell.html('');
+        oldCell.closest('td').css('background-color', '');
+        oldCell.removeClass('draggable mapItem');
+
+        // Populate the relevant location properties if this location is currently
+        // open in the properties window.
+        // use $('#propertiesPanel').attr('data-id');  and look up the location
+        // or add x and y attributes to the propertiesPanel.
+
+        // No use as dragging unselects the selected item
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        if ((selectedMapCell.length > 0) &&
+            (selectedMapCell.attr('data-x') === item.attributes['x']) &&
+            (selectedMapCell.attr('data-y') === item.attributes['y'])) {
+            populateLocationDetails(item, true);
+        }
+    },
+    change: function(item) {
+        console.log("in view.change:  " + JSON.stringify(item));
+
+        // Update the local display with the message data.
+        var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
+        target.attr('data-env', item.attributes.type);
+
+        if (item.attributes.startLocation !== undefined) {
+            target.attr('data-startLocation', item.attributes.startLocation);
+        }
+
+        target.html('');
+        target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + item.attributes.type + ".png'/>");
+
+        // To allow it to be dragged to the wastebasket.
+        target.addClass('draggable mapItem');
+        target.draggable({helper: 'clone', revert: 'invalid'});
+
+        // Populate the relevant location properties if this location is currently
+        // open in the properties window.
+        // use $('#propertiesPanel').attr('data-id');  and look up the location
+        // or add x and y attributes to the propertiesPanel.
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        if ((selectedMapCell.length > 0) &&
+            (selectedMapCell.attr('data-x') === item.attributes['x']) &&
+            (selectedMapCell.attr('data-y') === item.attributes['y'])) {
+            populateLocationDetails(item, true);
+        }
+    }
+});
+
 
 // Find a player.
 class playerInfo {
@@ -43,12 +156,62 @@ class findPlayer {
             }
         }
 
-		    return null;
+		return null;
     }
 }
 
+// Called when the realm editor is loaded.
+ipc.on('playGame-data', function (event, data) {
+    $('#page_title').text("Play Game " + data.name);
+
+    const app = electron.remote.app;
+    var gameBasedir = path.join(app.getPath('userData'), "games");
+    var dbPath = path.join(gameBasedir, data.name);
+
+   // Load details of the game.
+   console.log("********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
+   ipc.send('logmsg', "********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
+
+   async.waterfall([
+        function(callback) {
+            dbWrapper.openGameDB(callback, dbPath);
+        },
+        function(callback) {
+            loadGame(function(error) {
+                callback(error);
+            });
+        },
+        function(callback) {
+            // Initially assume the first realm. Later, we need to
+            // load the current realm from the player data.
+            loadRealm(gameData.realms[0], function(error) {
+                if (!error) {
+                    $('#realmName').text("Editing realm " + currentRealmData.name);
+                    mView = new LocationsView({collection: locationData});
+                    if (currentRealmData.hasOwnProperty('mapLocations')) {
+                        locationData.reset(currentRealmData.mapLocations);
+                    }
+
+                    callback(null);
+                } else {
+                    // Currently not used.
+                    callback(error);
+                }
+            });
+        }
+    ],
+    function(err, results) {
+        // Create the tabbed panels
+        //$("#paletteInnerPanel").tabs();
+        //$("#propertiesInnerPanel").tabs();
+        //if (!err) enableControls();
+    });
+
+
+function dummyCollapse() {
+/*
 // When the page has finished rendering...
-$(document).ready(function() {
+//$(document).ready(function() {
     // Get the size of the map grid that should be drawn. These values come from the HTML elements
     // with id="realmWidth" and id="realmHeight".
     // The jQuery selectors $(#XXX) below select the elements by id.
@@ -67,11 +230,11 @@ $(document).ready(function() {
     var gameId = $('#gameId').val();
 
     // There's no point in having a backbone collection to only ever run "fetch" on it.
-    // The client will fetch the data once at the start and then keep it in syn using the
+    // The client will fetch the data once at the start and then keep it in sync using the
     // socket messages.
 
     // Temporarily make it global for debug purposes.
-    /*var*/ gamesocket = io.connect();
+    gamesocket = io.connect();
     gamesocket.on('connect', function socketConnected() {
         // Load the game and call the function below when it has been retrieved.
         // You need to use this callback approach because the AJAX call is
@@ -145,6 +308,44 @@ $(document).ready(function() {
             });
         }
         */
+    /*
+    });
+    */
+}
+
+    // Main is passing back the updated data when save is pressed on the player name dialog.
+    ipc.on('playerName-data', function (event, data) {
+        console.log('playGame.js:playerName-data. data=' + JSON.stringify(data));
+        ipc.send('logmsg', 'playGame.js:playerName-data. data=' + JSON.stringify(data));
+
+        var startAtObjective = currentRealmData.objectives.filter(objective => objective.type === "Start at");
+        if (startAtObjective.length !== 1) {
+            // Should be impossible.
+            alert(`Found ${startAtObjective.length} \"Start at\" objectives. Expecting 1`);
+
+            // TODO: Should abort the game at this point. Figure out how.
+            return;
+        }
+
+        // If we found a start at objective, assume it has valid x and y params.
+        // This should really be validated too.
+        var startx = startAtObjective[0].params.filter(param => param.name === "x");
+        var starty = startAtObjective[0].params.filter(param => param.name === "y");
+
+        // Set the default map draw mode too.
+        gameData.player = {
+            'name': data.name,
+            'location': {'realm': currentRealmData._id,
+                         'x': startx[0].value,
+                         'y': starty[0].value},
+            'mapDrawMode': mapDrawModeEnum.AUTO_ALL
+        };
+
+        saveGame(function() {
+            $('#playing_as').text("Playing as " + data.name);
+            var playerLocation = findLocation(startx[0].value, starty[0].value);
+            displayMessageBlock(describeMyLocation(playerLocation));
+        });
     });
 
     // Handle game commands
@@ -156,7 +357,7 @@ $(document).ready(function() {
                 return;
             }
 
-            var playerLocation = findPlayerLocation(maplocationData, $('#playerName').val());
+            var playerLocation = findLocation();
             if (!playerLocation) {
                 alert("Could not find player " + $('#playerName').val() + " on the map.");
                 return;
@@ -178,15 +379,82 @@ $(document).ready(function() {
         gameData.players[0].mapDrawMode = selectedOption.target.value;
         saveGame();
         drawMapGrid(currentRealmData.width, currentRealmData.height, selectedOption.target.value);
-        var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
+        var playerLocation = findLocation();
         showPlayerLocation(playerLocation.y, playerLocation.x);
     })
-});
-
+}); // ipc.on('playGame-data')
 
 //
 // Utility functions
 //
+
+function drawMapLocation(locationData) {
+    if (shouldDrawMapLocation(locationData)) {
+        // Always show the terrain once the player has visited the location, as terrain never changes.
+        var target = $('#mapTable td[id="cell_' + locationData.attributes.x + '_' + locationData.attributes.y + '"]').find('div');
+        target.addClass('terrainCell');
+        var html = '';
+    
+        target.attr('data-env', locationData.attributes.type);
+        target.attr('data-id', locationData.id);
+        target.attr('data-module', locationData.attributes.module);
+        target.html('');
+        target.append("<img src='" + pluginsPath + locationData.attributes.module + "/images/" + locationData.attributes.type + ".png'/>");
+
+        // TODO: decide whether the maplocation's items and characters remain permanently visible, or
+        // only visible when the player is in the location.
+        // For now show the details if the player has visited the location.
+        if (locationData.attributes.characters.length > 0) {
+            target.append('<img src="../../assets/images/other-character-icon.png" style="position:absolute; margin-left: 1em">');
+        }
+
+        if (locationData.attributes.items.length > 0) {
+            target.append( '<img src="../../assets/images/object-icon.png" style="position:absolute; margin-left: 2em; margin-top: 1em">');
+        }
+    }
+}
+
+function loadGame(callback)
+{
+    console.log(Date.now() + ' loadGame');
+
+    var db_collections = dbWrapper.getDBs();
+    db_collections.game.find({}, function (err, data) {
+        ipc.send('logmsg', "loadGame found data: " + JSON.stringify(data));
+        
+        // There should be only one.
+        if (data.length > 1) {
+            alert("Invalid game.db - expecting only one entry");
+            return;
+        }
+
+        gameData = data[0];
+        $('#page_title').text("Play Game " + gameData.name);
+
+        // A player name must be chosen the first time the game is launched.
+        if (!gameData.hasOwnProperty("player")) {
+            // You can't send messages between renderers. You have to use main.js as a message gub.
+            ipc.send('edit-player-name', {});
+        } else {
+            $('#playing_as').text("Playing as " + gameData.player.name);
+        }
+    
+        callback(null);
+    });
+}
+
+function loadRealm(realmId, callback) {
+    ipc.send('logmsg', 'load realm ' + realmId);
+
+    var db_collections = dbWrapper.getDBs();
+    db_collections.questrealms.find({_id: realmId}, function (err, data) {
+        ipc.send('logmsg', "loadRealm found data: " + JSON.stringify(data));
+        currentRealmData = data[0];
+        drawMapGrid(currentRealmData.width, currentRealmData.height);
+        displayObjectives();
+        callback(null);
+    });
+}
 
 function processMessages() {
     console.log("======== starting processMessages() ========");
@@ -389,35 +657,52 @@ function buildObjectiveDescription(objective) {
    return desc;
 }
 
-function loadGame(callback) {
-    console.log(Date.now() + ' loadGame');
+function displayObjectiveDetails(item) {
+    var description = "";
 
-    $.get(
-        '/fetchGame',
-        { "id": $('#realmId').val() },
-        function (data) {
-            gameData = data;
-            callback();
-        }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
+    $.each(item.params, function(thisParam){
+       description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
     });
+
+    description = description.substr(0, description.lastIndexOf(", "));
+    return description;
 }
 
-function saveGame() {
+function displayObjectives()
+{
+    console.log(Date.now() + ' displayObjectives');
+    var target = $('#objectiveList').html("");
+    var html = "";
+
+    var i=0;
+    if (currentRealmData.hasOwnProperty('objectives')) {
+        currentRealmData.objectives.forEach(function(item) {
+            html += "<tr data-id='" + (i++) + "'>";
+            html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.type + "</td>";
+            html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
+            html += "<td><input class='deleteObjective' type='image' src='../../assets/images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
+            html += "</tr>";
+        });
+    }
+
+    target.append(html);
+}
+
+function saveGame(callback)
+{
     console.log(Date.now() + ' saveGame');
 
-    $.post(
-        '/saveGame',
-        {gameData: gameData},
-        function (data) {
-            console.log(data);
+    var db_collections = dbWrapper.getDBs();
+    db_collections.game.update({_id: gameData._id}, gameData, {}, function (err, numReplaced) {
+        console.log("saveGame err:" + err);
+        console.log("saveGame numReplaced:" + numReplaced);
+        if (callback) {
+            callback(null);
         }
-    ).fail(function(res){
-        alert("Error: " + JSON.parse(res.responseText).error);
     });
 }
 
+/*
 function loadMaplocations(callback) {
     console.log(Date.now() + ' loadMaplocations');
 
@@ -460,6 +745,7 @@ function loadMaplocations(callback) {
         }
     });
 }
+*/
 
 function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
     var mapTable = $('#mapTable');
@@ -518,19 +804,6 @@ function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
         tableContents += '</tr>';
     }
     mapTable.html(tableContents);
-
-    // Now draw all the data initially.
-    for (var y=0; y<realmHeight; y++) {
-        var thisRow = maplocationData[y];
-        if (thisRow !== undefined) {
-            for (var x = 0; x < realmWidth; x++) {
-                var location = thisRow[x];
-                if (thisRow[x] !== undefined && shouldDrawMapLocation(location)) {
-                    drawMaplocation(location);
-                }
-            }
-        }
-    }
 }
 
 function drawMaplocation(locationData) {
@@ -539,7 +812,6 @@ function drawMaplocation(locationData) {
     target.addClass('terrainCell');
     var html = '';
 
-    var playerName = $('#playerName').val();
     if (shouldDrawMapLocation(locationData)) {
         // Always show the terrain once the player has visited the location, as terrain never changes.
         target.attr('data-env', locationData.type);
@@ -549,11 +821,11 @@ function drawMaplocation(locationData) {
         // only visible when the player is in the location.
         // For now show the details if the player has visited the location.
         if (locationData.characters.length > 0) {
-            html += '<img src="images/other-character-icon.png" style="position:absolute; margin-left: 1em">';
+            html += '<img src="images/other-character-icon.png" class="characterIcon">';
         }
 
         if (locationData.items.length > 0) {
-            html += '<img src="images/object-icon.png" style="position:absolute; margin-left: 2em; margin-top: 1em">';
+            html += '<img src="images/object-icon.png" class="itemIcon">';
         }
     }
 
@@ -562,7 +834,12 @@ function drawMaplocation(locationData) {
 
 // Decide whether to show a maplocation depending on thr mapdraw mode.
 function shouldDrawMapLocation(locationData) {
-    var playerName = $('#playerName').val();
+    var player = gameData.player;
+
+    // Default to always draw.
+    if (!player.hasOwnProperty("mapDrawMode") || player.mapDrawMode === mapDrawModeEnum.AUTO_ALL) {
+        return true;
+    }
 
     // The list of locations the player has visited is a dictionary for
     // quick searching when drawing the map. Using a list
@@ -577,13 +854,11 @@ function shouldDrawMapLocation(locationData) {
     return false;
 }
 
-function showPlayerLocation(y, x) {
-    var location = maplocationData[y-1][x-1];
-
+function showPlayerLocation(location) {
     if (shouldDrawMapLocation(location)) {
-        var target = $('#mapTable td[id="cell_' + x + '_' + y + '"]').find('div');
+        var target = $('#mapTable td[id="cell_' + location.attributes.x + '_' + location.attributes.y + '"]').find('div');
         var html = target.html();
-        html += '<img src="images/player-icon.png" style="position:absolute">';
+        html += '<img id="simon" src="../../assets/images/player-icon.png" class="playerIcon">';
         target.html(html);
     }
 }
@@ -643,21 +918,8 @@ function displayMessageImpl(message) {
     }
 }
 
-function findPlayerLocation(locations, playerName) {
-    var playerLocation = null;
-
-    $.each(gameData.players, function(index, player) {
-        if (player.name === playerName) {
-            var location = maplocationData[parseInt(player.location.y)-1][parseInt(player.location.x)-1];
-
-            if (location !== undefined)
-                playerLocation = location;
-
-            return false;
-        }
-    });
-
-    return playerLocation;
+function findLocation(x, y) {
+    return locationData.where({x:x, y:y})[0];
 }
 
 function describeLocationContents(location, detailLevel) {
@@ -665,11 +927,11 @@ function describeLocationContents(location, detailLevel) {
 
     if (detailLevel >= describeDetailEnum.TERRAIN_AND_CONTENTS) {
         // TODO: format the list better. Say "two dwarves" rather than "a dwarf and a dwarf".
-        var numCharacters = location.characters.length;
+        var numCharacters = location.attributes.characters.length;
         if (numCharacters > 0) {
             message += " There is a ";
             for (var i = 0; i < numCharacters; i++) {
-                message += location.characters[i].type;
+                message += location.attributes.characters[i].type;
                 if (i < numCharacters - 2) {
                     message += ", a ";
                 } else if (i == numCharacters - 2) {
@@ -679,11 +941,11 @@ function describeLocationContents(location, detailLevel) {
             message += ". ";
         }
 
-        var numItems = location.items.length;
+        var numItems = location.attributes.items.length;
         if (numItems > 0) {
             message += " There is a ";
             for (var i = 0; i < numItems; i++) {
-                message += location.items[i].type;
+                message += location.attributes.items[i].type;
                 if (i < numItems - 2) {
                     message += ", a ";
                 } else if (i == numItems - 2) {
@@ -704,8 +966,9 @@ function describeLocation(location, detailLevel) {
 }
 
 function describeMyLocation(location) {
-    showPlayerLocation(location.y, location.x);
-    var message = "You are at location [" + location.x + ", " + location.y + "]. Terrain: " + location.type + ".";
+    showPlayerLocation(location);
+    var message = "You are at location [" + location.attributes.x + ", " +
+       location.attributes.y + "]. Terrain: " + location.attributes.type + ".";
     message += describeLocationContents(location, describeDetailEnum.TERRAIN_AND_CONTENTS);
     return message;
 }

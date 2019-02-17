@@ -24,7 +24,7 @@ $(document).ready(function() {
     // TODO: Only do this the first time design mode is selected.
     async.waterfall([
         function(callback) {
-            dbWrapper.openDB(callback);
+            dbWrapper.openDesignerDB(callback);
         },
         function(callback) {
             loadAndDisplayAvailableGameDesigns(callback);
@@ -226,10 +226,12 @@ function displayAvailableGames() {
         });
 
         $('.playGame').on('click', function () {
-            // Record which game you are exporting.
-            //$('#exportGameId').val($(this).closest('tr').attr('id'));
-            //$('#exportGamePanel').show();
-            //$('#exportGameButton').prop('disabled', true);
+            console.log("playgame");
+            var gameName = $(this).closest('tr').find('.gameName').text();
+            // Build a URL to invoke the game player.
+            var args = {url: 'file://' + __dirname + '/../playGame/playGame.html',
+                        data: {name: gameName}};
+            ipc.send('play-game', args);
         });
     }
 }
