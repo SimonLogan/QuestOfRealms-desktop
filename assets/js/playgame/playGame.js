@@ -20,12 +20,6 @@ describeDetailEnum = {
     TERRAIN_AND_CONTENTS: 1
 };
 
-mapDrawModeEnum = {
-    AUTO_ALL: 'autoAll',
-    AUTO_VISITED: 'autoVisited',
-    MANUAL: 'manual'
-}
-
 // Backbone is a Model-View-Controller (MVC) framework. Extend the
 // default Model with additional attributes that we need.
 var MapLocation = Backbone.Model.extend({});
@@ -313,41 +307,6 @@ function dummyCollapse() {
     */
 }
 
-    // Main is passing back the updated data when save is pressed on the player name dialog.
-    ipc.on('playerName-data', function (event, data) {
-        console.log('playGame.js:playerName-data. data=' + JSON.stringify(data));
-        ipc.send('logmsg', 'playGame.js:playerName-data. data=' + JSON.stringify(data));
-
-        var startAtObjective = currentRealmData.objectives.filter(objective => objective.type === "Start at");
-        if (startAtObjective.length !== 1) {
-            // Should be impossible.
-            alert(`Found ${startAtObjective.length} \"Start at\" objectives. Expecting 1`);
-
-            // TODO: Should abort the game at this point. Figure out how.
-            return;
-        }
-
-        // If we found a start at objective, assume it has valid x and y params.
-        // This should really be validated too.
-        var startx = startAtObjective[0].params.filter(param => param.name === "x");
-        var starty = startAtObjective[0].params.filter(param => param.name === "y");
-
-        // Set the default map draw mode too.
-        gameData.player = {
-            'name': data.name,
-            'location': {'realm': currentRealmData._id,
-                         'x': startx[0].value,
-                         'y': starty[0].value},
-            'mapDrawMode': mapDrawModeEnum.AUTO_ALL
-        };
-
-        saveGame(function() {
-            $('#playing_as').text("Playing as " + data.name);
-            var playerLocation = findLocation(startx[0].value, starty[0].value);
-            displayMessageBlock(describeMyLocation(playerLocation));
-        });
-    });
-
     // Handle game commands
     $('#inputArea').keypress(function(event) {
         if (event.keyCode == 13) {
@@ -424,21 +383,30 @@ function loadGame(callback)
         
         // There should be only one.
         if (data.length > 1) {
-            alert("Invalid game.db - expecting only one entry");
+            var msg = "Invalid game.db - expecting only one entry";
+            alert(msg);
+            callback(msg);
             return;
         }
 
         gameData = data[0];
         $('#page_title').text("Play Game " + gameData.name);
-
-        // A player name must be chosen the first time the game is launched.
-        if (!gameData.hasOwnProperty("player")) {
-            // You can't send messages between renderers. You have to use main.js as a message gub.
-            ipc.send('edit-player-name', {});
-        } else {
-            $('#playing_as').text("Playing as " + gameData.player.name);
+        $('#playing_as').text("Playing as " + gameData.player.name);
+        switch(gameData.player.mapDrawMode) {
+           case mapDrawModeEnum.AUTO_VISITED:
+               $('input[name="drawChoice"][value="drawChoice_autoAll"]').prop('checked', true);
+               break;
+           case mapDrawModeEnum.AUTO_VISITED:
+               $('input[name="drawChoice"][value="drawChoice_autoVisited"]').prop('checked', true);
+               break;
+           case mapDrawModeEnum.MANUAL:
+               $('input[name="drawChoice"][value="drawChoice_manual"]').prop('checked', true);
+               break;
+           default:
+              $('input[name="drawChoice"][value="drawChoice_autoAll"]').prop('checked', true);
+              console.error("Unexpected draw choice value. Assuming auto_all");
         }
-    
+
         callback(null);
     });
 }

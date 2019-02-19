@@ -77,23 +77,29 @@ $(document).ready(function() {
 
    // Handle clicking the "Export" button on the "Export game" form.
    $('#exportGameButton').click(function() {
-    const {dialog} = require('electron').remote;
-    dialog.showOpenDialog({
-        properties: ['openDirectory']
-    }, function (chosenPath) {
-        if (chosenPath !== undefined) {
-            exportGame(chosenPath[0], function(err) {
-                if (err) {
-                    alert(err);
-                    return;
-                }
-            });
-        }
-    });
+        const {dialog} = require('electron').remote;
+        dialog.showOpenDialog({
+            properties: ['openDirectory']
+        }, function (chosenPath) {
+            if (chosenPath !== undefined) {
+                exportGame(chosenPath[0], function(err) {
+                    if (err) {
+                        alert(err);
+                        return;
+                    }
+                });
+            }
+        });
    });
 
-   // Handle clicking the "Import" button on the Game form.
-   $('#importGameButton').click(function() {
+   // Entering a value into the "player name" field on the "import game" form.
+   // Only enable the "choose file" button if a name has been specified.
+   $('#playerName').on('keyup paste', function() {
+       $('#chooseGameButton').prop('disabled', ($(this).val().trim() === ""));
+   });
+
+   // Handle clicking the "Choose file" button on the import game form.
+   $('#chooseGameButton').click(function() {
       const {dialog} = require('electron').remote;
       dialog.showOpenDialog({
           properties: ['openFile']
@@ -102,8 +108,14 @@ $(document).ready(function() {
               importGame(chosenPath[0], function(err, gameName) {
                   if (err) {
                       alert(err);
+                      resetImportGameForm();
                       return;
                   }
+
+                  // Configure the player and some other defaults when importing a game.
+                  // You can't send messages between renderers. You have to use main.js as a message gub.
+                  initializePlayer($('#playerName').val().trim(), gameName);
+                  resetImportGameForm();
 
                   // Refresh the games table.
                   loadAndDisplayAvailableGames(function() {});
@@ -117,6 +129,108 @@ $(document).ready(function() {
 //
 // Utility functions
 //
+
+function initializePlayer(playerName, gameName) {
+    const app = electron.remote.app;
+    var gameBasedir = path.join(app.getPath('userData'), "games");
+    var dbPath = path.join(gameBasedir, gameName);
+    var gameDbWrapper = require('../../assets/js/utils/dbWrapper');
+
+    async.waterfall([
+        function(callback) {
+            gameDbWrapper.openGameDB(callback, dbPath);
+        },
+        function(callback) {
+            var db_collections = dbWrapper.getDBs();
+            loadGame(db_collections, function(error, gameData) {
+                if (error) {
+                    callback(error);
+                } else {
+                    callback(error, db_collections, gameData);
+                }
+            });
+        },
+        function(db_collections, gameData, callback) {
+            // Initially assume the first realm. Later, we need to
+            // load the current realm from the player data.
+            loadRealm(db_collections, gameData.realms[0], function(error, realmData) {
+                if (error) {
+                    callback(error);
+                } else {
+                    callback(error, db_collections, gameData, realmData);
+                }
+            });
+        },
+        function(db_collections, gameData, realmData, callback) {
+            var startAtObjective = realmData.objectives.filter(objective => objective.type === "Start at");
+            if (startAtObjective.length !== 1) {
+                // Should be impossible.
+                alert(`Found ${startAtObjective.length} \"Start at\" objectives. Expecting 1`);
+
+                callback("Wrong number of objectives.");
+                return;
+            }
+
+            // If we found a start at objective, assume it has valid x and y params.
+            // This should really be validated too.
+            var startx = startAtObjective[0].params.filter(param => param.name === "x");
+            var starty = startAtObjective[0].params.filter(param => param.name === "y");
+
+            // Set the default map draw mode too.
+            gameData.player = {
+                'name': playerName,
+                'location': {'realm': realmData._id,
+                            'x': startx[0].value,
+                            'y': starty[0].value},
+                'mapDrawMode': mapDrawModeEnum.AUTO_ALL
+            };
+
+            db_collections.game.update({_id: gameData._id}, gameData, {}, function (err, numReplaced) {
+                callback(null);
+            });
+        }
+    ],
+    function(err, results) {
+        // Create the tabbed panels
+        //$("#paletteInnerPanel").tabs();
+        //$("#propertiesInnerPanel").tabs();
+        //if (!err) enableControls();
+    });
+}
+
+function loadGame(db_collections, callback)
+{
+    console.log(Date.now() + ' loadGame');
+
+    db_collections.game.find({}, function (err, data) {
+        ipc.send('logmsg', "loadGame found data: " + JSON.stringify(data));
+        
+        // There should be only one.
+        if (data.length > 1) {
+            var msg = "Invalid game.db - expecting only one entry";
+            alert(msg);
+            callback(msg);
+            return;
+        }
+
+        callback(null, data[0]);
+    });
+}
+
+function loadRealm(db_collections, realmId, callback) {
+    ipc.send('logmsg', 'load realm ' + realmId);
+
+    db_collections.questrealms.find({_id: realmId}, function (err, data) {
+        ipc.send('logmsg', "loadRealm found data: " + JSON.stringify(data));
+        callback(null, data[0]);
+    });
+}
+
+function resetImportGameForm() {
+    $('#chooseGameButton').prop('disabled', true);
+    $('#playerName').val();
+    $('#importPanel').hide();
+}
 
 function enableControls() {
     console.log("enableControls");

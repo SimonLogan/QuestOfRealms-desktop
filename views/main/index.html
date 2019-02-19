@@ -11,6 +11,7 @@
 </head>
 <body>
     <script type="text/javascript">window.$ = window.jQuery = require('jquery')</script>
+    <script type="text/javascript" src="../../assets/js/playGame/playGameUtils.js"></script>
     <script type="text/javascript" src="../../assets/js/main/index.js"></script>
     <script type="text/javascript" src="../../assets/js/realmEditor/realmUtils.js"></script>
 
@@ -62,7 +63,12 @@
             <h2>Games</h2>
             <div>These are playable games.</div>
             <div id="gameList"></div>
-            <input type="button" id="importGameButton" value="Import Game" />
+            <input type="button" id="importGameButton" value="Import Game" onclick="$('#importPanel').show();"/>
+        </div>
+        <div id="importPanel" class="panelStyle" style="display: none;">
+            <h3>Import game</h3>
+            <div class="inputRow"><label class="inputLabel" for="playerName">Player name:</label><input type="text" id="playerName" /></div>
+            <div class="inputRow"><input type="button" id="chooseGameButton" value="Choose file" disabled/></div>
         </div>
     </div>
 </body>
