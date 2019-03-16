@@ -182,8 +182,15 @@ function initializePlayer(playerName, gameName) {
                 'location': {'realm': realmData._id,
                             'x': startx[0].value,
                             'y': starty[0].value},
+                'visited': {},
                 'mapDrawMode': mapDrawModeEnum.AUTO_ALL
             };
+
+            // The player has implicitly visited the start location.
+            var visitedKey = startx[0].value + "_" + starty[0].value;
+            var visitedRecord = {};
+            visitedRecord[visitedKey] = true;
+            gameData.player.visited[realmData._id] = visitedRecord;
 
             db_collections.game.update({_id: gameData._id}, gameData, {}, function (err, numReplaced) {
                 callback(null);

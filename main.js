@@ -15,7 +15,7 @@ let win;
 
 function createWindow (html_path) {
   // Create the browser window.
-  win = new BrowserWindow({width: 1200, height: 800})
+  win = new BrowserWindow({width: 1200, height: 900})
 
   // and load the index.html of the app.
   win.loadURL(url.format({
@@ -220,36 +220,6 @@ ipcMain.on('play-game', (event, args) => {
   });
   win.loadURL(args.url);
 });
-
-/*
-ipcMain.on('edit-player-name', (event, msg) => {
-  console.log("Received edit-player_name: " + JSON.stringify(msg));
-
-  const playerNameModelPath = path.join('file://', __dirname, 'views/main/playerName.html');
-  let playerNameDialog = new BrowserWindow(
-    { parent: win, modal: true, frame: false, transparent: true,
-      alwaysOnTop: true, width: 540, height: 220});
-  playerNameDialog.on('close', function() { playerNameDialog = null });
-
-  playerNameDialog.webContents.once('did-finish-load', function() {
-    console.log("playerNameDialog did-finish-load");
-    playerNameDialog.webContents.send('init', msg);
-    playerNameDialog.webContents.openDevTools();
-  });
-
-  playerNameDialog.loadURL(playerNameModelPath);
-  playerNameDialog.show();
-});
-*/
-
-// Save pressed on the the edit player name dialog. Pass the saved data
-// back to the game window.
-/*
-ipcMain.on('save-player-name', (event, msg) => {
-  console.log("Received save-player-name: " + JSON.stringify(msg));
-  win.webContents.send('playerName-data', msg);
-});
-*/
 
 // Quit when all windows are closed.
 app.on('window-all-closed', () => {

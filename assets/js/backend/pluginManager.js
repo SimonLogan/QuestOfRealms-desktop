@@ -1,7 +1,6 @@
 /**
- * Created by Simon on 12/07/2018
- * Manager access to plugin data.
- * (c) Simon Logan
+ * Manage access to plugin data.
+ * (c) Simon Logan 2018
  */
 
 module.exports = {

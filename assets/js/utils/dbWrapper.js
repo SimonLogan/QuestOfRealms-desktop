@@ -27,9 +27,6 @@ module.exports = {
         callback(null);
     },
     openGameDB: function (callback, dbPath=null) {
-        var electron = require('electron');
-        const app = electron.remote.app;
-
         console.log("opendb path " + dbPath + ", __dirname " + __dirname);
 
         db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });

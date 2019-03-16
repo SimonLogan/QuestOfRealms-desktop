@@ -7,12 +7,11 @@
 // Global data
 window.$ = window.jQuery = require('jquery');
 const electron = require('electron');
-const async = require('async');
 const ipc = require('electron').ipcRenderer;
 const Backbone = require('backbone');
-const dbWrapper = require('../../assets/js/utils/dbWrapper');
 var path = require('path');
 var pluginsPath = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
+const gameEngine = require(path.join(__dirname, '../../assets/js/backend/gameEngine.js'));
 
 // Constants
 describeDetailEnum = {
@@ -26,7 +25,6 @@ var MapLocation = Backbone.Model.extend({});
 
 // Maintain a local collection of map locations. This will be synchronized (both ways)
 // with the server and so allows multi-user access to the data.
-
 var MapLocationCollection = Backbone.Collection.extend({
     // Extend the default collection with functionality that we need.
     model: MapLocation,
@@ -162,150 +160,151 @@ ipc.on('playGame-data', function (event, data) {
     var gameBasedir = path.join(app.getPath('userData'), "games");
     var dbPath = path.join(gameBasedir, data.name);
 
-   // Load details of the game.
-   console.log("********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
-   ipc.send('logmsg', "********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
+    // Load details of the game.
+    console.log("********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
+    ipc.send('logmsg', "********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
 
-   async.waterfall([
-        function(callback) {
-            dbWrapper.openGameDB(callback, dbPath);
-        },
-        function(callback) {
-            loadGame(function(error) {
-                callback(error);
-            });
-        },
-        function(callback) {
-            // Initially assume the first realm. Later, we need to
-            // load the current realm from the player data.
-            loadRealm(gameData.realms[0], function(error) {
-                if (!error) {
-                    $('#realmName').text("Editing realm " + currentRealmData.name);
-                    mView = new LocationsView({collection: locationData});
-                    if (currentRealmData.hasOwnProperty('mapLocations')) {
-                        locationData.reset(currentRealmData.mapLocations);
-                    }
-
-                    callback(null);
-                } else {
-                    // Currently not used.
-                    callback(error);
-                }
-            });
+    gameEngine.initialize(dbPath, function(err) {
+        if (err) {
+            alert("Failed to load game: " + err);
+            return;
         }
-    ],
-    function(err, results) {
-        // Create the tabbed panels
-        //$("#paletteInnerPanel").tabs();
-        //$("#propertiesInnerPanel").tabs();
-        //if (!err) enableControls();
+
+        gameData = gameEngine.getGameData();
+        $('#page_title').text("Play Game " + gameData.name);
+        $('#playing_as').text("Playing as " + gameData.player.name);
+        switch(gameData.player.mapDrawMode) {
+            case mapDrawModeEnum.AUTO_ALL:
+                $('#drawChoice_autoAll').prop('checked', true);
+                //$('input[name="drawChoice"][value="drawChoice_autoAll"]').prop('checked', true);
+                break;
+            case mapDrawModeEnum.AUTO_VISITED:
+                $('#drawChoice_autoVisited').prop('checked', true);
+                break;
+            case mapDrawModeEnum.MANUAL:
+                $('#drawChoice_manual').prop('checked', true);
+                break;
+            default:
+                $('#drawChoice_autoAll').prop('checked', true);
+                console.error("Unexpected draw choice value. Assuming auto_all");
+        }
+
+        currentRealmData = gameEngine.getCurrentRealmData();
+        //$('#realmName').text("Editing realm " + currentRealmData.name);
+
+        drawMapGrid(currentRealmData.width, currentRealmData.height);
+        mView = new LocationsView({collection: locationData});
+        if (currentRealmData.hasOwnProperty('mapLocations')) {
+            locationData.reset(currentRealmData.mapLocations);
+        }
+
+        displayObjectives();
     });
 
-
-function dummyCollapse() {
-/*
-// When the page has finished rendering...
-//$(document).ready(function() {
-    // Get the size of the map grid that should be drawn. These values come from the HTML elements
-    // with id="realmWidth" and id="realmHeight".
-    // The jQuery selectors $(#XXX) below select the elements by id.
-    // The data was placed into these elements in the first place by the template parameters
-    //    value="<%= realm.width %>"
-    //    value="<%= realm.height %>"
-    // which get their values from the data passed to the view function by editRealm() in
-    // api/controllers/QuestRealmcontroller.js:
-    //    return res.view("questRealm/editRealm", {
-    //        realm: {
-    //            id: realm.id,
-    //            name: realm.name,
-    //            width: realm.width,
-    //            height: realm.height
-    //       }
-    var gameId = $('#gameId').val();
-
-    // There's no point in having a backbone collection to only ever run "fetch" on it.
-    // The client will fetch the data once at the start and then keep it in sync using the
-    // socket messages.
-
-    // Temporarily make it global for debug purposes.
-    gamesocket = io.connect();
-    gamesocket.on('connect', function socketConnected() {
-        // Load the game and call the function below when it has been retrieved.
-        // You need to use this callback approach because the AJAX call is
-        // asynchronous. This means the code here won't wait for it to complete,
-        // so you have to provide a function that can be called when the data is ready.
-        loadGame(function() {
-            $('#gameName').text("Play Game " + gameData.name);
-            $('#playerName').text("Playing as " + gameData.players[0].name);
-
-            loadMaplocations(function() {
-                // Configure the map draw mode panel according to the user's preference.
-                var mapDrawMode = gameData.players[0].mapDrawMode;
-                $('#drawChoice_' + mapDrawMode).prop("checked", true)
-                drawMapGrid(currentRealmData.width, currentRealmData.height, mapDrawMode);
-                buildMessageArea();
-
-                // Listen for socket messages from the server
-                console.log("Lsitening for messages with subject: " + currentRealmData.id + "-status");
-                gamesocket.on(currentRealmData.id + '-status', function messageReceived(message) {
-                    messageQueue.push(message);
-                    console.log("Push message onto queue: " + JSON.stringify(messageQueue));
-                    if (busy) {
-                        console.log("Busy, process message later");
-                    } else {
-                        console.log("Not busy, process message.");
-                        processMessages();
-                    }
-                });
-
-                busy = false;
-                processMessages();
-                var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
-                displayMessageBlock(describeMyLocation(playerLocation));
-            });
-        });
-
-        ///////////////////////////////////////////////////////////
-        // Here's where you'll want to add any custom logic for
-        // when the browser establishes its socket connection to
-        // the Sails.js server.
-        ///////////////////////////////////////////////////////////
-        /*
-        console.log(
-            '22 Socket is now connected and globally accessible as `socket`.\n' +
-            'e.g. to send a GET request to Sails, try \n' +
-            '`socket.get("/", function (response) ' +
-            '{ console.log(response); })`'
-        );
-        */
-        ///////////////////////////////////////////////////////////
-
-        // DEBUG
-        /*
-        {
-            // Trigger a command that will send an AJAX reponse and immediately publish a few
-            // socket messsages. Ensure that the client is busy and that the messages get
-            // queued and are successfully processed later.
-            console.log("starting dummycommand");
-            $.get(
-                '/dummyCommand',
-                function (data) {
-                    console.log("after dummycommand, starting delay.");
-                    setTimeout(function(){
-                        console.log("after delay");
-                        busy = false;
-                        processMessages();
-                    }, 10000);
-                }
-            ).fail(function(res){
-                alert("Error: " + JSON.parse(res.responseText).error);
-            });
-        }
-        */
+    function dummyCollapse() {
     /*
-    });
-    */
-}
+    // When the page has finished rendering...
+    //$(document).ready(function() {
+        // Get the size of the map grid that should be drawn. These values come from the HTML elements
+        // with id="realmWidth" and id="realmHeight".
+        // The jQuery selectors $(#XXX) below select the elements by id.
+        // The data was placed into these elements in the first place by the template parameters
+        //    value="<%= realm.width %>"
+        //    value="<%= realm.height %>"
+        // which get their values from the data passed to the view function by editRealm() in
+        // api/controllers/QuestRealmcontroller.js:
+        //    return res.view("questRealm/editRealm", {
+        //        realm: {
+        //            id: realm.id,
+        //            name: realm.name,
+        //            width: realm.width,
+        //            height: realm.height
+        //       }
+        var gameId = $('#gameId').val();
+
+        // There's no point in having a backbone collection to only ever run "fetch" on it.
+        // The client will fetch the data once at the start and then keep it in sync using the
+        // socket messages.
+
+        // Temporarily make it global for debug purposes.
+        gamesocket = io.connect();
+        gamesocket.on('connect', function socketConnected() {
+            // Load the game and call the function below when it has been retrieved.
+            // You need to use this callback approach because the AJAX call is
+            // asynchronous. This means the code here won't wait for it to complete,
+            // so you have to provide a function that can be called when the data is ready.
+            loadGame(function() {
+                $('#gameName').text("Play Game " + gameData.name);
+                $('#playerName').text("Playing as " + gameData.players[0].name);
+
+                loadMaplocations(function() {
+                    // Configure the map draw mode panel according to the user's preference.
+                    var mapDrawMode = gameData.players[0].mapDrawMode;
+                    $('#drawChoice_' + mapDrawMode).prop("checked", true)
+                    drawMapGrid(currentRealmData.width, currentRealmData.height, mapDrawMode);
+                    buildMessageArea();
+
+                    // Listen for socket messages from the server
+                    console.log("Lsitening for messages with subject: " + currentRealmData.id + "-status");
+                    gamesocket.on(currentRealmData.id + '-status', function messageReceived(message) {
+                        messageQueue.push(message);
+                        console.log("Push message onto queue: " + JSON.stringify(messageQueue));
+                        if (busy) {
+                            console.log("Busy, process message later");
+                        } else {
+                            console.log("Not busy, process message.");
+                            processMessages();
+                        }
+                    });
+
+                    busy = false;
+                    processMessages();
+                    var playerLocation = findPlayerLocation(maplocationData, gameData.players[0].name);
+                    displayMessageBlock(describeMyLocation(playerLocation));
+                });
+            });
+
+            ///////////////////////////////////////////////////////////
+            // Here's where you'll want to add any custom logic for
+            // when the browser establishes its socket connection to
+            // the Sails.js server.
+            ///////////////////////////////////////////////////////////
+            /*
+            console.log(
+                '22 Socket is now connected and globally accessible as `socket`.\n' +
+                'e.g. to send a GET request to Sails, try \n' +
+                '`socket.get("/", function (response) ' +
+                '{ console.log(response); })`'
+            );
+            */
+            ///////////////////////////////////////////////////////////
+
+            // DEBUG
+            /*
+            {
+                // Trigger a command that will send an AJAX reponse and immediately publish a few
+                // socket messsages. Ensure that the client is busy and that the messages get
+                // queued and are successfully processed later.
+                console.log("starting dummycommand");
+                $.get(
+                    '/dummyCommand',
+                    function (data) {
+                        console.log("after dummycommand, starting delay.");
+                        setTimeout(function(){
+                            console.log("after delay");
+                            busy = false;
+                            processMessages();
+                        }, 10000);
+                    }
+                ).fail(function(res){
+                    alert("Error: " + JSON.parse(res.responseText).error);
+                });
+            }
+            */
+        /*
+        });
+        */
+    }
 
     // Handle game commands
     $('#inputArea').keypress(function(event) {
@@ -316,14 +315,21 @@ function dummyCollapse() {
                 return;
             }
 
-            var playerLocation = findLocation();
+            var playerLocation = findPlayerLocation();
             if (!playerLocation) {
-                alert("Could not find player " + $('#playerName').val() + " on the map.");
+                var playerName = gameData.player.name;
+                alert(`Could not find player ${playerName} on the map.`);
                 return;
             }
 
             displayMessage(commandText);
-            handleCommand(playerLocation, commandText);
+            handleCommand(playerLocation, commandText, function(result) {
+               // Asynchronous result notifications from the game engine.
+               // There could be multiple results returned, for example
+               // completing an action and completing a goal as a result
+               // of the action.
+               processMessage(result);
+            });
             commandTextBox.val("");
         }
     });
@@ -338,158 +344,75 @@ function dummyCollapse() {
         gameData.players[0].mapDrawMode = selectedOption.target.value;
         saveGame();
         drawMapGrid(currentRealmData.width, currentRealmData.height, selectedOption.target.value);
-        var playerLocation = findLocation();
+        var playerLocation = findPlayerLocation();
         showPlayerLocation(playerLocation.y, playerLocation.x);
-    })
+    });
 }); // ipc.on('playGame-data')
 
 //
 // Utility functions
 //
 
-function drawMapLocation(locationData) {
-    if (shouldDrawMapLocation(locationData)) {
-        // Always show the terrain once the player has visited the location, as terrain never changes.
-        var target = $('#mapTable td[id="cell_' + locationData.attributes.x + '_' + locationData.attributes.y + '"]').find('div');
-        target.addClass('terrainCell');
-        var html = '';
-    
-        target.attr('data-env', locationData.attributes.type);
-        target.attr('data-id', locationData.id);
-        target.attr('data-module', locationData.attributes.module);
-        target.html('');
-        target.append("<img src='" + pluginsPath + locationData.attributes.module + "/images/" + locationData.attributes.type + ".png'/>");
+function processMessage(thisMessage) {
+    console.log("======== starting processMessage() ========");
+    console.log("processing message: " + JSON.stringify(thisMessage));
 
-        // TODO: decide whether the maplocation's items and characters remain permanently visible, or
-        // only visible when the player is in the location.
-        // For now show the details if the player has visited the location.
-        if (locationData.attributes.characters.length > 0) {
-            target.append('<img src="../../assets/images/other-character-icon.png" style="position:absolute; margin-left: 1em">');
-        }
-
-        if (locationData.attributes.items.length > 0) {
-            target.append( '<img src="../../assets/images/object-icon.png" style="position:absolute; margin-left: 2em; margin-top: 1em">');
-        }
-    }
-}
-
-function loadGame(callback)
-{
-    console.log(Date.now() + ' loadGame');
-
-    var db_collections = dbWrapper.getDBs();
-    db_collections.game.find({}, function (err, data) {
-        ipc.send('logmsg', "loadGame found data: " + JSON.stringify(data));
-        
-        // There should be only one.
-        if (data.length > 1) {
-            var msg = "Invalid game.db - expecting only one entry";
-            alert(msg);
-            callback(msg);
-            return;
-        }
-
-        gameData = data[0];
-        $('#page_title').text("Play Game " + gameData.name);
-        $('#playing_as').text("Playing as " + gameData.player.name);
-        switch(gameData.player.mapDrawMode) {
-           case mapDrawModeEnum.AUTO_VISITED:
-               $('input[name="drawChoice"][value="drawChoice_autoAll"]').prop('checked', true);
-               break;
-           case mapDrawModeEnum.AUTO_VISITED:
-               $('input[name="drawChoice"][value="drawChoice_autoVisited"]').prop('checked', true);
-               break;
-           case mapDrawModeEnum.MANUAL:
-               $('input[name="drawChoice"][value="drawChoice_manual"]').prop('checked', true);
-               break;
-           default:
-              $('input[name="drawChoice"][value="drawChoice_autoAll"]').prop('checked', true);
-              console.error("Unexpected draw choice value. Assuming auto_all");
-        }
-
-        callback(null);
-    });
-}
-
-function loadRealm(realmId, callback) {
-    ipc.send('logmsg', 'load realm ' + realmId);
-
-    var db_collections = dbWrapper.getDBs();
-    db_collections.questrealms.find({_id: realmId}, function (err, data) {
-        ipc.send('logmsg', "loadRealm found data: " + JSON.stringify(data));
-        currentRealmData = data[0];
-        drawMapGrid(currentRealmData.width, currentRealmData.height);
-        displayObjectives();
-        callback(null);
-    });
-}
-
-function processMessages() {
-    console.log("======== starting processMessages() ========");
-    if (busy) {
-        console.log("busy. leaving processMessages()");
+    if (thisMessage.error) {
+        displayMessage(thisMessage.message);
+        return;
     }
 
-    // debug
-    /*
-    for (var x = 0; x < messageQueue.length; x++) {
-       console.log("message queue entry [" + x + "]: " + JSON.stringify(messageQueue[x]));
+    if (thisMessage.responseData.description.action === "move") {
+        processMoveNotification(thisMessage);
     }
-    */
-
-    while (messageQueue.length > 0) {
-        var thisMessage = messageQueue.shift();
-        console.log("processing message: " + JSON.stringify(thisMessage));
-
-        if (thisMessage.description.action === "move") {
-            processMoveNotification(thisMessage);
-        }
-        else if (thisMessage.description.action === "take" ||
-                 thisMessage.description.action === "take from") {
-            processTakeNotification(thisMessage);
-        }
-        else if (thisMessage.description.action === "buy" ||
-                 thisMessage.description.action === "buy from") {
-            processBuyNotification(thisMessage);
-        }
-        else if (thisMessage.description.action === "drop") {
-            processDropNotification(thisMessage);
-        }
-        else if (thisMessage.description.action === "objective completed") {
-            processObjectiveCompletedNotification(thisMessage);
-        }
-        else if (thisMessage.description.action === "give") {
-            processGiveNotification(thisMessage);
-        }
-        else if (thisMessage.description.action === "use") {
-            processUseNotification(thisMessage);
-        }
-        else if (thisMessage.description.action === "fight") {
-            processFightNotification(thisMessage);
-        }
+    else if (thisMessage.responseData.action === "take" ||
+             thisMessage.responseData.action === "take from") {
+        processTakeNotification(thisMessage);
     }
-    console.log("======== finished processMessages() ========");
+    else if (thisMessage.responseData.description.action === "buy" ||
+             thisMessage.responseData.description.action === "buy from") {
+        processBuyNotification(thisMessage);
+    }
+    else if (thisMessage.responseData.description.action === "drop") {
+        processDropNotification(thisMessage);
+    }
+    else if (thisMessage.responseData.description.action === "objective completed") {
+        processObjectiveCompletedNotification(thisMessage);
+    }
+    else if (thisMessage.responseData.description.action === "give") {
+        processGiveNotification(thisMessage);
+    }
+    else if (thisMessage.responseData.description.action === "use") {
+        processUseNotification(thisMessage);
+    }
+    else if (thisMessage.responseData.description.action === "fight") {
+        processFightNotification(thisMessage);
+    }
+
+    console.log("======== finished processMessage() ========");
 }
 
 function processMoveNotification(message) {
-    gameData = message.data.game[0];
+    var responseData = message.responseData;
+    gameData = responseData.data.game;
 
-    if (message.player === gameData.players[0].name) {
-        console.log(message.description.message);
-        displayMessageBlock(describeMyLocation(maplocationData[message.description.to.y-1][message.description.to.x-1]));
+    if (responseData.player === gameData.player.name) {
+        console.log(responseData.description.message);
+        var newLocation = findLocation(
+            responseData.description.to.x.toString(),
+            responseData.description.to.y.toString());
+        displayMessageBlock(describeMyLocation(newLocation));
 
-        var oldLocation = maplocationData[message.description.from.y-1][message.description.from.x-1];
-        if (shouldDrawMapLocation(oldLocation)) {
-            // Draw the old map location without the player.
-            drawMaplocation(oldLocation);
-        }
+        var oldLocation = findLocation(
+            responseData.description.from.x.toString(),
+            responseData.description.from.y.toString());
 
-        var newLocation = maplocationData[message.description.to.y-1][message.description.to.x-1];
-        if (shouldDrawMapLocation(newLocation)) {
-            // Show the player in the new location.
-            drawMaplocation(newLocation);
-            showPlayerLocation(message.description.to.y, message.description.to.x);
-        }
+        // Draw the old map location without the player.
+        drawMapLocation(oldLocation);
+
+        // Show the player in the new location.
+        //drawMapLocation(newLocation);
+        showPlayerLocation(newLocation);
     }
 }
 
@@ -502,9 +425,9 @@ function processTakeNotification(message) {
         console.log(message.description.message);
         displayMessageBlock(message.description.message);
 
-        if (shouldDrawMapLocation(mapLocation)) {
+        if (shoulddrawMapLocation(mapLocation)) {
             // Show the player in the new location.
-            drawMaplocation(mapLocation);
+            drawMapLocation(mapLocation);
             showPlayerLocation(mapLocation.y, mapLocation.x);
         }
     }
@@ -519,9 +442,9 @@ function processBuyNotification(message) {
         console.log(message.description.message);
         displayMessageBlock(message.description.message);
 
-        if (shouldDrawMapLocation(mapLocation)) {
+        if (shoulddrawMapLocation(mapLocation)) {
             // Show the player in the new location.
-            drawMaplocation(mapLocation);
+            drawMapLocation(mapLocation);
             showPlayerLocation(mapLocation.y, mapLocation.x);
         }
     }
@@ -536,9 +459,9 @@ function processDropNotification(message) {
         console.log(message.description.message);
         displayMessageBlock(message.description.message);
 
-        if (shouldDrawMapLocation(mapLocation)) {
+        if (shoulddrawMapLocation(mapLocation)) {
             // Show the player in the new location.
-            drawMaplocation(mapLocation);
+            drawMapLocation(mapLocation);
             showPlayerLocation(mapLocation.y, mapLocation.x);
         }
     }
@@ -553,9 +476,9 @@ function processGiveNotification(message) {
         console.log(message.description.message);
         displayMessageBlock(message.description.message);
 
-        if (shouldDrawMapLocation(mapLocation)) {
+        if (shoulddrawMapLocation(mapLocation)) {
             // Show the player in the new location.
-            drawMaplocation(mapLocation);
+            drawMapLocation(mapLocation);
             showPlayerLocation(mapLocation.y, mapLocation.x);
         }
     }
@@ -579,9 +502,9 @@ function processFightNotification(message) {
         console.log(message.description.message);
         displayMessageBlock(message.description.message);
 
-        if (shouldDrawMapLocation(mapLocation)) {
+        if (shoulddrawMapLocation(mapLocation)) {
             // Show the player in the new location.
-            drawMaplocation(mapLocation);
+            drawMapLocation(mapLocation);
             showPlayerLocation(mapLocation.y, mapLocation.x);
         }
     }
@@ -656,6 +579,7 @@ function displayObjectives()
     target.append(html);
 }
 
+/*
 function saveGame(callback)
 {
     console.log(Date.now() + ' saveGame');
@@ -669,6 +593,7 @@ function saveGame(callback)
         }
     });
 }
+*/
 
 /*
 function loadMaplocations(callback) {
@@ -774,13 +699,42 @@ function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
     mapTable.html(tableContents);
 }
 
-function drawMaplocation(locationData) {
+function drawMapLocation(locationData) {
+    if (shoulddrawMapLocation(locationData)) {
+        // Always show the terrain once the player has visited the location, as terrain never changes.
+        var target = $('#mapTable td[id="cell_' + locationData.attributes.x + '_' + locationData.attributes.y + '"]').find('div');
+        target.addClass('terrainCell');
+        var html = '';
+    
+        target.attr('data-env', locationData.attributes.type);
+        target.attr('data-id', locationData.id);
+        target.attr('data-module', locationData.attributes.module);
+        target.html('');
+        target.append("<img src='" + pluginsPath + locationData.attributes.module + "/images/" + locationData.attributes.type + ".png'/>");
+
+        // TODO: decide whether the maplocation's items and characters remain permanently visible, or
+        // only visible when the player is in the location.
+        // For now show the details if the player has visited the location.
+        if (locationData.attributes.characters.length > 0) {
+            target.append('<img src="../../assets/images/other-character-icon.png" class="characterIcon">');
+        }
+
+        if (locationData.attributes.items.length > 0) {
+            target.append( '<img src="../../assets/images/object-icon.png" class="itemIcon">');
+        }
+
+        var dummy = 5;
+    }
+}
+
+/*
+function drawMapLocation(locationData) {
     var target = $('#mapTable td[id="cell_' + locationData.x + '_' + locationData.y + '"]').find('div');
     target.attr('data-id', locationData.id);
     target.addClass('terrainCell');
     var html = '';
 
-    if (shouldDrawMapLocation(locationData)) {
+    if (shoulddrawMapLocation(locationData)) {
         // Always show the terrain once the player has visited the location, as terrain never changes.
         target.attr('data-env', locationData.type);
         html += '<img src="images/' + locationData.type + '.png" style="position:absolute" />';
@@ -788,20 +742,21 @@ function drawMaplocation(locationData) {
         // TODO: decide whether the maplocation's items and characters remain permanently visible, or
         // only visible when the player is in the location.
         // For now show the details if the player has visited the location.
-        if (locationData.characters.length > 0) {
+        if (locationData.characters && locationData.characters.length > 0) {
             html += '<img src="images/other-character-icon.png" class="characterIcon">';
         }
 
-        if (locationData.items.length > 0) {
+        if (locationData.items && locationData.items.length > 0) {
             html += '<img src="images/object-icon.png" class="itemIcon">';
         }
     }
 
     target.html(html);
 }
+*/
 
 // Decide whether to show a maplocation depending on thr mapdraw mode.
-function shouldDrawMapLocation(locationData) {
+function shoulddrawMapLocation(locationData) {
     var player = gameData.player;
 
     // Default to always draw.
@@ -823,7 +778,7 @@ function shouldDrawMapLocation(locationData) {
 }
 
 function showPlayerLocation(location) {
-    if (shouldDrawMapLocation(location)) {
+    if (shoulddrawMapLocation(location)) {
         var target = $('#mapTable td[id="cell_' + location.attributes.x + '_' + location.attributes.y + '"]').find('div');
         var html = target.html();
         html += '<img id="simon" src="../../assets/images/player-icon.png" class="playerIcon">';
@@ -857,7 +812,8 @@ function displayMessageBlock(message) {
 
 // Display a message a briefly highlight it in the message table.
 function displayMessage(message) {
-    displayMessageImpl(message);
+
+    displayMessageImpl(escapeHtml(message));
     setTimeout(function() { $('.messageRow.newMessage').removeClass('newMessage').addClass('oldMessage'); }, 1000);
 }
 
@@ -888,6 +844,10 @@ function displayMessageImpl(message) {
 
 function findLocation(x, y) {
     return locationData.where({x:x, y:y})[0];
+}
+
+function findPlayerLocation() {
+    return findLocation(gameData.player.location.x, gameData.player.location.y)
 }
 
 function describeLocationContents(location, detailLevel) {
@@ -928,7 +888,7 @@ function describeLocationContents(location, detailLevel) {
 }
 
 function describeLocation(location, detailLevel) {
-    var message = "Terrain: " + location.type + ".";
+    var message = "Terrain: " + location.attributes.type + ".";
     message += describeLocationContents(location, detailLevel);
     return message;
 }
@@ -941,7 +901,7 @@ function describeMyLocation(location) {
     return message;
 }
 
-function handleCommand(playerLocation, commandText) {
+function handleCommand(playerLocation, commandText, callback) {
     var tokens = commandText.split(" ");
 
     // If the client has the data then certain commands can be fulfilled locally.
@@ -962,30 +922,10 @@ function handleCommand(playerLocation, commandText) {
         return;
     }
 
-    // This command can't be handled locally. Send to the server.
-    $.post(
-        '/gameCommand', {
-            command: commandText,
-            player: $('#playerName').val(),
-            gameId: $('#realmId').val()
-        },
-        function (data) {
-            console.log(data);
-            if (data.error) {
-                displayMessageBlock(escapeHtml(data.message));
-                return;
-            }
-
-            // Some commands require client-side post-processing.
-            /*
-            if (tokens[0] === "status") {
-                processSomeFunction(data);
-            }
-            */
-        }
-    ).fail(function (res) {
-        alert("Error: " + res.responseJSON.error);
-    });
+    // This command can't be handled locally. Send to the game engine.
+    gameEngine.gameCommand(commandText, callback);
+    // If it returned an error:
+    // displayMessageBlock(escapeHtml(data.message));
 
     return;
 }
@@ -1177,17 +1117,17 @@ function describeLocationAndSorroundings(playerLocation) {
         }
 
         // Does the requested location exist? First get the current player location.
-        var originalX = parseInt(playerLocation.x);
-        var originalY = parseInt(playerLocation.y);
+        var originalX = parseInt(playerLocation.attributes.x);
+        var originalY = parseInt(playerLocation.attributes.y);
         var newX = originalX + deltaX;
         var newY = originalY + deltaY;
         console.log("searching for location [" + newX + ", " + newY + "].");
 
-        if (!locationExists(newY -1, newX -1)) {
+        var newLocation = findLocation(newX.toString(), newY.toString());
+        if (!newLocation) {
             continue;
         }
 
-        var newLocation = maplocationData[newY -1][newX -1];
         var message = "To the " + directions[i] + " - ";
         message += describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY);
         displayMessage(message);
@@ -1198,8 +1138,8 @@ function describeLocationAndSorroundings(playerLocation) {
 
 function describeLocationCharacter(playerLocation, characterName, characterNumber) {
     var matchedIndex = null;
-    for (var i = 0; i < playerLocation.characters.length; i++) {
-        if (playerLocation.characters[i].type === characterName) {
+    for (var i = 0; i < playerLocation.attributes.characters.length; i++) {
+        if (playerLocation.attributes.characters[i].type === characterName) {
             // Count down the matches. If we reached 0 then we've
             // matched the specified number of characters.
             characterNumber--;
@@ -1216,7 +1156,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
        return false;
     }
 
-    var thisCharacter = playerLocation.characters[matchedIndex];
+    var thisCharacter = playerLocation.attributes.characters[matchedIndex];
     var message = "A " + thisCharacter.type;
     if (thisCharacter.name) {
         message += " called \"" + thisCharacter.name + "\"";
@@ -1264,8 +1204,8 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
 
 function describeLocationItem(playerLocation, itemName, itemNumber) {
     var matchedIndex = null;
-    for (var i = 0; i < playerLocation.items.length; i++) {
-        if (playerLocation.items[i].type === itemName) {
+    for (var i = 0; i < playerLocation.attributes.items.length; i++) {
+        if (playerLocation.attributes.items[i].type === itemName) {
             // Count down the matches. If we reached 0 then we've
             // matched the specified number of characters.
             itemNumber--;
@@ -1282,7 +1222,7 @@ function describeLocationItem(playerLocation, itemName, itemNumber) {
        return false;
     }
 
-    var thisItem = playerLocation.items[matchedIndex];
+    var thisItem = playerLocation.attributes.items[matchedIndex];
     var message = "A " + thisItem.type;
     if (thisItem.name) {
         message += " called \"" + thisItem.name + "\"";
@@ -1320,13 +1260,7 @@ function describeItem(item) {
 }
 
 function locationExists(y, x) {
-    if (maplocationData[y] === undefined)
-        return false;
-
-    if (maplocationData[y][x] === undefined)
-        return false;
-
-    return true;
+    return (findLocation(x, y) !== undefined);
 }
 
 function handleInventory(playerLocation, tokens) {
