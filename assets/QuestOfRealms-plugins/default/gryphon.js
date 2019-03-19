@@ -23,9 +23,9 @@ module.exports = {
            * can take the object from the Gryphon.
            */
 
-          sails.log.info("*** ");
-          sails.log.info("*** in gryphon.take from() " + JSON.stringify(object));
-          sails.log.info("*** ");
+          console.log("*** ");
+          console.log("*** in gryphon.take from() " + JSON.stringify(object));
+          console.log("*** ");
 
           resp = {
              player: playerName,
@@ -36,7 +36,7 @@ module.exports = {
              }
           };
 
-          sails.log.info("in take from() callback value");
+          console.log("in take from() callback value");
           callback(resp);
        }
   }

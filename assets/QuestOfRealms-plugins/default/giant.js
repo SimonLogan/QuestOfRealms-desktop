@@ -23,9 +23,9 @@ module.exports = {
            * Giant took the object.
            */
 
-          sails.log.info("*** ");
-          sails.log.info("*** in giant.give() " + JSON.stringify(object));
-          sails.log.info("*** ");
+          console.log("*** ");
+          console.log("*** in giant.give() " + JSON.stringify(object));
+          console.log("*** ");
 
           var resp = {
              player: playerName,
@@ -36,7 +36,7 @@ module.exports = {
              }
           };
 
-          sails.log.info("in give() callback value");
+          console.log("in give() callback value");
           callback(resp);
        },
        "take from": function(giant, object, game, playerName, callback) {
@@ -46,9 +46,9 @@ module.exports = {
            * can take the object from the Giant.
            */
 
-          sails.log.info("*** ");
-          sails.log.info("*** in giant.take from() " + JSON.stringify(object));
-          sails.log.info("*** ");
+          console.log("*** ");
+          console.log("*** in giant.take from() " + JSON.stringify(object));
+          console.log("*** ");
 
           var resp = {
              player: playerName,
@@ -60,7 +60,7 @@ module.exports = {
              }
           };
 
-          sails.log.info("in take from() callback value");
+          console.log("in take from() callback value");
           callback(resp);
        },
        "buy from": function(giant, object, game, playerName, callback) {
@@ -70,9 +70,9 @@ module.exports = {
            * were able to buy the object from the Giant.
            */
 
-          sails.log.info("*** ");
-          sails.log.info("*** in giant.buy from() " + JSON.stringify(object));
-          sails.log.info("*** ");
+          console.log("*** ");
+          console.log("*** in giant.buy from() " + JSON.stringify(object));
+          console.log("*** ");
 
           // Check whether the player can pay.
           var player = null;
@@ -118,7 +118,7 @@ module.exports = {
               };
           }
 
-          sails.log.info("in take from() callback value");
+          console.log("in take from() callback value");
           callback(resp);
        }
   }

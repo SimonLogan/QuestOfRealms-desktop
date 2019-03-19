@@ -5,6 +5,7 @@
 
 const dbWrapper = require('../utils/dbWrapper');
 const async = require('async');
+const app = electron.remote.app;
 
 var gameData;
 var currentRealmData;
@@ -59,6 +60,30 @@ class findItem {
         }
 
         return null;
+    }
+}
+
+// Find a character
+class characterInfo {
+    constructor(character, characterIndex) {
+        this.character = character;
+        this.characterIndex = characterIndex;
+   }
+}
+
+class findCharacter {
+    static findLocationCharacterByType(location, characterType) {
+        if (location.characters === undefined) {
+		    return null;
+        }
+
+        for (var i = 0; i < location.characters.length; i++) {
+            if (location.characters[i].type === characterType) {
+    		    return new characterInfo(location.characters[i], i);
+   	        }
+        }
+
+		return null;
     }
 }
 
@@ -571,12 +596,12 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
     var itemFound = false;
     var object = null;
     for (var j = 0; j < characterInfo.character.inventory.length; j++) {
-       if (characterInfo.character.inventory[j].type === objectName) {
-		        itemFound = true;
-		        object = characterInfo.character.inventory[j];
-		        characterInfo.character.inventory.splice(j, 1);
-		        console.log("Found item in inventory");
-	     }
+        if (characterInfo.character.inventory[j].type === objectName) {
+		    itemFound = true;
+		    object = characterInfo.character.inventory[j];
+		    characterInfo.character.inventory.splice(j, 1);
+		    console.log("Found item in inventory");
+	    }
     }
 
     if (!itemFound) {
@@ -586,19 +611,21 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
         return;
     }
 
-    console.log("Found objectName: " + JSON.stringify(characterInfo.character.inventory[j]));
+    console.log("Found objectName: " + JSON.stringify(object));
     console.log("characterIndex: " + characterInfo.characterIndex);
 
     // We found the item. See if we can take it.
     var path = require('path');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-    var handlerPath =  pathroot + characterInfo.character.module + "/" + characterInfo.character.filename;
+    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    console.log("gameDir: " + gameDir);
+    var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
+    console.log("HandlerPath: " + handlerPath);
     var module = require(handlerPath);
 
     // Command handlers are optional.
     if (module.handlers === undefined) {
        console.log("1 Module: " + handlerPath +
-                      " does not have a handler for \"take from\".");
+                   " does not have a handler for \"take from\".");
        statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
        return;
     }
@@ -606,13 +633,13 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
     var handlerFunc = module.handlers["take from"];
     if (handlerFunc === undefined) {
        console.log("2 Module: " + handlerPath +
-                      " does not have a handler for \"take from\".");
+                   " does not have a handler for \"take from\".");
        statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
        return;
     }
 
     console.log("calling take from()");
-    handlerFunc(characterInfo.character, object, game, playerName, function(handlerResp) {
+    handlerFunc(characterInfo.character, object, gameData, playerName, function(handlerResp) {
        console.log("handlerResp: " + handlerResp);
        if (!handlerResp) {
            console.log("1 Take from failed - null handlerResp");
@@ -636,10 +663,10 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
        // "acquire from" objectives.
        object.source = {reason:"take from", from:targetName};
 
-       if (game.players[playerIndex].inventory === undefined) {
-           game.players[playerIndex].inventory = [];
+       if (gameData.player.inventory === undefined) {
+        gameData.player.inventory = [];
        }
-       game.players[playerIndex].inventory.push(object);
+       gameData.player.inventory.push(object);
        currentLocation.characters[recipientIndex] = character;
 
        async.waterfall([
@@ -692,7 +719,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
                return;
            }
 
-           var realmId = game.players[playerIndex].location.realmId;
+           var realmId = game.player.location.realmId;
            handlerResp.data['game'] = updatedGame;
            handlerResp.data['location'] = updatedLocation;
            console.log("*** sending resp: " + JSON.stringify(handlerResp));
@@ -846,17 +873,17 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
        // "acquire from" objectives.
        object.source = {reason:"buy from", from:targetName};
 
-       if (game.players[playerIndex].inventory === undefined) {
-           game.players[playerIndex].inventory = [];
+       if (game.player.inventory === undefined) {
+           game.player.inventory = [];
        }
-       game.players[playerIndex].inventory.push(object);
+       game.player.inventory.push(object);
 
        //  Now pay!
        if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {
-           for (var i=0; i<game.players[playerIndex].inventory.length; i++) {
-               if (game.players[playerIndex].inventory[i].type === handlerResp.data.payment.type) {
-                  currentLocation.characters[characterInfo.characterIndex].inventory.push(game.players[playerIndex].inventory[i]);
-                  game.players[playerIndex].inventory.splice(i, 1);
+           for (var i=0; i<game.player.inventory.length; i++) {
+               if (game.player.inventory[i].type === handlerResp.data.payment.type) {
+                  currentLocation.characters[characterInfo.characterIndex].inventory.push(game.player.inventory[i]);
+                  game.player.inventory.splice(i, 1);
                   break;
                }
            }
@@ -920,7 +947,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
            handlerResp.data['location'] = updatedLocation;
            console.log("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
-           var realmId = game.players[playerIndex].location.realmId;
+           var realmId = game.player.location.realmId;
            sails.io.sockets.emit(realmId + "-status", handlerResp);
 
            statusCallback({error: false, data:handlerResp});
@@ -1478,7 +1505,7 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
            }
        }
 
-       game.players[playerIndex].health = handlerResp.data.playerHealth;
+       game.player.health = handlerResp.data.playerHealth;
        currentLocation.characters[characterInfo.characterIndex].health = handlerResp.data.characterHealth;
 
        if (handlerResp.data.characterDied) {
@@ -1545,7 +1572,7 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
 
            console.log("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
-           var realmId = game.players[playerIndex].location.realmId;
+           var realmId = game.player.location.realmId;
            sails.io.sockets.emit(realmId + "-status", handlerResp);
 
            statusCallback({error: false, data:handlerResp});
@@ -1673,12 +1700,12 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
        // Record who we took the object from so we can check for
        // "acquire from" objectives.
        object.source = {reason:"take from", from:targetName};
-       if (game.players[playerIndex].inventory === undefined) {
-           game.players[playerIndex].inventory = [];
+       if (game.player.inventory === undefined) {
+           game.player.inventory = [];
        }
-       game.players[playerIndex].inventory.push(object);
+       game.player.inventory.push(object);
 
-       game.players[playerIndex].health = handlerResp.data.playerHealth;
+       game.player.health = handlerResp.data.playerHealth;
        currentLocation.characters[characterInfo.characterIndex].health = handlerResp.data.characterHealth;
 
        if (handlerResp.data.characterDied) {
@@ -1745,7 +1772,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
 
            console.log("*** sending resp: " + JSON.stringify(handlerResp));
            handlerResp.data = {game:updatedGame, location:updatedLocation};
-           var realmId = game.players[playerIndex].location.realmId;
+           var realmId = game.player.location.realmId;
            sails.io.sockets.emit(realmId + "-status", handlerResp);
 
            statusCallback({error: false, data:handlerResp});
@@ -1802,10 +1829,10 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
        // "acquire from" objectives.
        object.source = {reason:"take from", from:targetName};
 
-       if (game.players[playerIndex].inventory === undefined) {
-           game.players[playerIndex].inventory = [];
+       if (game.player.inventory === undefined) {
+           game.player.inventory = [];
        }
-       game.players[playerIndex].inventory.push(object);
+       game.player.inventory.push(object);
        currentLocation.characters[recipientIndex] = character;
 
        async.waterfall([
@@ -1869,27 +1896,6 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
     });
  */
 }
-
-/*
-function retrieveRealm(realmId, callback) {
-    QuestRealm.findOne({id: realmId}).exec(function(err, realm) {
-        console.log("retrieveRealm: in QuestRealm.findById() callback");
-        if (err) {
-            sails.log.error("retrieveRealm: in QuestRealm.findById() error:" + err);
-            callback(null);
-        }
-
-        console.log("retrieveRealm: in QuestRealm.findById() callback, no error.");
-        if (!realm) {
-            console.log("retrieveRealm: in QuestRealm.findById() callback, realm is null.");
-            callback(null);
-        }
-
-        console.log("retrieveRealm: in QuestRealm.findById() callback " + JSON.stringify(realm));
-        callback(realm);
-    })
-}
-*/
 
 function checkObjectives(game, playerName, callback) {
    console.log("checkObjectives.");

@@ -43,24 +43,24 @@ module.exports = {
   ],
   handlers: {
        "Navigate to": function(objective, game, realm, playerName, callback) {
-          sails.log.info("in Navigate to()");
+          console.log("in Navigate to()");
 
-          sails.log.info("game.players:" + JSON.stringify(game.players));
+          console.log("game.players:" + JSON.stringify(game.players));
           for (var i=0; i<game.players.length; i++) {
              if (game.players[i].name !== playerName)
                 continue;
 
              var location = objective.params[0].value + "_" +
                             objective.params[1].value;
-             sails.log.info("Looking for realmId: " + realm.id + ", location: " + location);
+             console.log("Looking for realmId: " + realm.id + ", location: " + location);
              var visited = false;
              if (game.players[i].visited.hasOwnProperty(realm.id)) {
                 visited = game.players[i].visited[realm.id].hasOwnProperty(location);
              }
 
-             sails.log.info("visited: " + visited);
+             console.log("visited: " + visited);
              if (!visited) {
-                sails.log.info("in Navigate to() callback null");
+                console.log("in Navigate to() callback null");
                 callback(null);
                 return;
              }
@@ -77,14 +77,14 @@ module.exports = {
                 }
              };
 
-             sails.log.info("in Navigate to() callback value");
+             console.log("in Navigate to() callback value");
              callback(resp);
           }
        },
        "Acquire item": function(objective, game, realm, playerName, callback) {
-          sails.log.info("in Acquire item()");
+          console.log("in Acquire item()");
 
-          sails.log.info("game.players:" + JSON.stringify(game.players));
+          console.log("game.players:" + JSON.stringify(game.players));
           for (var i=0; i<game.players.length; i++) {
              if (game.players[i].name !== playerName)
                 continue;
@@ -92,7 +92,7 @@ module.exports = {
              var object = objective.params[0].value;
              var numRequired = objective.params[1].value;
 
-             sails.log.info("Looking for object: " + object +
+             console.log("Looking for object: " + object +
                             ", numRequired: " + numRequired);
 
              if (game.players[i].inventory === undefined) {
@@ -127,14 +127,14 @@ module.exports = {
                 }
              };
 
-             sails.log.info("in Acquire item() callback value");
+             console.log("in Acquire item() callback value");
              callback(resp);
           }
        },
        "Give item": function(objective, game, realm, playerName, callback) {
-          sails.log.info("in Give item()");
+          console.log("in Give item()");
 
-          sails.log.info("game.players:" + JSON.stringify(game.players));
+          console.log("game.players:" + JSON.stringify(game.players));
 
           // Get current location. If a "give to" operation has just been
           // performed, it took place in the current location.
@@ -147,7 +147,7 @@ module.exports = {
           }
 
           if (player === undefined) {
-             sails.log.info("in Give item(): player not found.");
+             console.log("in Give item(): player not found.");
              callback(null);
              return;
           }
@@ -160,15 +160,15 @@ module.exports = {
                                'y': player.location.y.toString()}).exec(function(err, location) {
               var notifyData = {};
 
-              sails.log.info("in Give item().find() callback");
+              console.log("in Give item().find() callback");
               if (err) {
-                  sails.log.info("Give item() db err:" + err);
+                  console.log("Give item() db err:" + err);
                   callback(null);
                   return;
               } else {
-                  sails.log.info("in Give item() callback, no error.");
+                  console.log("in Give item() callback, no error.");
                   if (location) {
-                      sails.log.info("in Give item() callback " + JSON.stringify(location));
+                      console.log("in Give item() callback " + JSON.stringify(location));
                       var object = objective.params[0].value;
                       var recipient = objective.params[1].value;
 
@@ -176,22 +176,22 @@ module.exports = {
                       for (var i = 0; i < location.characters.length; i++) {
                          // We're not currently checking character name, so check all
                          // the characters of that type.
-                         sails.log.info("in Give item() recipient " + JSON.stringify(recipient));
+                         console.log("in Give item() recipient " + JSON.stringify(recipient));
                          if (location.characters[i].type === recipient) {
                             character = location.characters[i];
-                            sails.log.info("in Give item() found character " + JSON.stringify(character));
+                            console.log("in Give item() found character " + JSON.stringify(character));
                             if (character.inventory !== undefined) {
                                for (var j =0; j < character.inventory.length; j++) {
 
                                   var item = character.inventory[j];
-                                  sails.log.info("in Give item() character inventory item: " + JSON.stringify(item));
+                                  console.log("in Give item() character inventory item: " + JSON.stringify(item));
                                   if (item.type === object &&
                                       item.source !== undefined &&
                                       item.source.reason !== undefined &&
                                       item.source.reason === "give" &&
                                       item.source.from !== undefined &&
                                       item.source.from === playerName) {
-                                      sails.log.info("in Give item(): character given object from player");
+                                      console.log("in Give item(): character given object from player");
 
                                       // Mark the objective complete.
                                       objective.completed = "true";
@@ -205,11 +205,11 @@ module.exports = {
                                          }
                                       };
 
-                                      sails.log.info("in Give item() callback value");
+                                      console.log("in Give item() callback value");
                                       callback(resp);
                                       return;
                                   } else {
-                                     sails.log.info("in Give item(): item has no source.");
+                                     console.log("in Give item(): item has no source.");
                                   }
                                }
                             }
@@ -217,7 +217,7 @@ module.exports = {
                       }
                   }
                   else {
-                      sails.log.info("Current location not found");
+                      console.log("Current location not found");
                       callback(null);
                       return;
                   }

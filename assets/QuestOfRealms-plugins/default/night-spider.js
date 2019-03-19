@@ -23,9 +23,9 @@ module.exports = {
            * Night spider took the object.
            */
 
-          sails.log.info("*** ");
-          sails.log.info("*** in nightSpider.give() " + JSON.stringify(object));
-          sails.log.info("*** ");
+          console.log("*** ");
+          console.log("*** in nightSpider.give() " + JSON.stringify(object));
+          console.log("*** ");
 
           // The night spider only wants food.
           if (object.type !== "food") {
@@ -39,7 +39,7 @@ module.exports = {
                 data: {}
              };
 
-             sails.log.info("in give() callback value");
+             console.log("in give() callback value");
              callback(resp);
              return;
           }
@@ -54,7 +54,7 @@ module.exports = {
              data: {}
           };
 
-          sails.log.info("in give() callback value");
+          console.log("in give() callback value");
           callback(resp);
        }
   }

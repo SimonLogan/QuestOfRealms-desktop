@@ -108,7 +108,7 @@ module.exports = {
 
            */
 
-           sails.log.info("Default fight handler");
+           console.log("Default fight handler");
 
            var playerInfo = findPlayer.findPlayerByName(game, playerName);
            var playerOrigHealth = playerInfo.player.health;
@@ -117,7 +117,7 @@ module.exports = {
            var characterHealth = characterOrigHealth;
 
            // Deal the damage
-           sails.log.info("Before fight. player.health: " + playerInfo.player.health +
+           console.log("Before fight. player.health: " + playerInfo.player.health +
                           ", player.damage: " + playerInfo.player.damage +
                           ", character.health: " + character.health +
                           ", character damage: " + character.damage);
@@ -139,7 +139,7 @@ module.exports = {
                var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
                var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
 
-               sails.log.info("After fight. player.health: " + playerHealth +
+               console.log("After fight. player.health: " + playerHealth +
                               ", character.health: " + characterHealth +
                               ", player dealt damage: " + playerDamageDealt + "% " +
                               ", character dealt damage: " + characterDamageDealt + "%");
@@ -193,14 +193,14 @@ module.exports = {
                    }
            };
 
-           sails.log.info("in fight() callback value");
+           console.log("in fight() callback value");
            callback(resp);
        },
        "fight for": function(character, object, game, playerName, callback) {
            // By default "fight for" behaves just like fight, except the game
            // will take the object from the character if you win.
 
-           sails.log.info("Default fight for handler");
+           console.log("Default fight for handler");
 
            var playerInfo = findPlayer.findPlayerByName(game, playerName);
            var playerOrigHealth = playerInfo.player.health;
@@ -209,7 +209,7 @@ module.exports = {
            var characterHealth = characterOrigHealth;
 
            // Deal the damage
-           sails.log.info("Before fight for. player.health: " + playerInfo.player.health +
+           console.log("Before fight for. player.health: " + playerInfo.player.health +
                           ", player.damage: " + playerInfo.player.damage +
                           ", character.health: " + character.health +
                           ", character damage: " + character.damage);
@@ -231,7 +231,7 @@ module.exports = {
                var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
                var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
 
-               sails.log.info("After fight for. player.health: " + playerHealth +
+               console.log("After fight for. player.health: " + playerHealth +
                               ", character.health: " + character.health +
                               ", player dealt damage: " + playerDamageDealt + "% " +
                               ", character dealt damage: " + characterDamageDealt + "%");
@@ -285,7 +285,7 @@ module.exports = {
                   }
            };
 
-           sails.log.info("in fight for() callback value");
+           console.log("in fight for() callback value");
            callback(resp);
        }
   }
