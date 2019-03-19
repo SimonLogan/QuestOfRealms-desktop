@@ -9,6 +9,7 @@ const async = require('async');
 var gameData;
 var currentRealmData;
 
+// Find a player.
 class playerInfo {
     constructor(player, playerIndex) {
         this.player = player;
@@ -36,8 +37,32 @@ class findPlayer {
     }
 }
 
-module.exports = {
+// Find an item
+class itemInfo {
+    constructor(item, itemIndex) {
+        this.item = item;
+        this.itemIndex = itemIndex;
+   }
+}
 
+class findItem {
+    static findLocationItemByType(location, itemType) {
+        if (location.items === undefined) {
+		    return null;
+        }
+
+        for (var i = 0; i < location.items.length; i++) {
+            // TODO: handle ambiguous object descriptions (e.g. "take sword" when there are two swords).
+            if (location.items[i].type === itemType) {
+    		    return new itemInfo(location.items[i], i);
+   	        }
+        }
+
+        return null;
+    }
+}
+
+module.exports = {
     // Initialize the game engine by loading the specfied game.
     // Params:
     //   dbPath - the location of the game db.
@@ -240,6 +265,10 @@ function local_getCurrentRealmData() {
     return JSON.parse(JSON.stringify(currentRealmData));
 }
 
+function copyMapLocation(location) {
+    return JSON.parse(JSON.stringify(location));
+}
+
 function saveGame(callback)
 {
     console.log(Date.now() + ' saveGame');
@@ -255,8 +284,9 @@ function saveGame(callback)
 function saveRealm(callback)
 {
     console.log(Date.now() + ' saveRealm');
+
     var db_collections = dbWrapper.getDBs();
-    db_collections.questrealms.update({_id: currentRealmData.id}, currentRealmData, {}, function (err, numReplaced) {
+    db_collections.questrealms.update({_id: currentRealmData._id}, currentRealmData, {}, function (err, numReplaced) {
         console.log("saveRealm err:" + err);
         console.log("saveRealm numReplaced:" + numReplaced);
         callback(null);
@@ -266,8 +296,14 @@ function saveRealm(callback)
 // Consider using a backbone collection for the maplocations here.
 // For now just filter the data directly.
 function findLocation(x, y) {
-    return currentRealmData.mapLocations.filter(
-        location => location.x === x && location.y === y)[0];
+    for (var i =0; i < currentRealmData.mapLocations.length; i++) {
+        if (currentRealmData.mapLocations[i].x === x &&
+            currentRealmData.mapLocations[i].y === y) {
+            return currentRealmData.mapLocations[i];
+        }
+    }
+
+    return null;
 }
 
 function handleMove(command, playerName, statusCallback) {
@@ -315,9 +351,9 @@ function handleMove(command, playerName, statusCallback) {
     // Does the requested location exist? First get the current player location.
     var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
     if (null === playerInfo) {
-        console.log("in handleUse.find() invalid player.");
+        console.log("in handleMove.find() invalid player.");
         statusCallback({error:true, message:"Invalid player"});
-		    return;
+		return;
     }
 
     var originalX = parseInt(gameData.player.location.x);
@@ -404,7 +440,7 @@ function handleMove(command, playerName, statusCallback) {
     //});
 }
 
-function handleTake(command, game, playerName, statusCallback) {
+function handleTake(command, playerName, statusCallback) {
     command = command.replace(/take[\s+]/i, "");
     var commandArgs = command.split("from");
     var objectName = commandArgs[0].trim();
@@ -421,45 +457,34 @@ function handleTake(command, game, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleTake.find() invalid player.");
         statusCallback({error:true, message:"Invalid player"});
-		    return;
+		return;
+    }
+    
+    var currentX = gameData.player.location.x;
+    var currentY = gameData.player.location.y;
+    console.log("in handleTake.find() searching for location [" + currentX + ", " + currentY + "].");
+    var currentLocation = findLocation(currentX, currentY);
+    if (!currentLocation) {
+        var errorMessage = "Current location not found";
+        console.log("Current location not found");
+        statusCallback({error:true, message:errorMessage});
+        return;
     }
 
-    var currentX = parseInt(playerInfo.player.location.x);
-    var currentY = parseInt(playerInfo.player.location.y);
-    var realmId = game.players[playerInfo.playerIndex].location.realmId;
+    console.log("in handleTake.find() callback " + JSON.stringify(currentLocation));
 
-    // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
-        console.log("in handleTake.find() callback");
-        if (err) {
-            console.log("in handleTake db err:" + err);
-            statusCallback({error:true, message:err});
-			      return;
-        }
-
-        console.log("in handleTake.find() callback, no error.");
-        if (!currentLocation) {
-            var errorMessage = "Current location not found";
-            console.log("Current location not found");
-            statusCallback({error:true, message:errorMessage});
-			      return;
-        }
-
-        console.log("in handleTake.find() callback " + JSON.stringify(currentLocation));
-
-        if (!targetName) {
-           handleTakeFromLocation(objectName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
-        } else {
-           handleTakeFromNPC(objectName, targetName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
-        }
-    });
+    if (!targetName) {
+        handleTakeFromLocation(objectName, currentLocation, playerName, statusCallback);
+    } else {
+        handleTakeFromNPC(objectName, targetName, currentLocation, playerName, statusCallback);
+    }
 }
 
-function handleTakeFromLocation(objectName, currentLocation, game, playerName, playerIndex, statusCallback) {
+function handleTakeFromLocation(objectName, currentLocation, playerName, statusCallback) {
     console.log("In handleTakeFromLocation()");
 
     // Find the requested item in the current mapLocation.
@@ -471,76 +496,57 @@ function handleTakeFromLocation(objectName, currentLocation, game, playerName, p
         return;
     }
 
-    if (undefined === game.players[playerIndex].inventory) {
-        game.players[playerIndex].inventory = [];
+    if (undefined === gameData.player.inventory) {
+        gameData.player.inventory = [];
     }
 
-    game.players[playerIndex].inventory.push(itemInfo.item);
+    gameData.player.inventory.push(itemInfo.item);
     currentLocation.items.splice(itemInfo.itemIndex, 1);
 
-    // TODO: serious limitation - waterline doesn't support transactions so
-    // if anything below fails the db could be left in an inconsistent state.
-    // See if I can implement this myself using the .transaction() interface.
-    Game.update(
-        {id: game.id},
-        game).exec(function(err, updatedGame) {
+    notifyData = {
+        player: playerName,
+        description: {
+            action: "take",
+            message: "You have taken a " + itemInfo.item.type,
+            item: itemInfo.item
+        },
+        data: {}
+    };
+
+    // Warning: NEDB does not support transactions. The code below assumes both updates work.
+    saveGame(function(gameErr) {
         console.log("in Game.update() callback");
-        if (err) {
-            console.log("in Game.update() callback, error. " + err);
-            statusCallback({error:true, message:err});
-			          return;
+        if (gameErr) {
+            console.log("in Game.update() callback, error. " + gameErr);
+            statusCallback({error:true, message:gameErr});
+            return;
         }
 
         console.log("in Game.update() callback, no error.");
-        if (!updatedGame) {
-            console.log("in Game.update() callback, item is null.");
-            statusCallback({error:true, message:"failed to find game"});
-			          return;
-		        }
 
-        console.log("in Game.update() callback " + JSON.stringify(updatedGame));
-
-        MapLocation.update(
-            {id: currentLocation.id},
-            currentLocation).exec(function(err, updatedLocation) {
-            console.log("in MapLocation.update() callback");
-            if (err) {
-                console.log("in MapLocation.update() callback, error. " + err);
-                statusCallback({error: true, message: err});
-				            return;
+        saveRealm(function(realmErr) {
+            console.log("in realm.update() callback");
+            if (gameErr) {
+                console.log("in realm.update() callback, error. " + realmErr);
+                statusCallback({error:true, message:realmErr});
+                return;
             }
 
-            console.log("in MapLocation.update() callback, no error.");
-            if (!updatedLocation) {
-                console.log("in MapLocation.update() callback, item is null.");
-                statusCallback({error: true, message: "failed to find MapLocation"});
-				            return;
-			          }
+            console.log("in realm.update() callback, no error.");
+            notifyData.data = {game: local_getGameData(),
+                               mapLocation: copyMapLocation(currentLocation)};
 
-            var realmId = game.players[playerIndex].location.realmId;
-            console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-            console.log("sending socket messages for subject '" + realmId + "-status'");
-            notifyData = {
-               player: playerName,
-               description: {
-                   action: "take",
-                   message: "You have taken a " + itemInfo.item.type,
-                   item: itemInfo.item
-               },
-               data: {
-                   game: updatedGame,
-                   location: updatedLocation
-               }
-            };
+            // In a multiplayer game, we need to broadcast the status update.
+            //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+            //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-            sails.io.sockets.emit(realmId + "-status", notifyData);
-            statusCallback({error: false, data:notifyData});
-			        return;
+            statusCallback({error:false, responseData:notifyData});
+            return;
         });
     });
 }
 
-function handleTakeFromNPC(objectName, targetName, currentLocation, game, playerName, playerIndex, statusCallback) {
+function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, statusCallback) {
     console.log("In handleTakeFromNPC()");
 
     // Find the requested item in the specified target's inventory.
@@ -922,7 +928,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
     });
 }
 
-function handleDrop(command, game, playerName, statusCallback) {
+function handleDrop(command, playerName, statusCallback) {
     var target = command.replace(/drop[\s+]/i, "");
 
     // TODO: for now target is the item type (i.e. "sword", not "the sword of destiny").
@@ -930,126 +936,100 @@ function handleDrop(command, game, playerName, statusCallback) {
     console.log("DROP: " + target);
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
     if (null === playerInfo) {
-        console.log("in handleTake.find() invalid player.");
+        console.log("in handleDrop.find() invalid player.");
         statusCallback({error:true, message:"Invalid player"});
-		    return;
+		return;
     }
 
-    var currentX = parseInt(playerInfo.player.location.x);
-    var currentY = parseInt(playerInfo.player.location.y);
-    var realmId = game.players[playerInfo.playerIndex].location.realmId;
+    var currentX = gameData.player.location.x;
+    var currentY = gameData.player.location.y;
+    console.log("in handleDrop.find() searching for location [" + currentX + ", " + currentY + "].");
+    var currentLocation = findLocation(currentX, currentY);
+    if (!currentLocation) {
+        var errorMessage = "Current location not found";
+        console.log("Current location not found");
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
 
-    // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
-        console.log("in handleDrop.find() callback");
-        if (err) {
-            console.log("in handleDrop db err:" + err);
-            statusCallback({error:true, message:err});
+    console.log("in handleDrop.find() callback " + JSON.stringify(currentLocation));
+
+    // Find the requested item in the inventory.
+    var foundIndex = -1;
+    for (var i=0; i<playerInfo.player.inventory.length; i++) {
+        // TODO: handle ambiguous object descriptions (e.g. "drop sword" when there are two swords).
+        if (playerInfo.player.inventory[i].type !== target) {
+            continue;
+        }
+
+        foundIndex = i;
+        break;
+    }
+
+    if (foundIndex == -1) {
+        var errMsg = "You do not have a " + target;
+        console.log(errMsg);
+        statusCallback({error:true, message:errMsg});
+        return;
+    }
+
+    found = true;
+    var item = playerInfo.player.inventory[i];
+    if (undefined === currentLocation.items) {
+        currentLocation.items = [];
+    }
+
+    currentLocation.items.push(item);
+    playerInfo.player.inventory.splice(i, 1);
+
+    if (playerInfo.player.using && _.isEqual(playerInfo.player.using, item)) {
+        playerInfo.player.using = [];
+    }
+
+    gameData.player = playerInfo.player;
+
+    notifyData = {
+        player: playerName,
+        description: {
+            action: "drop",
+            message: "You have dropped a " + item.type,
+            item: item,
+        },
+        data: {}
+    };
+
+    // Warning: NEDB does not support transactions. The code below assumes both updates work.
+    saveGame(function(gameErr) {
+        console.log("in Game.update() callback");
+        if (gameErr) {
+            console.log("in Game.update() callback, error. " + gameErr);
+            statusCallback({error:true, message:gameErr});
             return;
         }
 
-        console.log("in handleDrop.find() callback, no error.");
-        if (!currentLocation) {
-            var errorMessage = "Current location not found";
-            console.log("Current location not found");
-            statusCallback({error:true, message:errorMessage});
+        console.log("in Game.update() callback, no error.");
+
+        saveRealm(function(realmErr) {
+            console.log("in realm.update() callback");
+            if (gameErr) {
+                console.log("in realm.update() callback, error. " + realmErr);
+                statusCallback({error:true, message:realmErr});
+                return;
+            }
+
+            console.log("in realm.update() callback, no error.");
+            notifyData.data = {game: local_getGameData(),
+                               mapLocation: copyMapLocation(currentLocation)};
+
+            // In a multiplayer game, we need to broadcast the status update.
+            //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+            //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+            statusCallback({error:false, responseData:notifyData});
             return;
-        }
-
-        console.log("in handleDrop.find() callback " + JSON.stringify(currentLocation));
-
-        // Find the requested item in the inventory.
-        var found = false;
-        for (var i=0; i<playerInfo.player.inventory.length; i++) {
-            // TODO: handle ambiguous object descriptions (e.g. "drop sword" when there are two swords).
-            if (playerInfo.player.inventory[i].type !== target) {
-               continue;
-            }
-
-            found = true;
-            var item = playerInfo.player.inventory[i];
-            if (undefined === currentLocation.items) {
-                currentLocation.items = [];
-            }
-
-            currentLocation.items.push(item);
-            playerInfo.player.inventory.splice(i, 1);
-
-            if (playerInfo.player.using && _.isEqual(playerInfo.player.using, item)) {
-               playerInfo.player.using = [];
-            }
-
-            game.players[playerInfo.playerIndex] = playerInfo.player;
-
-            // TODO: serious limitation - waterline doesn't support transactions so
-            // if anything below fails the db could be left in an inconsistent state.
-            // See if I can implement this myself using the .transaction() interface.
-            Game.update(
-                {id: game.id},
-                game).exec(function(err, updatedGame) {
-                console.log("in Game.update() callback");
-                if (err) {
-                    console.log("in Game.update() callback, error. " + err);
-                    statusCallback({error:true, message:err});
-                    return;
-                }
-
-                console.log("in Game.update() callback, no error.");
-                if (!updatedGame) {
-                    console.log("in Game.update() callback, item is null.");
-                    statusCallback({error:true, message:"failed to find game"});
-                    return;
-                }
-
-                console.log("in Game.update() callback " + JSON.stringify(updatedGame));
-
-                MapLocation.update(
-                    {id: currentLocation.id},
-                    currentLocation).exec(function(err, updatedLocation) {
-                    console.log("in MapLocation.update() callback");
-                    if (err) {
-                        console.log("in MapLocation.update() callback, error. " + err);
-                        statusCallback({error: true, message: err});
-                        return;
-                    }
-
-                    console.log("in MapLocation.update() callback, no error.");
-                    if (!updatedLocation) {
-                        console.log("in MapLocation.update() callback, item is null.");
-                        statusCallback({error: true, message: "failed to find MapLocation"});
-                        return;
-                    }
-
-                    console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                    console.log("sending socket messages for subject '" + realmId + "-status'");
-                    notifyData = {
-                       player: playerName,
-                       description: {
-                           action: "drop",
-                           message: "You have dropped a " + item.type,
-                           item: item,
-                       },
-                       data: {
-                           game: updatedGame,
-                           location: updatedLocation
-                       }
-                    };
-
-                    sails.io.sockets.emit(realmId + "-status", notifyData);
-                    statusCallback({error: false});
-                    return;
-                });
-            });
-        }
-
-        if (!found) {
-            var errorMessage = "There is no " + target + ".";
-            console.log(errorMessage);
-            statusCallback({error:true, message:errorMessage});
-            return;
-        }
+        });
     });
 }
 
