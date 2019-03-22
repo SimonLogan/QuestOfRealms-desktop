@@ -185,6 +185,8 @@ function initializePlayer(playerName, gameName) {
                     'y': starty[0].value
                 },
                 'visited': {},
+                'inventory': [],
+                'using': [],
                 'mapDrawMode': mapDrawModeEnum.AUTO_ALL
             };
 

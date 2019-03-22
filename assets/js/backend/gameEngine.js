@@ -47,15 +47,15 @@ class itemInfo {
 }
 
 class findItem {
-    static findLocationItemByType(location, itemType) {
-        if (location.items === undefined) {
+    static findItemByType(collection, itemType) {
+        if (collection === undefined) {
             return null;
         }
 
-        for (var i = 0; i < location.items.length; i++) {
+        for (var i = 0; i < collection.length; i++) {
             // TODO: handle ambiguous object descriptions (e.g. "take sword" when there are two swords).
-            if (location.items[i].type === itemType) {
-                return new itemInfo(location.items[i], i);
+            if (collection[i].type === itemType) {
+                return new itemInfo(collection[i], i);
             }
         }
 
@@ -511,7 +511,7 @@ function handleTakeFromLocation(objectName, currentLocation, playerName, statusC
     console.log("In handleTakeFromLocation()");
 
     // Find the requested item in the current mapLocation.
-    var itemInfo = findItem.findLocationItemByType(currentLocation, objectName);
+    var itemInfo = findItem.findItemByType(currentLocation.items, objectName);
     if (itemInfo === null) {
         var errorMessage = "There is no " + objectName + ".";
         console.log(errorMessage);
@@ -1021,11 +1021,12 @@ function handleDrop(command, playerName, statusCallback) {
     });
 }
 
-function handleGive(command, game, playerName, statusCallback) {
+function handleGive(command, playerName, statusCallback) {
     command = command.replace(/give[\s+]/i, "");
     var commandArgs = command.split("to");
+    var objectName = commandArgs[0].trim();
 
-    console.log("GIVE: " + JSON.stringify(commandArgs));
+    console.log("GIVE: " + objectName);
     if (commandArgs.length != 2) {
         console.log("in handleGive() command not in the format \"give object to recipient\".");
         statusCallback({ error: true, message: "invalid command" });
@@ -1034,199 +1035,171 @@ function handleGive(command, game, playerName, statusCallback) {
 
     // TODO: for now target is the item type (i.e. "sword", not "the sword of destiny").
     // This means it must be specific: "short sword" rather than "sword".
-    var objectName = commandArgs[0].trim();
-    var recipientName = commandArgs[1].trim();
-    console.log("GIVE: " + objectName + " to " + recipientName);
+    var targetName = commandArgs[1].trim();
+    console.log("GIVE: " + objectName + " to " + targetName);
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
     if (null === playerInfo) {
-        console.log("in handleUse.find() invalid player.");
+        console.log("in handleGive.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var currentX = parseInt(game.players[playerInfo.playerIndex].location.x);
-    var currentY = parseInt(game.players[playerInfo.playerIndex].location.y);
-    var realmId = game.players[playerInfo.playerIndex].location.realmId;
+    var currentX = gameData.player.location.x;
+    var currentY = gameData.player.location.y;
+    console.log("in handleGive.find() searching for location [" + currentX + ", " + currentY + "].");
+    var currentLocation = findLocation(currentX, currentY);
+    if (!currentLocation) {
+        var errorMessage = "Current location not found";
+        console.log("Current location not found");
+        statusCallback({ error: true, message: errorMessage });
+        return;
+    }
 
-    // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({ 'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString() }).exec(function (err, currentLocation) {
-        console.log("in handleGive.find() callback");
-        if (err) {
-            console.log("in handleGive db err:" + err);
-            statusCallback({ error: true, message: err });
+    console.log("in handleGive.find() callback " + JSON.stringify(currentLocation));
+
+    handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, statusCallback);
+}
+
+function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, statusCallback) {
+    console.log("In handleGiveToNPC()");
+
+    // Find the requested item in the specified target's inventory.
+    if (playerInfo.player.inventory === undefined) {
+        var errorMessage = "You do not have an " + objectName;
+        console.log(errorMessage);
+        statusCallback({ error: true, message: errorMessage });
+        return;
+    }
+
+    var object = null;
+    for (var i = 0; i < playerInfo.player.inventory.length; i++) {
+        // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
+        if (playerInfo.player.inventory[i].type === objectName) {
+            // Update the player inventory now. If the give operation fails we
+            // won't save this change.
+            object = playerInfo.player.inventory[i];
+            playerInfo.player.inventory.splice(i, 1);
+            break;
+        }
+    }
+
+    if (object === null) {
+        var errorMessage = "You do not have an " + objectName;
+        console.log(errorMessage);
+        statusCallback({ error: true, message: errorMessage });
+        return;
+    }
+
+    console.log("Found object: " + JSON.stringify(object));
+
+    // Found the item, now find the recipient.
+    var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
+    if (null === characterInfo) {
+        var errorMessage = "There is no " + targetName + ".";
+        console.log(errorMessage);
+        statusCallback({ error: true, message: errorMessage });
+        return;
+    }
+
+    console.log("Found recipient: " + JSON.stringify(targetName));
+
+    var path = require('path');
+    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    console.log("gameDir: " + gameDir);
+    var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
+    console.log("HandlerPath: " + handlerPath);
+    var module = require(handlerPath);
+
+    // Command handlers are optional.
+    if (module.handlers === undefined) {
+        console.log("Module: " + handlerPath +
+            " does not have a handler for \"give\".");
+        statusCallback({ error: true, message: "You can't give an " + objectName + " to the " + targetName });
+        return;
+    }
+
+    var handlerFunc = module.handlers["give"];
+    if (handlerFunc === undefined) {
+        console.log("Module: " + handlerPath +
+            " does not have a handler for \"give\".");
+        statusCallback({ error: true, message: "You can't give an " + objectName + " to the " + targetName });
+        return;
+    }
+
+    console.log("calling give()");
+    handlerFunc(targetName, object, gameData, playerName, function (handlerResp) {
+        console.log("handlerResp: " + handlerResp);
+        if (!handlerResp) {
+            console.log("Give failed - null handlerResp");
+            statusCallback({ error: true, message: "Failed to give an " + objectName + " to the " + targetName });
             return;
         }
 
-        console.log("in handleGive.find() callback, no error.");
-        if (!currentLocation) {
-            var errorMessage = "Current location not found";
-            console.log("Current location not found");
-            statusCallback({ error: true, message: errorMessage });
+        console.log("Valid handlerResp " + JSON.stringify(handlerResp));
+        if (!handlerResp.description.success) {
+            console.log("Give failed: " + handlerResp.description.message);
+            statusCallback({ error: true, message: handlerResp.description.message });
             return;
         }
 
-        console.log("in handleGive.find() callback " + JSON.stringify(currentLocation));
-
-        // Find the requested item in the inventory.
-        if (game.players[playerInfo.playerIndex].inventory === undefined) {
-            console.log("in MapLocation.findOne() callback, item not found.");
-            statusCallback({ error: true, message: "You do not have an " + objectName });
-            return;
+        var usingItemInfo = findItem.findItemByType(playerInfo.player.using, objectName);
+        if (usingItemInfo) {
+            // You are using that item. Not any more...
+            playerInfo.player.using.splice(usingItemInfo.itemIndex, 1);
         }
 
-        var object = null;
-        for (var i = 0; i < game.players[playerInfo.playerIndex].inventory.length; i++) {
-            // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
-            if (game.players[playerInfo.playerIndex].inventory[i].type === objectName) {
-                // Update the player inventory now. If the give operation fails we
-                // won't save this change.
-                object = game.players[playerInfo.playerIndex].inventory[i];
-                game.players[playerInfo.playerIndex].inventory.splice(i, 1);
-                break;
-            }
+        // Give worked, so update the recipient.
+        // Record who gave the object so we can check for "give" objectives.
+        object.source = { reason: "give", from: playerName };
+
+        if (characterInfo.character.inventory === undefined) {
+            characterInfo.character.inventory = [];
         }
+        characterInfo.character.inventory.push(object);
 
-        if (object === null) {
-            console.log("in MapLocation.findOne() callback, item not found.");
-            statusCallback({ error: true, message: "You do not have an " + objectName });
-            return;
-        }
+        notifyData = {
+            player: playerInfo.player.name,
+            description: {
+                action: "take",
+                message: "You have given a " + objectName + " to the " + targetName,
+                item: itemInfo.item
+            },
+            data: {}
+        };
 
-        console.log("Found object: " + JSON.stringify(object));
-
-        // Found the item, now find the recipient.
-        var recipient = null;
-        var recipientIndex = 0;
-        for (var i = 0; i < currentLocation.characters.length; i++) {
-            if (currentLocation.characters[i].type === recipientName) {
-                recipient = currentLocation.characters[i];
-                recipientIndex = i;
-                break;
-            }
-        }
-
-        if (recipient === null) {
-            console.log("in Game.update() callback, recipient not found.");
-            statusCallback({ error: true, message: "There is no " + recipientName });
-            return;
-        }
-
-        console.log("Found recipient: " + JSON.stringify(recipient));
-
-        var path = require('path');
-        var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-        var handlerPath = pathroot + recipient.module + "/" + recipient.filename;
-        var module = require(handlerPath);
-
-        // Command handlers are optional.
-        if (module.handlers === undefined) {
-            console.log("Module: " + handlerPath +
-                " does not have a handler for \"give\".");
-            statusCallback({ error: true, message: "You can't give an " + objectName + " to the " + recipientName });
-            return;
-        }
-
-        var handlerFunc = module.handlers["give"];
-        if (handlerFunc === undefined) {
-            console.log("Module: " + handlerPath +
-                " does not have a handler for \"give\".");
-            statusCallback({ error: true, message: "You can't give an " + objectName + " to the " + recipientName });
-            return;
-        }
-
-        console.log("calling give()");
-        handlerFunc(recipient, object, game, playerName, function (handlerResp) {
-            console.log("handlerResp: " + handlerResp);
-            if (!handlerResp) {
-                console.log("Give failed - null handlerResp");
-                statusCallback({ error: true, message: "Failed to give an " + objectName + " to the " + recipientName });
+        // Warning: NEDB does not support transactions. The code below assumes both updates work.
+        saveGame(function (gameErr) {
+            console.log("in Game.update() callback");
+            if (gameErr) {
+                console.log("in Game.update() callback, error. " + gameErr);
+                statusCallback({ error: true, message: gameErr });
                 return;
             }
 
-            console.log("Valid handlerResp " + JSON.stringify(handlerResp));
-            if (!handlerResp.description.success) {
-                console.log("Give failed: " + handlerResp.description.message);
-                statusCallback({ error: true, message: handlerResp.description.message });
-                return;
-            }
+            console.log("in Game.update() callback, no error.");
 
-            if (playerInfo.player.using && _.isEqual(playerInfo.player.using, object)) {
-                game.players[playerInfo.playerIndex].using = [];
-            }
-
-            // Give worked, so update the recipient.
-            // Record who gave the object so we can check for "give" objectives.
-            object.source = { reason: "give", from: playerName };
-
-            if (recipient.inventory === undefined) {
-                recipient.inventory = [];
-            }
-            recipient.inventory.push(object);
-            currentLocation.characters[recipientIndex] = recipient;
-
-            // We don't need to send the updated recipient on to the client.
-            // Instead we'll send the updated game and mapLocation.
-            handlerResp.data = {};
-
-            async.waterfall([
-                function updateGame(validationCallback) {
-                    Game.update(
-                        { id: game.id },
-                        game).exec(function (err, updatedGame) {
-                            console.log("give() Game.update() callback");
-                            if (err) {
-                                console.log("give() Game.update() callback, error. " + err);
-                                validationCallback("Failed to save the game");
-                            } else {
-                                console.log("give() Game.update() callback, no error.");
-                                if (updatedGame) {
-                                    console.log("give() Game.update() callback " + JSON.stringify(updatedGame));
-                                    validationCallback(null, updatedGame);
-                                } else {
-                                    console.log("Navigate to() Game.update() callback, game is null.");
-                                    validationCallback("Failed to save the game");
-                                }
-                            }
-                        });
-                },
-                function updateMapLocation(updatedGame, validationCallback) {
-                    MapLocation.update(
-                        { id: currentLocation.id },
-                        currentLocation).exec(function (err, updatedLocation) {
-                            console.log("in MapLocation.update() callback");
-                            if (err) {
-                                console.log("in MapLocation.update() callback, error. " + err);
-                                validationCallback("Failed to save the maplocation");
-                            } else {
-                                console.log("in MapLocation.update() callback, no error.");
-                                if (updatedLocation) {
-                                    console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                                    validationCallback(null, updatedGame, updatedLocation);
-                                } else {
-                                    console.log("in MapLocation.update() callback, item is null.");
-                                    validationCallback("Failed to save the maplocation");
-                                }
-                            }
-                        });
-                },
-            ], function (err, updatedGame, updatedLocation) {
-                console.log("in give() all done. err:" + err);
-                console.log("in give() all done. updatedGame:" + JSON.stringify(updatedGame));
-                console.log("in give() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-                if (err) {
-                    statusCallback({ error: true, data: updatedGame });
+            saveRealm(function (realmErr) {
+                console.log("in realm.update() callback");
+                if (gameErr) {
+                    console.log("in realm.update() callback, error. " + realmErr);
+                    statusCallback({ error: true, message: realmErr });
                     return;
                 }
 
-                handlerResp.data['game'] = updatedGame;
-                handlerResp.data['location'] = updatedLocation;
-                console.log("*** sending resp: " + JSON.stringify(handlerResp));
-                handlerResp.data = { game: updatedGame, location: updatedLocation };
-                sails.io.sockets.emit(realmId + "-status", handlerResp);
+                console.log("in realm.update() callback, no error.");
+                notifyData.data = {
+                    game: local_getGameData(),
+                    mapLocation: copyMapLocation(currentLocation)
+                };
 
-                statusCallback({ error: false, data: handlerResp });
+                // In a multiplayer game, we need to broadcast the status update.
+                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+                //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+                statusCallback({ error: false, responseData: notifyData });
+                return;
             });
         });
     });
