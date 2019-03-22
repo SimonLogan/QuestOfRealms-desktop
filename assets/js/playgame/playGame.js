@@ -34,13 +34,13 @@ var MapLocation = Backbone.Model.extend({});
 var MapLocationCollection = Backbone.Collection.extend({
     // Extend the default collection with functionality that we need.
     model: MapLocation,
-    sync: function() {
+    sync: function () {
         ipc.send('logmsg', 'MapLocationCollection.sync()');
 
         // Filter out all the Backbone.Model fields. We just want to
         // save the raw data.
         g_currentRealmData.mapLocations = this.models.map(thisModel => thisModel.attributes);
-        saveRealm(function() {
+        saveRealm(function () {
             ipc.send('logmsg', 'realm saved()');
         });
     }
@@ -59,9 +59,9 @@ var LocationsView = Backbone.View.extend({
         this.listenTo(this.collection, 'remove', this.remove);
         this.listenTo(this.collection, 'change', this.change);
     },
-    reset: function(data) {
+    reset: function (data) {
         console.log("in view.reset:  " + JSON.stringify(data));
-        data.forEach(function(item) {
+        data.forEach(function (item) {
             drawMapLocation(item);
         });
 
@@ -71,20 +71,20 @@ var LocationsView = Backbone.View.extend({
         var playerLocation = findLocation(player.location.x, player.location.y);
         displayMessageBlock(describeMyLocation(playerLocation));
     },
-    add: function(location) {
+    add: function (location) {
         if (location != undefined) {
             console.log("in view.add:  " + JSON.stringify(location));
             drawMapLocation(item);
         }
     },
-    remove: function(location) {
+    remove: function (location) {
         console.log("in view.remove: " + JSON.stringify(location));
         if (location != undefined) {
             console.log("in view.remove:  " + JSON.stringify(location));
             drawMapLocation(location);
         }
     },
-    change: function(location) {
+    change: function (location) {
         console.log("in view.change:  " + JSON.stringify(location));
         if (location != undefined) {
             console.log("in view.change:  " + JSON.stringify(location));
@@ -99,7 +99,7 @@ class playerInfo {
     constructor(player, playerIndex) {
         this.player = player;
         this.playerIndex = playerIndex;
-   }
+    }
 }
 
 class findPlayer {
@@ -110,7 +110,7 @@ class findPlayer {
             }
         }
 
-		return null;
+        return null;
     }
 }
 
@@ -126,7 +126,7 @@ ipc.on('playGame-data', function (event, data) {
     console.log("********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
     ipc.send('logmsg', "********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
 
-    gameEngine.initialize(dbPath, function(err) {
+    gameEngine.initialize(dbPath, function (err) {
         if (err) {
             alert("Failed to load game: " + err);
             return;
@@ -135,7 +135,7 @@ ipc.on('playGame-data', function (event, data) {
         g_gameData = gameEngine.getGameData();
         $('#page_title').text("Play Game " + g_gameData.name);
         $('#playing_as').text("Playing as " + g_gameData.player.name);
-        switch(g_gameData.player.mapDrawMode) {
+        switch (g_gameData.player.mapDrawMode) {
             case mapDrawModeEnum.AUTO_ALL:
                 $('#drawChoice_autoAll').prop('checked', true);
                 //$('input[name="drawChoice"][value="drawChoice_autoAll"]').prop('checked', true);
@@ -155,7 +155,7 @@ ipc.on('playGame-data', function (event, data) {
         //$('#realmName').text("Editing realm " + g_currentRealmData.name);
 
         drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
-        mView = new LocationsView({collection: g_locationData});
+        mView = new LocationsView({ collection: g_locationData });
         if (g_currentRealmData.hasOwnProperty('mapLocations')) {
             g_locationData.reset(g_currentRealmData.mapLocations);
         }
@@ -164,7 +164,7 @@ ipc.on('playGame-data', function (event, data) {
     });
 
     // Handle game commands
-    $('#inputArea').keypress(function(event) {
+    $('#inputArea').keypress(function (event) {
         if (event.keyCode == 13) {
             var commandTextBox = $('#inputArea');
             var commandText = commandTextBox.val().trim();
@@ -180,21 +180,21 @@ ipc.on('playGame-data', function (event, data) {
             }
 
             displayMessage(commandText);
-            handleCommand(playerLocation, commandText, function(result) {
-               // Asynchronous result notifications from the game engine.
-               // There could be multiple results returned, for example
-               // completing an action and completing a goal as a result
-               // of the action.
-               processMessage(result);
+            handleCommand(playerLocation, commandText, function (result) {
+                // Asynchronous result notifications from the game engine.
+                // There could be multiple results returned, for example
+                // completing an action and completing a goal as a result
+                // of the action.
+                processMessage(result);
             });
             commandTextBox.val("");
         }
     });
 
     // Show / edit map locations
-    $(document).on('mouseenter', '#mapPanel', function() {});
+    $(document).on('mouseenter', '#mapPanel', function () { });
 
-    $(document).on('mouseleave', '#mapPanel', function() {});
+    $(document).on('mouseleave', '#mapPanel', function () { });
 
     $('input[name=drawChoice]').on('change', function changeDrawMode(selectedOption) {
         console.log(selectedOption.target.value);
@@ -223,11 +223,11 @@ function processMessage(thisMessage) {
         processMoveNotification(thisMessage);
     }
     else if (thisMessage.responseData.description.action === "take" ||
-             thisMessage.responseData.description.action === "take from") {
+        thisMessage.responseData.description.action === "take from") {
         processTakeNotification(thisMessage);
     }
     else if (thisMessage.responseData.description.action === "buy" ||
-             thisMessage.responseData.description.action === "buy from") {
+        thisMessage.responseData.description.action === "buy from") {
         processBuyNotification(thisMessage);
     }
     else if (thisMessage.responseData.description.action === "drop") {
@@ -284,7 +284,7 @@ function processTakeNotification(message) {
         var mapLocation = findLocation(
             locationData.x.toString(),
             locationData.y.toString());
-        
+
         if (!mapLocation) {
             alert("Unable to find the updated location");
             return;
@@ -316,7 +316,7 @@ function processBuyNotification(message) {
         var mapLocation = findLocation(
             locationData.x.toString(),
             locationData.y.toString());
-        
+
         if (!mapLocation) {
             alert("Unable to find the updated location");
             return;
@@ -348,7 +348,7 @@ function processDropNotification(message) {
         var mapLocation = findLocation(
             locationData.x.toString(),
             locationData.y.toString());
-        
+
         if (!mapLocation) {
             alert("Unable to find the updated location");
             return;
@@ -371,7 +371,7 @@ function processDropNotification(message) {
 function processGiveNotification(message) {
     g_gameData = message.data.game[0];
     mapLocation = message.data.location[0];
-    mapLocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
+    mapLocationData[parseInt(mapLocation.y) - 1][parseInt(mapLocation.x) - 1] = mapLocation;
 
     if (message.player === g_gameData.players[0].name) {
         console.log(message.description.message);
@@ -397,7 +397,7 @@ function processUseNotification(message) {
 function processFightNotification(message) {
     g_gameData = message.data.game[0];
     mapLocation = message.data.location[0];
-    mapLocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
+    mapLocationData[parseInt(mapLocation.y) - 1][parseInt(mapLocation.x) - 1] = mapLocation;
 
     if (message.player === g_gameData.players[0].name) {
         console.log(message.description.message);
@@ -417,16 +417,16 @@ function processObjectiveCompletedNotification(message) {
 
     if (message.player === g_gameData.players[0].name) {
         var status = "You have completed an objective: " +
-           buildObjectiveDescription(objective) + ".";
+            buildObjectiveDescription(objective) + ".";
 
         console.log(status);
         displayMessage(status);
 
-        for (var i=0; i<g_currentRealmData.objectives.length; i++) {
-           if (g_currentRealmData.objectives[i].completed === "false") {
-              displayMessage("");
-              return;
-           }
+        for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
+            if (g_currentRealmData.objectives[i].completed === "false") {
+                displayMessage("");
+                return;
+            }
         }
 
         displayMessageBlock("All objectives are complete.");
@@ -435,40 +435,39 @@ function processObjectiveCompletedNotification(message) {
 
 // Return a text descrption of an objective.
 function buildObjectiveDescription(objective) {
-   var desc = objective.type + " ";
-   for (var i=0; i<objective.params.length; i++) {
-      desc += objective.params[i].name;
-      desc += ":";
-      desc += objective.params[i].value;
+    var desc = objective.type + " ";
+    for (var i = 0; i < objective.params.length; i++) {
+        desc += objective.params[i].name;
+        desc += ":";
+        desc += objective.params[i].value;
 
-      if (i < objective.params.length -1) {
-         desc += ", ";
-      }
-   }
+        if (i < objective.params.length - 1) {
+            desc += ", ";
+        }
+    }
 
-   return desc;
+    return desc;
 }
 
 function displayObjectiveDetails(item) {
     var description = "";
 
-    $.each(item.params, function(thisParam){
-       description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
+    $.each(item.params, function (thisParam) {
+        description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
     });
 
     description = description.substr(0, description.lastIndexOf(", "));
     return description;
 }
 
-function displayObjectives()
-{
+function displayObjectives() {
     console.log(Date.now() + ' displayObjectives');
     var target = $('#objectiveList').html("");
     var html = "";
 
-    var i=0;
+    var i = 0;
     if (g_currentRealmData.hasOwnProperty('objectives')) {
-        g_currentRealmData.objectives.forEach(function(item) {
+        g_currentRealmData.objectives.forEach(function (item) {
             html += "<tr data-id='" + (i++) + "'>";
             html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.type + "</td>";
             html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
@@ -481,12 +480,11 @@ function displayObjectives()
 }
 
 
-function saveGame(callback)
-{
+function saveGame(callback) {
     console.log(Date.now() + ' saveGame');
 
     var db_collections = dbWrapper.getDBs();
-    db_collections.game.update({_id: g_gameData._id}, g_gameData, {}, function (err, numReplaced) {
+    db_collections.game.update({ _id: g_gameData._id }, g_gameData, {}, function (err, numReplaced) {
         console.log("saveGame err:" + err);
         console.log("saveGame numReplaced:" + numReplaced);
         if (callback) {
@@ -511,8 +509,8 @@ function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
     realmWidth = parseInt(realmWidth);
     realmHeight = parseInt(realmHeight);
 
-    for (var yCounter = realmHeight +1; yCounter >= 0; yCounter--) {
-        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+    for (var yCounter = realmHeight + 1; yCounter >= 0; yCounter--) {
+        if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<tr>';
         } else {
             tableContents += '<tr id="row_' + yCounter + '">';
@@ -520,7 +518,7 @@ function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
 
         // Allow an extra cell at the start of the row for the cell labels.
         tableContents += '<td style="border-style: none">';
-        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+        if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
             tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
@@ -530,20 +528,20 @@ function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
         // Draw the columns.
         for (var xCounter = 1; xCounter <= realmWidth; xCounter++) {
             // Draw the column labels in the top and bottom rows.
-            if ((yCounter === 0) || (yCounter === realmHeight +1)) {
+            if ((yCounter === 0) || (yCounter === realmHeight + 1)) {
                 tableContents += '<td style="border-style: none"><div style="width:50px; height:50px; line-height:50px; text-align:center;">' + xCounter + '</div></td>';
             } else {
                 // Draw the regular map cells.
                 tableContents += '<td id="cell_' + xCounter + "_" + yCounter + '"> ' +
-                '<div class="droppable" style="width:50px; height:50px;" ' +
-                'data-x="' + xCounter + '" data-y="' + yCounter + '" data-env=""></div>' +
-                '</td>';
+                    '<div class="droppable" style="width:50px; height:50px;" ' +
+                    'data-x="' + xCounter + '" data-y="' + yCounter + '" data-env=""></div>' +
+                    '</td>';
             }
         }
 
         // Allow an extra cell at the end of the row for the cell labels.
         tableContents += '<td style="border-style: none">';
-        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+        if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
             tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
@@ -561,7 +559,7 @@ function drawMapLocation(locationData) {
         var target = $('#mapTable td[id="cell_' + locationData.attributes.x + '_' + locationData.attributes.y + '"]').find('div');
         target.addClass('terrainCell');
         var html = '';
-    
+
         target.attr('data-env', locationData.attributes.type);
         target.attr('data-id', locationData.id);
         target.attr('data-module', locationData.attributes.module);
@@ -576,7 +574,7 @@ function drawMapLocation(locationData) {
         }
 
         if (locationData.attributes.items.length > 0) {
-            target.append( '<img src="../../assets/images/object-icon.png" class="itemIcon">');
+            target.append('<img src="../../assets/images/object-icon.png" class="itemIcon">');
         }
 
         var dummy = 5;
@@ -620,7 +618,7 @@ function showPlayerLocation(location) {
 function buildMessageArea() {
     var html = "";
     var numRows = 25;
-    for (var row=0; row <numRows; row++) {
+    for (var row = 0; row < numRows; row++) {
         html += "<tr><td><input class='messageRow' size='80' readonly /></td></tr>";
     }
 
@@ -632,7 +630,7 @@ function wordbreak(message) {
     var lastSpace = tmp.lastIndexOf(" ");
     var lastColon = tmp.lastIndexOf(":");
     var lastPeriod = tmp.lastIndexOf(".");
-    return message.substring(0, Math.max(lastSpace, lastColon, lastPeriod) +1);
+    return message.substring(0, Math.max(lastSpace, lastColon, lastPeriod) + 1);
 }
 
 // Display a message with a blank line underneath.
@@ -645,7 +643,7 @@ function displayMessageBlock(message) {
 function displayMessage(message) {
 
     displayMessageImpl(escapeHtml(message));
-    setTimeout(function() { $('.messageRow.newMessage').removeClass('newMessage').addClass('oldMessage'); }, 1000);
+    setTimeout(function () { $('.messageRow.newMessage').removeClass('newMessage').addClass('oldMessage'); }, 1000);
 }
 
 function displayMessageImpl(message) {
@@ -674,7 +672,7 @@ function displayMessageImpl(message) {
 }
 
 function findLocation(x, y) {
-    return g_locationData.where({x:x, y:y})[0];
+    return g_locationData.where({ x: x, y: y })[0];
 }
 
 function findPlayerLocation() {
@@ -727,7 +725,7 @@ function describeLocation(location, detailLevel) {
 function describeMyLocation(location) {
     showPlayerLocation(location);
     var message = "You are at location [" + location.attributes.x + ", " +
-       location.attributes.y + "]. Terrain: " + location.attributes.type + ".";
+        location.attributes.y + "]. Terrain: " + location.attributes.type + ".";
     message += describeLocationContents(location, describeDetailEnum.TERRAIN_AND_CONTENTS);
     return message;
 }
@@ -765,12 +763,12 @@ function handleGenericHelp() {
     displayMessage("Commands:");
     displayMessage("   help : display list of commands.");
     displayMessage("   look [direction] : describe the adjacent location in the specified direction, or the current location " +
-                       "if no direction specified.");
+        "if no direction specified.");
     displayMessage("   move direction : move in the specified direction, if possible.");
     displayMessage("   take item [from character] : take the named item. e.g. \"take short sword\" from the specified character, " +
-                       "or from the current location.");
+        "or from the current location.");
     displayMessage("   buy item from character : buy the named item from the specified character.    e.g. \"buy short sword from Giant\"." +
-                       " Try to take the item first and the character will name the price, if it is willing to sell the item.");
+        " Try to take the item first and the character will name the price, if it is willing to sell the item.");
     displayMessage("   drop item : drop the named item. e.g. \"drop short sword\".");
     displayMessage("   inventory : list the items in your inventory.");
     displayMessage("   describe (...) : describe character or item, Use \"help describe\" for more details.");
@@ -781,7 +779,7 @@ function handleGenericHelp() {
 function handleHelpDescribe() {
     displayMessage("describe:");
     displayMessage("   describe [location] | [character type [number]] | [item type [number]] : describe the current location, " +
-                   "or a character or item of the specified type. For example:");
+        "or a character or item of the specified type. For example:");
     displayMessage("      describe dwarf : describe the first dwarf in the current location.");
     displayMessage("      describe short sword 2 : describe the second short sword in the current location.");
     displayMessage("      describe location : describe the current location and its surroundings.");
@@ -789,11 +787,11 @@ function handleHelpDescribe() {
 }
 
 function handleHelp(tokens) {
-   if (tokens.length > 1 && tokens[1] === "describe") {
-      return handleHelpDescribe();
-   }
+    if (tokens.length > 1 && tokens[1] === "describe") {
+        return handleHelpDescribe();
+    }
 
-   handleGenericHelp();
+    handleGenericHelp();
 }
 
 function handleLook(playerLocation, tokens) {
@@ -806,7 +804,7 @@ function handleLook(playerLocation, tokens) {
         var deltaX = 0;
         var deltaY = 0;
 
-        switch(tokens[1]) {
+        switch (tokens[1]) {
             case "north":
                 deltaY = 1;
                 break;
@@ -848,13 +846,13 @@ function handleLook(playerLocation, tokens) {
         var newY = originalY + deltaY;
         console.log("searching for location [" + newX + ", " + newY + "].");
 
-        if (!locationExists(newY -1, newX -1)) {
+        if (!locationExists(newY - 1, newX - 1)) {
             var errorMessage = "That direction is beyond the edge of the world.";
             displayMessageBlock(errorMessage);
             return false;
         }
 
-        var newLocation = mapLocationData[newY -1][newX -1];
+        var newLocation = mapLocationData[newY - 1][newX - 1];
         displayMessageBlock(describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY));
         return true;
     }
@@ -873,20 +871,20 @@ function handleDescribe(playerLocation, tokens) {
     tokens.shift();
 
     if (tokens[0] === "location") {
-       describeLocationAndSorroundings(playerLocation);
-       return;
+        describeLocationAndSorroundings(playerLocation);
+        return;
     }
 
     // Was a number specified?
     var objectNumber = 1;
     var objectName = null;
     if (tokens.length > 1) {
-       var parseNumber = parseInt(tokens[tokens.length -1]);
-       if (!isNaN(parseNumber)) {
-          // Remove the number.
-          tokens.splice(-1, 1);
-          objectNumber = parseNumber;
-       }
+        var parseNumber = parseInt(tokens[tokens.length - 1]);
+        if (!isNaN(parseNumber)) {
+            // Remove the number.
+            tokens.splice(-1, 1);
+            objectNumber = parseNumber;
+        }
     }
 
     // Whatever is left is the object name
@@ -894,9 +892,9 @@ function handleDescribe(playerLocation, tokens) {
 
     // We don't know whether it's an item or character, so try both.
     if (!describeLocationCharacter(playerLocation, objectName, objectNumber)) {
-       if (!describeLocationItem(playerLocation, objectName, objectNumber)) {
-          displayMessageBlock("There is no " + objectName + ".");
-       }
+        if (!describeLocationItem(playerLocation, objectName, objectNumber)) {
+            displayMessageBlock("There is no " + objectName + ".");
+        }
     }
 }
 
@@ -906,13 +904,13 @@ function describeLocationAndSorroundings(playerLocation) {
     displayMessage(describeMyLocation(playerLocation));
 
     var directions = ["north", "northeast", "east", "southeast",
-                      "south", "southwest", "west", "northwest"];
+        "south", "southwest", "west", "northwest"];
 
     for (var i = 0; i < directions.length; i++) {
         var deltaX = 0;
         var deltaY = 0;
 
-        switch(directions[i]) {
+        switch (directions[i]) {
             case "north":
                 deltaY = 1;
                 break;
@@ -983,8 +981,8 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
         }
     }
 
-    if (matchedIndex ===  null) {
-       return false;
+    if (matchedIndex === null) {
+        return false;
     }
 
     var thisCharacter = playerLocation.attributes.characters[matchedIndex];
@@ -999,7 +997,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
     }
 
     if (thisCharacter.additionalInfo) {
-       displayMessage(thisCharacter.additionalInfo);
+        displayMessage(thisCharacter.additionalInfo);
     }
 
     if (thisCharacter.damage) {
@@ -1011,7 +1009,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
     }
 
     if (thisCharacter.drops) {
-        if( Object.prototype.toString.call(thisCharacter.drops) === '[object Array]' ) {
+        if (Object.prototype.toString.call(thisCharacter.drops) === '[object Array]') {
             displayMessage("Drops: " + thisCharacter.drops.join(", "));
         } else {
             // If the drops[] array defined in the plugin module only contained a single
@@ -1049,8 +1047,8 @@ function describeLocationItem(playerLocation, itemName, itemNumber) {
         }
     }
 
-    if (matchedIndex ===  null) {
-       return false;
+    if (matchedIndex === null) {
+        return false;
     }
 
     var thisItem = playerLocation.attributes.items[matchedIndex];
@@ -1121,7 +1119,7 @@ function handleStatus(playerLocation, tokens) {
     var playerInfo = findPlayer.findPlayerByName(g_gameData, g_gameData.players[0].name);
     if (null === playerInfo) {
         console.log("in handleUse.find() invalid player.");
-		    return;
+        return;
     }
 
     displayMessage("Health: " + playerInfo.player.health);
@@ -1134,10 +1132,10 @@ function handleStatus(playerLocation, tokens) {
     var allComplete = true;
     if (g_currentRealmData.objectives.length > 0) {
         displayMessage("Objective progress:");
-        for (var i=0; i<g_currentRealmData.objectives.length; i++) {
+        for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
             // Special handling for the "Start at" objective. It is automatically completed.
             if (g_currentRealmData.objectives[i].type === "Start at") {
-               continue;
+                continue;
             }
 
             if (g_currentRealmData.objectives[i].completed === "false") {
@@ -1145,8 +1143,8 @@ function handleStatus(playerLocation, tokens) {
             }
 
             displayMessage("&nbsp;&nbsp;" +
-                           buildObjectiveDescription(g_currentRealmData.objectives[i]) + ": " +
-                           (g_currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
+                buildObjectiveDescription(g_currentRealmData.objectives[i]) + ": " +
+                (g_currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
         }
 
         if (allComplete) {

@@ -24,9 +24,9 @@ var characterPaletteData;
 var objectivePaletteData;
 
 PaletteItemType = {
-    ENV : 0,
-    ITEM : 1,
-    CHARACTER : 2
+    ENV: 0,
+    ITEM: 1,
+    CHARACTER: 2
 }
 
 // The actual realm you will be editing.
@@ -43,13 +43,13 @@ var MapLocation = Backbone.Model.extend({});
 var MapLocationCollection = Backbone.Collection.extend({
     // Extend the default collection with functionality that we need.
     model: MapLocation,
-    sync: function() {
+    sync: function () {
         ipc.send('logmsg', 'MapLocationCollection.sync()');
 
         // Filter out all the Backbone.Model fields. We just want to
         // save the raw data.
         realmData.mapLocations = this.models.map(thisModel => thisModel.attributes);
-        saveRealm(function() {
+        saveRealm(function () {
             ipc.send('logmsg', 'realm saved()');
         });
     }
@@ -65,19 +65,19 @@ var LocationsView = Backbone.View.extend({
         this.listenTo(this.collection, 'remove', this.remove);
         this.listenTo(this.collection, 'change', this.change);
     },
-    reset: function(data) {
+    reset: function (data) {
         console.log("in view.reset:  " + JSON.stringify(data));
-        data.forEach(function(item) {
+        data.forEach(function (item) {
             drawMapLocation(item);
         });
     },
-    add: function(item) {
+    add: function (item) {
         if (item != undefined) {
             console.log("in view.add:  " + JSON.stringify(item));
             drawMapLocation(item);
         }
     },
-    remove: function(item) {
+    remove: function (item) {
         console.log("in view.remove: " + JSON.stringify(item));
         // This will find two entries if a map item is being dragged.
         // changedCells[0] is the original map location.
@@ -101,7 +101,7 @@ var LocationsView = Backbone.View.extend({
             populateLocationDetails(item, true);
         }
     },
-    change: function(item) {
+    change: function (item) {
         console.log("in view.change:  " + JSON.stringify(item));
 
         // Update the local display with the message data.
@@ -117,7 +117,7 @@ var LocationsView = Backbone.View.extend({
 
         // To allow it to be dragged to the wastebasket.
         target.addClass('draggable mapItem');
-        target.draggable({helper: 'clone', revert: 'invalid'});
+        target.draggable({ helper: 'clone', revert: 'invalid' });
 
         // Populate the relevant location properties if this location is currently
         // open in the properties window.
@@ -139,36 +139,36 @@ ipc.on('editRealm-data', function (event, data) {
     realmId = data.id;
     $('#breadcrumb').attr('data-gameId', data.gameId);
 
-   // Load details of the supported environments, items, characters, and objectives.
-   // Populate the various tool menus on the screen with this info.
-   // NOTE: Since we have accordion widgets inside tabs, we need to ensure the accordions
-   // are populated before the tabs are activated, or the accordions in the items and
-   // characters tabs won't display correctly.
-   var x = new Date();
-   console.log("********** starting editRealm-data " + x + "(" + Date.now() + ") **********")
-   async.waterfall([
-        function(callback) {
+    // Load details of the supported environments, items, characters, and objectives.
+    // Populate the various tool menus on the screen with this info.
+    // NOTE: Since we have accordion widgets inside tabs, we need to ensure the accordions
+    // are populated before the tabs are activated, or the accordions in the items and
+    // characters tabs won't display correctly.
+    var x = new Date();
+    console.log("********** starting editRealm-data " + x + "(" + Date.now() + ") **********")
+    async.waterfall([
+        function (callback) {
             dbWrapper.openDesignerDB(callback);
         },
-        function(callback) {
+        function (callback) {
             loadEnvPalette(callback);
         },
-        function(callback) {
+        function (callback) {
             loadItemsPalette(callback);
         },
-        function(callback) {
+        function (callback) {
             loadCharactersPalette(callback);
         },
-        function(callback) {
+        function (callback) {
             loadObjectivesPalette(callback);
         },
-        function(callback) {
-            loadRealm(realmId, function(error) {
+        function (callback) {
+            loadRealm(realmId, function (error) {
                 if (!error) {
                     $('#realmName').text("Editing realm " + realmData.name);
 
                     locationData = new MapLocationCollection();
-                    mView = new LocationsView({collection: locationData});
+                    mView = new LocationsView({ collection: locationData });
 
                     if (realmData.hasOwnProperty('mapLocations')) {
                         locationData.reset(realmData.mapLocations);
@@ -182,12 +182,12 @@ ipc.on('editRealm-data', function (event, data) {
             });
         }
     ],
-    function(err, results) {
-        // Create the tabbed panels
-        $("#paletteInnerPanel").tabs();
-        $("#propertiesInnerPanel").tabs();
-        //if (!err) enableControls();
-    });
+        function (err, results) {
+            // Create the tabbed panels
+            $("#paletteInnerPanel").tabs();
+            $("#propertiesInnerPanel").tabs();
+            //if (!err) enableControls();
+        });
 
     /*
     _.templateSettings = {
@@ -198,15 +198,17 @@ ipc.on('editRealm-data', function (event, data) {
     /* Dialogs */
 
     // The edit item dialog
-   $("#editItemProperties").click(function() {
-       console.log("editItem click");
-       init_data = {'name': $('#itemName').val(),
-                    'type': $('#itemType').text(),
-                    'description': $('#itemDescription').text(),
-                    'damage': $('#itemDamage').text()};
+    $("#editItemProperties").click(function () {
+        console.log("editItem click");
+        init_data = {
+            'name': $('#itemName').val(),
+            'type': $('#itemType').text(),
+            'description': $('#itemDescription').text(),
+            'damage': $('#itemDamage').text()
+        };
 
-       // You can't send messages between renderers. You have to use main.js as a message gub.
-       ipc.send('edit-item', init_data);
+        // You can't send messages between renderers. You have to use main.js as a message gub.
+        ipc.send('edit-item', init_data);
     });
 
     // Main is passing back the updated data when save is pressed on the edit item dialog.
@@ -219,7 +221,8 @@ ipc.on('editRealm-data', function (event, data) {
 
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         var thisCell = locationData.where({
-            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
+            x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+        });
 
         var selectedItem = $('#itemList').find(".propertiesPanelItem.selected");
         var itemToUpdate = thisCell[0].attributes.items[selectedItem.attr('data-index')];
@@ -227,24 +230,25 @@ ipc.on('editRealm-data', function (event, data) {
         itemToUpdate.description = data.description.trim();
         itemToUpdate.damage = data.damage;
 
-		locationData.sync();
+        locationData.sync();
     });
 
     // The edit character dialog.
-    $("#editCharacterProperties").click(function() {
+    $("#editCharacterProperties").click(function () {
         console.log("editCharacter click");
-        init_data = {'name': $('#characterName').val(),
-                     'type': $('#characterType').text(),
-                     'description': $('#characterDescription').text(),
-                     'addInfo': $('#characterAddInfo').text(),
-                     'damage': $('#characterDamage').text(),
-                     'health': $('#characterHealth').text(),
-                     'drops': $('#characterDrops').text()
-                    };
- 
+        init_data = {
+            'name': $('#characterName').val(),
+            'type': $('#characterType').text(),
+            'description': $('#characterDescription').text(),
+            'addInfo': $('#characterAddInfo').text(),
+            'damage': $('#characterDamage').text(),
+            'health': $('#characterHealth').text(),
+            'drops': $('#characterDrops').text()
+        };
+
         // You can't send messages between renderers. You have to use main.js as a message gub.
         ipc.send('edit-character', init_data);
-     });
+    });
 
     // Main is passing back the updated data when save is pressed on the edit character dialog.
     ipc.on('editCharacter-data', function (event, data) {
@@ -259,7 +263,8 @@ ipc.on('editRealm-data', function (event, data) {
 
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         var thisCell = locationData.where({
-            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
+            x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+        });
 
         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
         var characterToUpdate = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
@@ -270,48 +275,51 @@ ipc.on('editRealm-data', function (event, data) {
         characterToUpdate.health = data.health;
         characterToUpdate.drops = data.drops.trim();
 
-		locationData.sync();
+        locationData.sync();
     });
 
     // The edit character inventory item dialog.
-    $("#editInventoryItemProperties").click(function() {
+    $("#editInventoryItemProperties").click(function () {
         console.log("editInventoryItem click");
-        init_data = {'name': $('#inventoryItemName').val(),
-                     'type': $('#inventoryItemType').text(),
-                     'description': $('#inventoryItemDescription').text(),
-                     'damage': $('#inventoryItemDamage').text()};
- 
+        init_data = {
+            'name': $('#inventoryItemName').val(),
+            'type': $('#inventoryItemType').text(),
+            'description': $('#inventoryItemDescription').text(),
+            'damage': $('#inventoryItemDamage').text()
+        };
+
         // You can't send messages between renderers. You have to use main.js as a message gub.
         ipc.send('edit-inventoryItem', init_data);
-     });
- 
-     // Main is passing back the updated data when save is pressed on the edit item dialog.
-     ipc.on('editInventoryItem-data', function (event, data) {
-         console.log('realmEditor.js:editInventoryItem-data. data=' + JSON.stringify(data));
-         ipc.send('logmsg', 'realmEditor.js:editInventoryItem-data. data=' + JSON.stringify(data));
-         $('#inventoryItemName').val(data.name);
-         $('#inventoryItemDescription').text(data.description);
-         $('#inventoryItemDamage').text(data.damage);
- 
-         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
-         var thisCell = locationData.where({
-             x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
- 
-         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
-         var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
+    });
 
-         var selectInventoryItem = $('#inventoryItemList').find(".propertiesPanelItem.selected");
-         var inventoryItemToUpdate = newCharacter.inventory[selectInventoryItem.attr('data-index')];
-         inventoryItemToUpdate.name = data.name.trim();
-         inventoryItemToUpdate.description = data.description.trim();
-         inventoryItemToUpdate.damage = data.damage;
+    // Main is passing back the updated data when save is pressed on the edit item dialog.
+    ipc.on('editInventoryItem-data', function (event, data) {
+        console.log('realmEditor.js:editInventoryItem-data. data=' + JSON.stringify(data));
+        ipc.send('logmsg', 'realmEditor.js:editInventoryItem-data. data=' + JSON.stringify(data));
+        $('#inventoryItemName').val(data.name);
+        $('#inventoryItemDescription').text(data.description);
+        $('#inventoryItemDamage').text(data.damage);
 
-         thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
-         locationData.sync();
-     });
+        var selectedMapCell = $('#mapTable').find(".mapItem.selected");
+        var thisCell = locationData.where({
+            x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+        });
+
+        var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
+        var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
+
+        var selectInventoryItem = $('#inventoryItemList').find(".propertiesPanelItem.selected");
+        var inventoryItemToUpdate = newCharacter.inventory[selectInventoryItem.attr('data-index')];
+        inventoryItemToUpdate.name = data.name.trim();
+        inventoryItemToUpdate.description = data.description.trim();
+        inventoryItemToUpdate.damage = data.damage;
+
+        thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
+        locationData.sync();
+    });
 
     // The add objective form.
-    $("#addObjective").click(function() {
+    $("#addObjective").click(function () {
         console.log("addObjective click");
 
         // You can't send messages between renderers. You have to use main.js as a message gub.
@@ -325,7 +333,7 @@ ipc.on('editRealm-data', function (event, data) {
 
         // At present all objectives require parameters of some kind.
         if (data.saveParams.length === 0) {
-            ipc.send('save-add-objective-result', {"success": false, "errorMsg": "Missing parameters."});
+            ipc.send('save-add-objective-result', { "success": false, "errorMsg": "Missing parameters." });
             return;
         }
 
@@ -333,56 +341,57 @@ ipc.on('editRealm-data', function (event, data) {
         // Since objectives are now defined by plugins, custom objectives
         // must be validated on the server.
         if (data.objectiveType === "Start at" || data.objectiveType === "Navigate to") {
-           var thisCell = locationData.where({
-              x: data.saveParams[0].value, y:data.saveParams[1].value});
-    
-           if (thisCell.length === 0) {
-              ipc.send('save-add-objective-result', {"success": false, "errorMsg": "Invalid map location."});
-              return;
-           }
+            var thisCell = locationData.where({
+                x: data.saveParams[0].value, y: data.saveParams[1].value
+            });
+
+            if (thisCell.length === 0) {
+                ipc.send('save-add-objective-result', { "success": false, "errorMsg": "Invalid map location." });
+                return;
+            }
         }
-    
+
         // Look up some additional info about the objective.
         if (!realmData.hasOwnProperty('objectives')) {
             realmData.objectives = [];
         }
-    
+
         if (data.objectiveType === "Start at") {
-           // Always put the "start at" objective first in the list to make
-           // it clear that it has been set.
-           if (realmData.objectives.length > 0 &&
-               realmData.objectives[0].type === "Start at") {
-               realmData.objectives.shift();
-           }
-    
-           realmData.objectives.unshift({
-              type: data.objectiveType,
-              description: data.description,
-              module: data.module,
-              filename: data.filename,
-              completed: false,
-              params: data.saveParams
-           });
+            // Always put the "start at" objective first in the list to make
+            // it clear that it has been set.
+            if (realmData.objectives.length > 0 &&
+                realmData.objectives[0].type === "Start at") {
+                realmData.objectives.shift();
+            }
+
+            realmData.objectives.unshift({
+                type: data.objectiveType,
+                description: data.description,
+                module: data.module,
+                filename: data.filename,
+                completed: false,
+                params: data.saveParams
+            });
         } else {
-           // Otherwise add it to the end.
-           realmData.objectives.push({
-              type: data.objectiveType,
-              description: data.description,
-              module: data.module,
-              filename: data.filename,
-              completed: false,
-              params: data.saveParams
-           });
+            // Otherwise add it to the end.
+            realmData.objectives.push({
+                type: data.objectiveType,
+                description: data.description,
+                module: data.module,
+                filename: data.filename,
+                completed: false,
+                params: data.saveParams
+            });
         }
-    
-        saveRealm(function() {
+
+        saveRealm(function () {
             ipc.send('logmsg', 'realm saved()');
             displayObjectives();
-            ipc.send('save-add-objective-result', {"success": true});
+            ipc.send('save-add-objective-result', { "success": true });
         });
     });
 
-    $(document).on('click', '.deleteObjective', function(e) {
+    $(document).on('click', '.deleteObjective', function (e) {
         var target = $(e.target.closest('tr'));
 
         if (1 === realmData.objectives.length) {
@@ -391,19 +400,21 @@ ipc.on('editRealm-data', function (event, data) {
             realmData.objectives.splice(parseInt(target.attr('data-id')), 1);
         }
 
-        saveRealm(function() {
+        saveRealm(function () {
             displayObjectives();
         });
     });
 
     // Navigate back.
-    $(document).on('click', '#breadcrumb', function(e) {
-        var args = {url: 'file://' + __dirname + '/../gameEditor/editGame.html',
-                    data: {id: $('#breadcrumb').attr('data-gameId')}};
+    $(document).on('click', '#breadcrumb', function (e) {
+        var args = {
+            url: 'file://' + __dirname + '/../gameEditor/editGame.html',
+            data: { id: $('#breadcrumb').attr('data-gameId') }
+        };
         ipc.send('edit-game', args);
     });
-    
-    $(document).on('mouseenter', '.paletteItem', function() {
+
+    $(document).on('mouseenter', '.paletteItem', function () {
         if ($(this).prop('id').length == 0)
             return;
 
@@ -414,13 +425,13 @@ ipc.on('editRealm-data', function (event, data) {
         var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
         switch (activeTab) {
             case PaletteItemType.ENV:
-                tabData = {class: activeTab, entries: envPaletteData};
+                tabData = { class: activeTab, entries: envPaletteData };
                 break;
             case PaletteItemType.ITEM:
-                tabData = {class: activeTab, entries: itemPaletteData};
+                tabData = { class: activeTab, entries: itemPaletteData };
                 break;
             case PaletteItemType.CHARACTER:
-                tabData = {class: activeTab, entries: characterPaletteData};
+                tabData = { class: activeTab, entries: characterPaletteData };
                 break;
             default:
                 console.log("Got invalid active tab " + activeTab);
@@ -431,18 +442,18 @@ ipc.on('editRealm-data', function (event, data) {
         populatePaletteDetails(tabData.class, paletteItem);
     });
 
-    $(document).on('mouseleave', '.paletteItem', function() {
+    $(document).on('mouseleave', '.paletteItem', function () {
         console.log("mouseleave .paletteItem");
         $(this).closest('div').css('border-color', '');
         clearPaletteDetails();
     });
 
     // Show / edit map locations
-    $(document).on('mouseenter', '#mapPanel', function() {});
+    $(document).on('mouseenter', '#mapPanel', function () { });
 
-    $(document).on('mouseleave', '#mapPanel', function() {});
+    $(document).on('mouseleave', '#mapPanel', function () { });
 
-    $(document).on('mouseenter', '.mapItem', function(e) {
+    $(document).on('mouseenter', '.mapItem', function (e) {
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         if (selectedMapCell.length === 0) {
             $('#currentCell').val($(this).prop('id'));
@@ -451,7 +462,7 @@ ipc.on('editRealm-data', function (event, data) {
         }
     });
 
-    $(document).on('mouseleave', '.mapItem', function(e) {
+    $(document).on('mouseleave', '.mapItem', function (e) {
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         if (selectedMapCell.length === 0) {
             $('#currentCell').val('');
@@ -460,7 +471,7 @@ ipc.on('editRealm-data', function (event, data) {
         }
     });
 
-    $(document).on('mouseup', '.mapItem', function() {
+    $(document).on('mouseup', '.mapItem', function () {
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         if (selectedMapCell.length === 0) {
             if ($(this).is('.ui-draggable-dragging')) {
@@ -476,14 +487,14 @@ ipc.on('editRealm-data', function (event, data) {
                 enableLocationEdits();
             }
         } else if ($(this).attr('data-x') === selectedMapCell.attr('data-x') &&
-                   $(this).attr('data-y') === selectedMapCell.attr('data-y')) {
+            $(this).attr('data-y') === selectedMapCell.attr('data-y')) {
             // Click again in the selected cell to cancel edit mode.
             selectedMapCell.closest('td').css('background-color', '');
             selectedMapCell.removeClass('selected');
             $('#propertiesPanelTitle').text("Location properties");
             disableLocationEdits();
         } else if ($(this).attr('data-x') !== selectedMapCell.attr('data-x') ||
-                   $(this).attr('data-y') !== selectedMapCell.attr('data-y')) {
+            $(this).attr('data-y') !== selectedMapCell.attr('data-y')) {
             // Click in a different cell to edit it.
             // First deselect the current edit cell.
             $('#currentCell').val('');
@@ -501,10 +512,10 @@ ipc.on('editRealm-data', function (event, data) {
         }
     });
 
-    $(document).on('mouseup', '.propertiesPanelItem', function() {
+    $(document).on('mouseup', '.propertiesPanelItem', function () {
         // Don't treat dropping an item as a regular click.
         if ($(this).hasClass('ui-draggable-dragging')) {
-           return;
+            return;
         }
 
         var listName = 'itemList';
@@ -512,8 +523,7 @@ ipc.on('editRealm-data', function (event, data) {
         var clearFunction = clearLocationItemDetails;
         var enableEditsFunction = enableLocationItemEdits;
         var disableEditsFunction = disableLocationItemEdits;
-        if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
-        {
+        if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
             if ($(this).closest('.elementList').is('#inventoryItemList')) {
                 listName = 'inventoryItemList';
                 populateFunction = populateInventoryItemDetails;
@@ -561,7 +571,7 @@ ipc.on('editRealm-data', function (event, data) {
         }
     });
 
-    $(document).on('mouseenter', '.propertiesPanelItem', function() {
+    $(document).on('mouseenter', '.propertiesPanelItem', function () {
         $(this).closest('div').css('border-color', 'red');
 
         if ($('#propertiesInnerPanel').tabs('option', 'active') === 1) {
@@ -569,8 +579,7 @@ ipc.on('editRealm-data', function (event, data) {
                 populateLocationItemDetails($(this));
             }
         }
-        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
-        {
+        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
             if ($(this).closest('.elementList').is('#inventoryItemList')) {
                 if ($('#inventoryItemList').find(".propertiesPanelItem.selected").length === 0) {
                     populateInventoryItemDetails($(this));
@@ -583,7 +592,7 @@ ipc.on('editRealm-data', function (event, data) {
         }
     });
 
-    $(document).on('mouseleave', '.propertiesPanelItem', function() {
+    $(document).on('mouseleave', '.propertiesPanelItem', function () {
         if (!$(this).hasClass('selected')) {
             $(this).closest('div').css('border-color', '');
         }
@@ -593,8 +602,7 @@ ipc.on('editRealm-data', function (event, data) {
                 clearLocationItemDetails();
             }
         }
-        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2)
-        {
+        else if ($('#propertiesInnerPanel').tabs('option', 'active') === 2) {
             if ($(this).closest('.elementList').is('#inventoryItemList')) {
                 if ($('#inventoryItemList').find(".propertiesPanelItem.selected").length === 0) {
                     clearInventoryItemDetails();
@@ -607,23 +615,25 @@ ipc.on('editRealm-data', function (event, data) {
         }
     });
 
-    $(document).on('change', '.locationProperty', function() {
+    $(document).on('change', '.locationProperty', function () {
         console.log("locationProperty change");
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         var thisCell = locationData.where({
-            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
+            x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+        });
 
         thisCell[0].attributes.name = $('#locationName').val().trim();
         locationData.sync();
 
     });
 
-    $(document).on('change', '.itemProperty', function() {
+    $(document).on('change', '.itemProperty', function () {
         console.log("itemProperty change");
 
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         var thisCell = locationData.where({
-            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
+            x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+        });
 
         if ($(this).closest('div').parent().parent().find('.elementList').is('#inventoryItemList')) {
             var selectedCharacterIndex = $('#characterList').find(".propertiesPanelItem.selected").attr('data-index');
@@ -645,12 +655,13 @@ ipc.on('editRealm-data', function (event, data) {
         locationData.sync();
     });
 
-    $(document).on('change', '.characterProperty', function() {
+    $(document).on('change', '.characterProperty', function () {
         console.log("characterProperty change");
         var selectedCharacter = $('#characterList').find(".propertiesPanelItem.selected");
         var selectedMapCell = $('#mapTable').find(".mapItem.selected");
         var thisCell = locationData.where({
-            x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')});
+            x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+        });
 
         var newCharacter = thisCell[0].attributes.characters[selectedCharacter.attr('data-index')];
         newCharacter.name = $('#characterName').val().trim();
@@ -663,7 +674,7 @@ ipc.on('editRealm-data', function (event, data) {
         locationData.sync();
     });
 });
-  
+
 
 
 //
@@ -681,12 +692,11 @@ function drawMapLocation(item) {
 
     // To allow it to be dragged to the wastebasket.
     target.addClass('draggable mapItem');
-    target.draggable({helper: 'clone', revert: 'invalid'});
+    target.draggable({ helper: 'clone', revert: 'invalid' });
 }
 
 
-function drawMapGrid(realmWidth, realmHeight)
-{
+function drawMapGrid(realmWidth, realmHeight) {
     var mapTable = $('#mapTable');
     var tableContents = '';
 
@@ -700,9 +710,9 @@ function drawMapGrid(realmWidth, realmHeight)
     // Allow an extra cell at the top and bottom of the table for the cell labels.
     realmWidth = parseInt(realmWidth);
     realmHeight = parseInt(realmHeight);
-    
-    for (var yCounter = realmHeight +1; yCounter >= 0; yCounter--) {
-        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+
+    for (var yCounter = realmHeight + 1; yCounter >= 0; yCounter--) {
+        if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<tr>';
         } else {
             tableContents += '<tr id="row_' + yCounter + '">';
@@ -710,7 +720,7 @@ function drawMapGrid(realmWidth, realmHeight)
 
         // Allow an extra cell at the start of the row for the cell labels.
         tableContents += '<td style="border-style: none">';
-        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+        if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
             tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
@@ -720,20 +730,20 @@ function drawMapGrid(realmWidth, realmHeight)
         // Draw the columns.
         for (var xCounter = 1; xCounter <= realmWidth; xCounter++) {
             // Draw the column labels in the top and bottom rows.
-            if ((yCounter === 0) || (yCounter === realmHeight +1)) {
+            if ((yCounter === 0) || (yCounter === realmHeight + 1)) {
                 tableContents += '<td style="border-style: none"><div style="width:50px; height:50px; line-height:50px; text-align:center;">' + xCounter + '</div></td>';
             } else {
                 // Draw the regular map cells.
                 tableContents += '<td id="cell_' + xCounter + "_" + yCounter + '"> ' +
-                '<div class="droppable" style="width:50px; height:50px;" ' +
-                'data-x="' + xCounter + '" data-y="' + yCounter + '" data-env=""></div>' +
-                '</td>';
+                    '<div class="droppable" style="width:50px; height:50px;" ' +
+                    'data-x="' + xCounter + '" data-y="' + yCounter + '" data-env=""></div>' +
+                    '</td>';
             }
         }
 
         // Allow an extra cell at the end of the row for the cell labels.
         tableContents += '<td style="border-style: none">';
-        if ((yCounter === realmHeight +1) || (yCounter === 0)) {
+        if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
             tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
@@ -746,8 +756,7 @@ function drawMapGrid(realmWidth, realmHeight)
 }
 
 
-function addMapLocation(realmId, droppedItem, originalLocation, newLocation)
-{
+function addMapLocation(realmId, droppedItem, originalLocation, newLocation) {
     var environment = (droppedItem.is('.paletteItem') ?
         droppedItem.attr('data-type') : droppedItem.attr('data-env'));
 
@@ -774,7 +783,8 @@ function addMapLocation(realmId, droppedItem, originalLocation, newLocation)
         module: droppedItem.attr('data-module'),
         filename: droppedItem.attr('data-filename'),
         items: copiedItems,
-        characters: copiedCharacters}, {wait: true});
+        characters: copiedCharacters
+    }, { wait: true });
 
     ipc.send('logmsg', 'addMapLocation(): updated locationData=' + JSON.stringify(locationData));
 
@@ -787,9 +797,8 @@ function addMapLocation(realmId, droppedItem, originalLocation, newLocation)
 }
 
 
-function removeMapLocation(x, y)
-{
-    var models = locationData.where({x: x, y: y});
+function removeMapLocation(x, y) {
+    var models = locationData.where({ x: x, y: y });
 
     if (models.length > 0) {
         models[0].destroy();
@@ -800,8 +809,7 @@ function removeMapLocation(x, y)
 }
 
 
-function moveToWasteBasket(droppedItem)
-{
+function moveToWasteBasket(droppedItem) {
     console.log("Dropped item onto wastebasket");
     if (droppedItem.is('.mapItem')) {
         removeMapLocation(droppedItem.attr('data-x'), droppedItem.attr('data-y'));
@@ -821,8 +829,7 @@ function moveToWasteBasket(droppedItem)
 }
 
 
-function droppedInventoryItem(droppedItem)
-{
+function droppedInventoryItem(droppedItem) {
     console.log("Dropped inventory item");
 
     if (droppedItem.is('.paletteItem')) {
@@ -837,11 +844,11 @@ function droppedInventoryItem(droppedItem)
 }
 
 
-function addInventoryItem(droppedItem)
-{
+function addInventoryItem(droppedItem) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     var thisCell = locationData.where({
-        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+        x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+    })[0];
     var selectedCharacter = $('#characterList').find('.propertiesPanelItem.selected');
     var characterData = thisCell.attributes.characters[selectedCharacter.attr('data-index')];
 
@@ -866,21 +873,21 @@ function addInventoryItem(droppedItem)
 }
 
 
-function droppedMapItem(realmId, droppedItem, target)
-{
+function droppedMapItem(realmId, droppedItem, target) {
     console.log("Dropped item onto map");
     var droppedItemOriginalLocation = locationData.where({
-        x: droppedItem.attr('data-x'), y:droppedItem.attr('data-y')});
+        x: droppedItem.attr('data-x'), y: droppedItem.attr('data-y')
+    });
 
     var droppedItemNewLocation = locationData.where({
-        x: target.attr('data-x'), y:target.attr('data-y')});
+        x: target.attr('data-x'), y: target.attr('data-y')
+    });
 
     if (droppedItemNewLocation.length === 0) {
         // Dropped an item onto an empty map location.
         // Create the new location if dragging an environment.
         if ((droppedItem.is('.paletteItem') && droppedItem.attr('data-category') === "environment") ||
-            droppedItem.is('.mapItem'))
-        {
+            droppedItem.is('.mapItem')) {
             addMapLocation(realmId, droppedItem, droppedItemOriginalLocation, target)
         } else {
             console.error("can't drop item category '" +
@@ -913,16 +920,16 @@ function droppedMapItem(realmId, droppedItem, target)
 }
 
 
-function removeItemFromLocation(droppedItem)
-{
+function removeItemFromLocation(droppedItem) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     if (0 === selectedMapCell.length) {
-       console.log("populateLocationCharacterDetails: no map item selected");
-       return;
+        console.log("populateLocationCharacterDetails: no map item selected");
+        return;
     }
 
     var thisCell = locationData.where({
-        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+        x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+    })[0];
 
     thisCell.attributes.items.splice(droppedItem.attr('data-index'), 1);
     locationData.sync();
@@ -930,9 +937,8 @@ function removeItemFromLocation(droppedItem)
 }
 
 
-function changeItemLocation(droppedItem, newLocation)
-{
-    var originalLocation = locationData.where({id: $('#propertiesPanel').attr('data-id')});
+function changeItemLocation(droppedItem, newLocation) {
+    var originalLocation = locationData.where({ id: $('#propertiesPanel').attr('data-id') });
     var originalLocationItems = originalLocation[0].attributes['items'];
     var originalLocationItemIndex = droppedItem.attr('data-index');
 
@@ -944,8 +950,7 @@ function changeItemLocation(droppedItem, newLocation)
 }
 
 
-function addItemToLocation(droppedItem, location)
-{
+function addItemToLocation(droppedItem, location) {
     var fullItemDetails = findPaletteItem(itemPaletteData, droppedItem);
     location[0].attributes.items.push(
         {
@@ -963,16 +968,16 @@ function addItemToLocation(droppedItem, location)
 }
 
 
-function removeCharacterFromLocation(droppedItem)
-{
+function removeCharacterFromLocation(droppedItem) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     if (0 === selectedMapCell.length) {
-       console.log("populateLocationCharacterDetails: no map item selected");
-       return;
+        console.log("populateLocationCharacterDetails: no map item selected");
+        return;
     }
 
     var thisCell = locationData.where({
-        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+        x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+    })[0];
 
     thisCell.attributes.characters.splice(droppedItem.attr('data-index'), 1);
     locationData.sync();
@@ -983,12 +988,13 @@ function removeCharacterFromLocation(droppedItem)
 function removeCharacterInventoryItem(droppedItem) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     if (0 === selectedMapCell.length) {
-       console.log("populateLocationItemDetails: no map item selected");
-       return;
+        console.log("populateLocationItemDetails: no map item selected");
+        return;
     }
 
     var thisCell = locationData.where({
-        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+        x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+    })[0];
 
     var currentCharacter = $('#characterList').find('.propertiesPanelItem.selected');
     var characterData = thisCell.attributes.characters[currentCharacter.attr('data-index')];
@@ -998,9 +1004,8 @@ function removeCharacterInventoryItem(droppedItem) {
 }
 
 
-function changeCharacterLocation(droppedItem, newLocation)
-{
-    var originalLocation = locationData.where({id: $('#propertiesPanel').attr('data-id')});
+function changeCharacterLocation(droppedItem, newLocation) {
+    var originalLocation = locationData.where({ id: $('#propertiesPanel').attr('data-id') });
     var originalLocationCharacters = originalLocation[0].attributes['characters'];
     var originalLocationCharacterIndex = droppedItem.attr('data-index');
 
@@ -1012,9 +1017,8 @@ function changeCharacterLocation(droppedItem, newLocation)
 }
 
 
-function addCharacterToLocation(droppedCharacter, location)
-{
-   var fullCharacterDetails = findPaletteItem(characterPaletteData, droppedCharacter);
+function addCharacterToLocation(droppedCharacter, location) {
+    var fullCharacterDetails = findPaletteItem(characterPaletteData, droppedCharacter);
     location[0].attributes.characters.push(
         {
             type: droppedCharacter.attr('data-type'),
@@ -1038,8 +1042,7 @@ function addCharacterToLocation(droppedCharacter, location)
 // Populate the properties window for the specified palette item.
 // params:
 //   paletteItem: the palette item.
-function populatePaletteDetails(paletteItemClass, paletteItem)
-{
+function populatePaletteDetails(paletteItemClass, paletteItem) {
     if (PaletteItemType.ENV === paletteItemClass) {
         $('#paletteEnvType').text(paletteItem.type);
         $('#paletteEnvDescription').text(paletteItem.description);
@@ -1060,8 +1063,7 @@ function populatePaletteDetails(paletteItemClass, paletteItem)
 }
 
 
-function clearPaletteDetails()
-{
+function clearPaletteDetails() {
     var activeTab = $('#paletteInnerPanel').tabs('option', 'active');
     switch (activeTab) {
         case PaletteItemType.ENV:
@@ -1090,8 +1092,7 @@ function clearPaletteDetails()
 }
 
 
-function disableLocationItemEdits()
-{
+function disableLocationItemEdits() {
     $('#itemName').prop('disabled', true);
     $('#itemType').prop('disabled', true);
     $('#itemDescription').prop('disabled', true);
@@ -1099,8 +1100,7 @@ function disableLocationItemEdits()
 }
 
 
-function enableLocationItemEdits()
-{
+function enableLocationItemEdits() {
     $('#itemName').prop('disabled', false);
     $('#itemType').prop('disabled', false);
     $('#itemDescription').prop('disabled', false);
@@ -1108,16 +1108,16 @@ function enableLocationItemEdits()
 }
 
 
-function populateLocationItemDetails(item)
-{
+function populateLocationItemDetails(item) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     if (0 === selectedMapCell.length) {
-       console.log("populateLocationItemDetails: no map item selected");
-       return;
+        console.log("populateLocationItemDetails: no map item selected");
+        return;
     }
 
     var thisCell = locationData.where({
-        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+        x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+    })[0];
 
     var itemData = thisCell.attributes.items[item.attr('data-index')];
 
@@ -1128,52 +1128,47 @@ function populateLocationItemDetails(item)
 }
 
 
-function clearLocationItemDetails()
-{
+function clearLocationItemDetails() {
     $('#itemName').val('');
     $('#itemType').text('');
     $('#itemDescription').text('');
 }
 
 
-function enableLocationCharacterEdits()
-{
+function enableLocationCharacterEdits() {
     $('#characterName').prop('disabled', false);
     $('#editCharacterProperties').prop('disabled', false).attr('src', '../../assets/images/pencil43.png');
 }
 
 
-function disableLocationCharacterEdits()
-{
+function disableLocationCharacterEdits() {
     $('#characterName').prop('disabled', true);
     $('#editCharacterProperties').prop('disabled', true).attr('src', '../../assets/images/pencil43-disabled.png');
 }
 
 
-function enableInventoryItemEdits()
-{
+function enableInventoryItemEdits() {
     $('#inventoryItemName').prop('disabled', false);
     $('#editInventoryItemProperties').prop('disabled', false).attr('src', '../../assets/images/pencil43.png');
 }
 
 
-function disableInventoryItemEdits()
-{
+function disableInventoryItemEdits() {
     $('#inventoryItemName').prop('disabled', true);
     $('#editInventoryItemProperties').prop('disabled', true).attr('src', '../../assets/images/pencil43-disabled.png');
 }
 
 
-function populateLocationCharacterDetails(character)
-{
+function populateLocationCharacterDetails(character) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     if (0 === selectedMapCell.length) {
-       console.log("populateLocationCharacterDetails: no map item selected");
-       return;
+        console.log("populateLocationCharacterDetails: no map item selected");
+        return;
     }
 
     var thisCell = locationData.where({
-        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+        x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+    })[0];
 
     var characterData = thisCell.attributes.characters[character.attr('data-index')];
 
@@ -1188,23 +1183,23 @@ function populateLocationCharacterDetails(character)
 
     // And its inventory, if it has any.
     if (characterData.inventory === undefined) {
-       return;
+        return;
     }
 
     displayLocationCharacterInventory(characterData);
 }
 
 
-function populateInventoryItemDetails(inventoryItem)
-{
+function populateInventoryItemDetails(inventoryItem) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     if (0 === selectedMapCell.length) {
-       console.log("populateLocationItemDetails: no map item selected");
-       return;
+        console.log("populateLocationItemDetails: no map item selected");
+        return;
     }
 
     var thisCell = locationData.where({
-        x: selectedMapCell.attr('data-x'), y:selectedMapCell.attr('data-y')})[0];
+        x: selectedMapCell.attr('data-x'), y: selectedMapCell.attr('data-y')
+    })[0];
 
     var currentCharacter = $('#characterList').find('.propertiesPanelItem.selected');
     var characterData = thisCell.attributes.characters[currentCharacter.attr('data-index')];
@@ -1217,8 +1212,7 @@ function populateInventoryItemDetails(inventoryItem)
 }
 
 
-function clearLocationCharacterDetails()
-{
+function clearLocationCharacterDetails() {
     $('#characterName').val('');
     $('#characterType').text('');
     $('#characterDescription').text('');
@@ -1243,23 +1237,21 @@ function clearInventoryItemDetails() {
 // params:
 //   location: the mapLocation UI cell of interest.
 //   allDetails: true shows all details. False shows only high-level details.
-function populateMapLocationDetails(location, allDetails)
-{
+function populateMapLocationDetails(location, allDetails) {
     var thisCell = locationData.where({
-        x: location.attr('data-x'), y:location.attr('data-y')});
+        x: location.attr('data-x'), y: location.attr('data-y')
+    });
 
     populateLocationDetails(thisCell[0], allDetails);
 }
 
 
-function disableLocationEdits()
-{
+function disableLocationEdits() {
     $('#locationName').prop('disabled', true);
 }
 
 
-function enableLocationEdits()
-{
+function enableLocationEdits() {
     $('#locationName').prop('disabled', false);
 }
 
@@ -1269,8 +1261,7 @@ function enableLocationEdits()
 //   locationCollection: the collection of locations to search.
 //   location: the mapLocation data object of interest.
 //   allDetails: true shows all details. False shows only high-level details.
-function populateLocationDetails(location, allDetails)
-{
+function populateLocationDetails(location, allDetails) {
     if (location.attributes.name !== undefined)
         $('#locationName').val(location.attributes.name);
 
@@ -1288,8 +1279,7 @@ function populateLocationDetails(location, allDetails)
 }
 
 
-function clearLocationDetails()
-{
+function clearLocationDetails() {
     $('#propertiesPanel').removeAttr('data-id');
     $('#locationName').val('');
     $('#envType').text('');
@@ -1300,23 +1290,20 @@ function clearLocationDetails()
 }
 
 
-function clearLocationItems()
-{
+function clearLocationItems() {
     console.log("clearLocationItems found" + $('#itemList').find('.propertiesPanelItem').length)
     $('#itemList').find('.propertiesPanelItem').remove();
 }
 
 
-function clearLocationCharacters()
-{
+function clearLocationCharacters() {
     console.log("clearLocationCharacters found" + $('#characterList').find('.propertiesPanelItem').length)
     $('#characterList').find('.propertiesPanelItem').remove();
     clearCharacterInventory();
 }
 
 
-function clearCharacterInventory()
-{
+function clearCharacterInventory() {
     console.log("clearCharacterInventory")
     $('#inventoryItemList').find('.propertiesPanelItem').remove();
 }
@@ -1327,19 +1314,19 @@ function findPaletteItem(dataSet, itemToFind) {
     var moduleName = itemToFind.attr('data-module');
     var moduleContents = dataSet.modules[moduleName];
     if (moduleContents === undefined) {
-       return null; // The modulename was not found
+        return null; // The modulename was not found
     }
 
     var fileName = itemToFind.attr('data-filename');
     var fileContents = moduleContents[fileName];
     if (fileContents === undefined) {
-       return null; // The filename was not found
+        return null; // The filename was not found
     }
 
     for (var i = 0, len = fileContents.length; i < len; i++) {
         var thisContent = fileContents[i];
         if (thisContent.type === itemToFind.attr('data-type')) {
-           return thisContent; // Return as soon as the object is found
+            return thisContent; // Return as soon as the object is found
         }
     }
 
@@ -1351,18 +1338,18 @@ function findPaletteItem(dataSet, itemToFind) {
 function findLocationItem(dataSet, itemToFind) {
     var moduleContents = dataSet.modules[itemToFind.module];
     if (moduleContents === undefined) {
-       return null; // The modulename was not found
+        return null; // The modulename was not found
     }
 
     var fileContents = moduleContents[itemToFind.filename];
     if (fileContents === undefined) {
-       return null; // The filename was not found
+        return null; // The filename was not found
     }
 
     for (var i = 0, len = fileContents.length; i < len; i++) {
         var thisContent = fileContents[i];
         if (thisContent.type === itemToFind.type) {
-           return thisContent; // Return as soon as the object is found
+            return thisContent; // Return as soon as the object is found
         }
     }
 
@@ -1393,7 +1380,7 @@ function loadEnvPalette(callback) {
         // Arrays (envPaletteData.modules[moduleName][fileName]):
         //    plugins.modules['default']['environments.js'].forEach(function(item) { ... });
         //       calls function for each item (object) in the array.
-        $.each(envPaletteData.modules, function(moduleName) {
+        $.each(envPaletteData.modules, function (moduleName) {
             // Some left padding required to stop the accordion triangle overlapping the text.
             // I'm sure this can be sorted out with css somehow.
             var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + moduleName + "</h3>");
@@ -1401,7 +1388,7 @@ function loadEnvPalette(callback) {
             var childContainer = $("<div></div>");
             for (var fileName in envPaletteData.modules[moduleName]) {
                 var thisEntry = envPaletteData.modules[moduleName][fileName];
-                thisEntry.forEach(function(item) {
+                thisEntry.forEach(function (item) {
                     var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                     var html = "<div class='paletteItem draggable ui-widget-content' " +
                         "id='env_" + envNum++ + "' " +
@@ -1414,7 +1401,7 @@ function loadEnvPalette(callback) {
                         "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
-                    paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                    paletteItem.draggable({ helper: 'clone', revert: 'invalid' });
                     paletteItem.appendTo(container);
                     container.appendTo(childContainer);
                 });
@@ -1424,7 +1411,7 @@ function loadEnvPalette(callback) {
 
         $(target).accordion();
         callback(null);
-    } catch(error) {
+    } catch (error) {
         ipc.send('logmsg', 'caught error: ' + error);
         callback(error);
     }
@@ -1454,7 +1441,7 @@ function loadItemsPalette(callback) {
         // Arrays (itemPaletteData.modules[moduleName][fileName]):
         //    plugins.modules['default']['environments.js'].forEach(function(item) { ... });
         //       calls function for each item (object) in the array.
-        $.each(itemPaletteData.modules, function(moduleName) {
+        $.each(itemPaletteData.modules, function (moduleName) {
             // Some left padding required to stop the accordion triangle overlapping the text.
             // I'm sure this can be sorted out with css somehow.
             var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + moduleName + "</h3>");
@@ -1462,7 +1449,7 @@ function loadItemsPalette(callback) {
             var childContainer = $("<div></div>");
             for (var fileName in itemPaletteData.modules[moduleName]) {
                 var thisEntry = itemPaletteData.modules[moduleName][fileName];
-                thisEntry.forEach(function(item) {
+                thisEntry.forEach(function (item) {
                     var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                     var html = "<div class='paletteItem draggable ui-widget-content' " +
                         "id='item_" + itemNum++ + "' " +
@@ -1475,7 +1462,7 @@ function loadItemsPalette(callback) {
                         "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
-                    paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                    paletteItem.draggable({ helper: 'clone', revert: 'invalid' });
                     paletteItem.appendTo(container);
                     container.appendTo(childContainer);
                 });
@@ -1485,7 +1472,7 @@ function loadItemsPalette(callback) {
 
         $(target).accordion();
         callback(null);
-    } catch(error) {
+    } catch (error) {
         ipc.send('logmsg', 'caught error: ' + error);
         callback(error);
     }
@@ -1515,7 +1502,7 @@ function loadCharactersPalette(callback) {
         // Arrays (characterPaletteData.modules[moduleName][fileName]):
         //    plugins.modules['default']['environments.js'].forEach(function(item) { ... });
         //       calls function for each item (object) in the array.
-        $.each(characterPaletteData.modules, function(moduleName) {
+        $.each(characterPaletteData.modules, function (moduleName) {
             // Some left padding required to stop the accordion triangle overlapping the text.
             // I'm sure this can be sorted out with css somehow.
             var accordion = $("<h3>&nbsp;&nbsp;&nbsp;" + moduleName + "</h3>");
@@ -1523,7 +1510,7 @@ function loadCharactersPalette(callback) {
             var childContainer = $("<div></div>");
             for (var fileName in characterPaletteData.modules[moduleName]) {
                 var thisEntry = characterPaletteData.modules[moduleName][fileName];
-                thisEntry.forEach(function(character) {
+                thisEntry.forEach(function (character) {
                     var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                     var html = "<div class='paletteItem draggable ui-widget-content' " +
                         "id='char_" + characterNum++ + "' " +
@@ -1536,7 +1523,7 @@ function loadCharactersPalette(callback) {
                         "><img src='" + pathroot + "/" + moduleName + "/images/" + character.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
-                    paletteItem.draggable({helper: 'clone', revert: 'invalid'});
+                    paletteItem.draggable({ helper: 'clone', revert: 'invalid' });
                     paletteItem.appendTo(container);
                     container.appendTo(childContainer);
                 });
@@ -1546,7 +1533,7 @@ function loadCharactersPalette(callback) {
 
         $(target).accordion();
         callback(null);
-    } catch(error) {
+    } catch (error) {
         ipc.send('logmsg', 'caught error: ' + error);
         callback(error);
     }
@@ -1559,7 +1546,7 @@ function loadObjectivesPalette(callback) {
         objectivePaletteData = pluginMgr.findPlugins('objective');
         ipc.send('logmsg', 'found plugins:' + JSON.stringify(objectivePaletteData));
         callback(null);
-    } catch(error) {
+    } catch (error) {
         ipc.send('logmsg', 'caught error: ' + error);
         callback(error);
     }
@@ -1570,7 +1557,7 @@ function loadRealm(realmId, callback) {
     ipc.send('logmsg', 'load realm ' + realmId);
 
     var db_collections = dbWrapper.getDBs();
-    db_collections.questrealms.find({_id: realmId}, function (err, data) {
+    db_collections.questrealms.find({ _id: realmId }, function (err, data) {
         ipc.send('logmsg', "loadRealm found data: " + JSON.stringify(data));
         realmData = data[0];
 
@@ -1602,15 +1589,14 @@ function loadRealm(realmId, callback) {
 }
 
 
-function displayLocationItems(location)
-{
+function displayLocationItems(location) {
     console.log(Date.now() + ' displayLocationItems at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
 
     var path = require('path');
     var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
     var target = $('#itemList').html("");
     var itemIndex = 0;
-    location.attributes.items.forEach(function(item) {
+    location.attributes.items.forEach(function (item) {
         var paletteItem = findLocationItem(itemPaletteData, item);
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
@@ -1618,7 +1604,7 @@ function displayLocationItems(location)
             "><img src='" + pathroot + item.module + "/images/" + paletteItem.image + "'/>";
         html += "</div>";
         var locationItem = $(html);
-        locationItem.draggable({helper: 'clone', revert: 'invalid'});
+        locationItem.draggable({ helper: 'clone', revert: 'invalid' });
         locationItem.appendTo(container);
         container.appendTo(target);
     });
@@ -1627,8 +1613,7 @@ function displayLocationItems(location)
 }
 
 
-function displayLocationCharacters(location)
-{
+function displayLocationCharacters(location) {
     console.log(Date.now() + ' displayLocationCharacters at x:' + location.attributes['x'] + " y: " + location.attributes['y']);
 
     // This will be triggered by mousing over a maplocation, or by updating the inventory of a
@@ -1640,7 +1625,7 @@ function displayLocationCharacters(location)
     var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
     var target = $('#characterList').html("");
     var characterIndex = 0;
-    location.attributes.characters.forEach(function(character) {
+    location.attributes.characters.forEach(function (character) {
         var paletteItem = findLocationItem(characterPaletteData, character);
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
@@ -1648,7 +1633,7 @@ function displayLocationCharacters(location)
             "><img src='" + pathroot + character.module + "/images/" + paletteItem.image + "'/>";
         html += "</div>";
         var locationCharacter = $(html);
-        locationCharacter.draggable({helper: 'clone', revert: 'invalid'});
+        locationCharacter.draggable({ helper: 'clone', revert: 'invalid' });
         locationCharacter.appendTo(container);
         container.appendTo(target);
     });
@@ -1674,15 +1659,14 @@ function displayLocationCharacters(location)
 }
 
 
-function displayLocationCharacterInventory(character)
-{
+function displayLocationCharacterInventory(character) {
     console.log(Date.now() + ' displayLocationCharacterInventory');
 
     var path = require('path');
     var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
     var target = $('#inventoryItemList').html("");
     var itemIndex = 0;
-    character.inventory.forEach(function(item) {
+    character.inventory.forEach(function (item) {
         var paletteItem = findLocationItem(itemPaletteData, item);
         var container = $("<div style='display: inline-block; padding: 2px;'></div>");
         var html = "<div class='propertiesPanelItem draggable ui-widget-content' " +
@@ -1690,7 +1674,7 @@ function displayLocationCharacterInventory(character)
             "><img src='" + pathroot + item.module + "/images/" + paletteItem.image + "'/>";
         html += "</div>";
         var inventoryItem = $(html);
-        inventoryItem.draggable({helper: 'clone', revert: 'invalid'});
+        inventoryItem.draggable({ helper: 'clone', revert: 'invalid' });
         inventoryItem.appendTo(container);
         container.appendTo(target);
     });
@@ -1702,8 +1686,8 @@ function displayLocationCharacterInventory(character)
 function displayObjectiveDetails(item) {
     var description = "";
 
-    $.each(item.params, function(thisParam){
-       description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
+    $.each(item.params, function (thisParam) {
+        description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
     });
 
     description = description.substr(0, description.lastIndexOf(", "));
@@ -1711,15 +1695,14 @@ function displayObjectiveDetails(item) {
 }
 
 
-function displayObjectives()
-{
+function displayObjectives() {
     console.log(Date.now() + ' displayObjectives');
     var target = $('#objectiveList').html("");
     var html = "";
 
-    var i=0;
+    var i = 0;
     if (realmData.hasOwnProperty('objectives')) {
-        realmData.objectives.forEach(function(item) {
+        realmData.objectives.forEach(function (item) {
             html += "<tr data-id='" + (i++) + "'>";
             html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.type + "</td>";
             html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
@@ -1732,11 +1715,10 @@ function displayObjectives()
 }
 
 
-function saveRealm(callback)
-{
+function saveRealm(callback) {
     console.log(Date.now() + ' saveRealm');
     var db_collections = dbWrapper.getDBs();
-    db_collections.questrealms.update({_id: realmId}, realmData, {}, function (err, numReplaced) {
+    db_collections.questrealms.update({ _id: realmId }, realmData, {}, function (err, numReplaced) {
         console.log("saveRealm err:" + err);
         console.log("saveRealm numReplaced:" + numReplaced);
         callback(null);

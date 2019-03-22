@@ -18,12 +18,14 @@ function editRealmDesign(target) {
     // views/realmEditor/editRealm.ejs where it can be referenced using template parameters
     // when drawing the page.
 
-    var args = {url: 'file://' + __dirname + '/../realmEditor/editRealm.html',
-                data: {id: target.closest('tr').attr('id')}};
+    var args = {
+        url: 'file://' + __dirname + '/../realmEditor/editRealm.html',
+        data: { id: target.closest('tr').attr('id') }
+    };
     if ($('#breadcrumb').length) {
-       // The gameId is for the breadcrumb trail to allow you to come back to the
-       // referring page. The game editor will pass this. The front page won't.
-       args.data.gameId = $('#breadcrumb').attr('data-gameId');
+        // The gameId is for the breadcrumb trail to allow you to come back to the
+        // referring page. The game editor will pass this. The front page won't.
+        args.data.gameId = $('#breadcrumb').attr('data-gameId');
     }
 
     ipc.send('edit-realm', args);
@@ -45,7 +47,7 @@ function deleteRealmDesign(target, callback) {
     // function below.
     if (confirm("Are you sure you want to delete realm " + realmName + "?")) {
         var db_collections = dbWrapper.getDBs();
-        db_collections.questrealms.remove ({_id:id}, function (err, numRemoved) {
+        db_collections.questrealms.remove({ _id: id }, function (err, numRemoved) {
             callback(numRemoved);
         });
     }
@@ -64,7 +66,7 @@ function createRealmDesign(callback) {
 
     // Do it here for now.
     var db_collections = dbWrapper.getDBs();
-    db_collections.questrealms.find({name : realmName}, function(err, realms) {
+    db_collections.questrealms.find({ name: realmName }, function (err, realms) {
         console.log("createRealmDesign(" + realmName + ") found: " + JSON.stringify(realms));
 
         if (realms.length > 0) {

@@ -26,7 +26,7 @@ module.exports = {
 
         callback(null);
     },
-    openGameDB: function (callback, dbPath=null) {
+    openGameDB: function (callback, dbPath = null) {
         console.log("opendb path " + dbPath + ", __dirname " + __dirname);
 
         db_collections.questrealms = new Datastore({ filename: dbPath + '/questrealms.db', autoload: true });
@@ -37,7 +37,7 @@ module.exports = {
 
         callback(null);
     },
-    getDBs: function() {
+    getDBs: function () {
         return db_collections;
     }
 };

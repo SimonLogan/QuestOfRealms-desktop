@@ -12,7 +12,7 @@ class playerInfo {
     constructor(player, playerIndex) {
         this.player = player;
         this.playerIndex = playerIndex;
-   }
+    }
 }
 
 class findPlayer {
@@ -23,7 +23,7 @@ class findPlayer {
             }
         }
 
-		return null;
+        return null;
     }
 }
 
@@ -32,23 +32,23 @@ class itemInfo {
     constructor(item, itemIndex) {
         this.item = item;
         this.itemIndex = itemIndex;
-   }
+    }
 }
 
 class findItem {
     static findLocationItemByType(location, itemType) {
         if (location.items === undefined) {
-		        return null;
+            return null;
         }
 
         for (var i = 0; i < location.items.length; i++) {
             // TODO: handle ambiguous object descriptions (e.g. "take sword" when there are two swords).
             if (location.items[i].type === itemType) {
-    		         return new itemInfo(location.items[i], i);
-   	        }
+                return new itemInfo(location.items[i], i);
+            }
         }
 
-		    return null;
+        return null;
     }
 }
 
@@ -57,22 +57,22 @@ class characterInfo {
     constructor(character, characterIndex) {
         this.character = character;
         this.characterIndex = characterIndex;
-   }
+    }
 }
 
 class findCharacter {
     static findLocationCharacterByType(location, characterType) {
         if (location.characters === undefined) {
-		        return null;
+            return null;
         }
 
         for (var i = 0; i < location.characters.length; i++) {
             if (location.characters[i].type === characterType) {
-    		         return new characterInfo(location.characters[i], i);
-   	        }
+                return new characterInfo(location.characters[i], i);
+            }
         }
 
-		    return null;
+        return null;
     }
 }
 
@@ -84,210 +84,210 @@ var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
 
 module.exports = {
 
-  // No attributes provided by this module.
+    // No attributes provided by this module.
 
-  handlers: {
-       "fight": function(character, game, playerName, callback) {
-          /*
-           * The handler doesn't need to update the game. It just needs to
-           * return description and data to indicate the result of the fight:
+    handlers: {
+        "fight": function (character, game, playerName, callback) {
+            /*
+             * The handler doesn't need to update the game. It just needs to
+             * return description and data to indicate the result of the fight:
+  
+                     description: {
+                         action: "fight",
+                         success: true,       // was the fight successful?
+                         message: message,    // description of the result, e.g. "you triumphed".
+  
+                     },
+                     data: {
+                         playerHealth: 10,              // The player's health after the fight
+                         characterHealth: 5,            // The character's health after the fight
+                         playerWon: playerWon           // true if the player won.
+                         playerDied: playerDied,        // true if the player died.
+                         characterDied: characterDied   // true if the character died.
+                     }
+  
+             */
 
-                   description: {
-                       action: "fight",
-                       success: true,       // was the fight successful?
-                       message: message,    // description of the result, e.g. "you triumphed".
+            console.log("Default fight handler");
 
-                   },
-                   data: {
-                       playerHealth: 10,              // The player's health after the fight
-                       characterHealth: 5,            // The character's health after the fight
-                       playerWon: playerWon           // true if the player won.
-                       playerDied: playerDied,        // true if the player died.
-                       characterDied: characterDied   // true if the character died.
-                   }
+            var playerInfo = findPlayer.findPlayerByName(game, playerName);
+            var playerOrigHealth = playerInfo.player.health;
+            var characterOrigHealth = character.health;
+            var playerHealth = playerOrigHealth;
+            var characterHealth = characterOrigHealth;
 
-           */
+            // Deal the damage
+            console.log("Before fight. player.health: " + playerInfo.player.health +
+                ", player.damage: " + playerInfo.player.damage +
+                ", character.health: " + character.health +
+                ", character damage: " + character.damage);
 
-           console.log("Default fight handler");
+            // The player can't fight if health is 0.
+            // Note on the format/message split below. If we ever wish to localise the strings,
+            // "You are too weak to fight. The ${character_type} was victorious." is much better
+            // for translators as there is a full sentence to work with, and the embedded named
+            // token gives info about what data it contains. Compare this to the much worse
+            // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
+            var format = "You are too weak to fight. The ${character_type} was victorious.";
+            var message = template(format, { character_type: character.type });
+            var playerWon = false;
+            if (playerHealth > 0) {
+                playerHealth = Math.max(playerHealth - character.damage, 0);
+                characterHealth = Math.max(characterHealth - playerInfo.player.damage, 0);
 
-           var playerInfo = findPlayer.findPlayerByName(game, playerName);
-           var playerOrigHealth = playerInfo.player.health;
-           var characterOrigHealth = character.health;
-           var playerHealth = playerOrigHealth;
-           var characterHealth = characterOrigHealth;
+                // The victor is the combatant that does the biggest %age damage to the opponent.
+                var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+                var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
 
-           // Deal the damage
-           console.log("Before fight. player.health: " + playerInfo.player.health +
-                          ", player.damage: " + playerInfo.player.damage +
-                          ", character.health: " + character.health +
-                          ", character damage: " + character.damage);
+                console.log("After fight. player.health: " + playerHealth +
+                    ", character.health: " + characterHealth +
+                    ", player dealt damage: " + playerDamageDealt + "% " +
+                    ", character dealt damage: " + characterDamageDealt + "%");
 
-           // The player can't fight if health is 0.
-           // Note on the format/message split below. If we ever wish to localise the strings,
-           // "You are too weak to fight. The ${character_type} was victorious." is much better
-           // for translators as there is a full sentence to work with, and the embedded named
-           // token gives info about what data it contains. Compare this to the much worse
-           // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
-           var format = "You are too weak to fight. The ${character_type} was victorious.";
-           var message = template(format, {character_type: character.type});
-           var playerWon = false;
-           if (playerHealth > 0) {
-               playerHealth = Math.max(playerHealth - character.damage, 0);
-               characterHealth = Math.max(characterHealth - playerInfo.player.damage, 0);
+                var characterDied = false;
+                var playerDied = false;
+                message = "You fought valiantly.";
+                if (characterHealth === 0 && playerHealth > 0) {
+                    format = "You fought valiantly. The ${character_type} died.";
+                    characterDied = true;
+                    message = template(format, { character_type: character.type });
+                    playerWon = true;
+                } else if (characterHealth > 0 && playerHealth === 0) {
+                    message = "You fought valiantly, but you died.";
+                    playerDied = true;
+                } else if (characterHealth === 0 && playerHealth === 0) {
+                    message = "You fought valiantly, but you both died.";
+                } else {
+                    // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
+                    // was equal, judge based on remaining strength.
+                    if ((playerDamageDealt > characterDamageDealt) ||
+                        ((playerDamageDealt === characterDamageDealt) &&
+                            (playerHealth > characterHealth))) {
+                        message = "You fought valiantly and were victorious.";
+                        playerWon = true;
+                    } else if ((characterDamageDealt > playerDamageDealt) ||
+                        ((playerDamageDealt === characterDamageDealt) &&
+                            (characterHealth > playerHealth))) {
+                        format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
+                        message = template(format, { character_type: character.type });
+                    } else {
+                        // Evenly matched so far, declare a draw.
+                        message = "You both fought valiantly, but are evently matched.";
+                    }
+                }
+            }
 
-               // The victor is the combatant that does the biggest %age damage to the opponent.
-               var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
-               var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
+            var resp = {
+                player: playerName,
+                description: {
+                    action: "fight",
+                    success: true,
+                    message: message
+                },
+                data: {
+                    playerHealth: playerHealth,
+                    characterHealth: characterHealth,
+                    playerWon: playerWon,
+                    playerDied: playerDied,
+                    characterDied: characterDied
+                }
+            };
 
-               console.log("After fight. player.health: " + playerHealth +
-                              ", character.health: " + characterHealth +
-                              ", player dealt damage: " + playerDamageDealt + "% " +
-                              ", character dealt damage: " + characterDamageDealt + "%");
+            console.log("in fight() callback value");
+            callback(resp);
+        },
+        "fight for": function (character, object, game, playerName, callback) {
+            // By default "fight for" behaves just like fight, except the game
+            // will take the object from the character if you win.
 
-               var characterDied = false;
-               var playerDied = false;
-               message = "You fought valiantly.";
-               if (characterHealth === 0 && playerHealth > 0) {
-                   format = "You fought valiantly. The ${character_type} died.";
-                   characterDied = true;
-                   message = template(format, {character_type: character.type});
-                   playerWon = true;
-               } else if (characterHealth > 0 && playerHealth === 0) {
-                   message = "You fought valiantly, but you died.";
-                   playerDied = true;
-               } else if (characterHealth === 0 && playerHealth === 0) {
-                   message = "You fought valiantly, but you both died.";
-               } else {
-                   // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
-                   // was equal, judge based on remaining strength.
-                   if ((playerDamageDealt > characterDamageDealt) ||
-                       ((playerDamageDealt === characterDamageDealt) &&
-                        (playerHealth > characterHealth))) {
-                       message = "You fought valiantly and were victorious.";
-                       playerWon = true;
-                   } else if ((characterDamageDealt > playerDamageDealt) ||
-                              ((playerDamageDealt === characterDamageDealt) &&
-                               (characterHealth > playerHealth))) {
-                       format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
-                       message = template(format, {character_type: character.type});
-                   } else {
-                       // Evenly matched so far, declare a draw.
-                       message = "You both fought valiantly, but are evently matched.";
-                   }
-               }
-           }
+            console.log("Default fight for handler");
 
-           var resp = {
-               player: playerName,
-                   description: {
-                       action: "fight",
-                       success: true,
-                       message: message
-                   },
-                   data: {
-                       playerHealth: playerHealth,
-                       characterHealth: characterHealth,
-                       playerWon: playerWon,
-                       playerDied: playerDied,
-                       characterDied: characterDied
-                   }
-           };
+            var playerInfo = findPlayer.findPlayerByName(game, playerName);
+            var playerOrigHealth = playerInfo.player.health;
+            var characterOrigHealth = character.health;
+            var playerHealth = playerOrigHealth;
+            var characterHealth = characterOrigHealth;
 
-           console.log("in fight() callback value");
-           callback(resp);
-       },
-       "fight for": function(character, object, game, playerName, callback) {
-           // By default "fight for" behaves just like fight, except the game
-           // will take the object from the character if you win.
+            // Deal the damage
+            console.log("Before fight for. player.health: " + playerInfo.player.health +
+                ", player.damage: " + playerInfo.player.damage +
+                ", character.health: " + character.health +
+                ", character damage: " + character.damage);
 
-           console.log("Default fight for handler");
+            // The player can't fight if health is 0.
+            // Note on the format/message split below. If we ever wish to localise the strings,
+            // "You are too weak to fight. The ${character_type} was victorious." is much better
+            // for translators as there is a full sentence to work with, and the embedded named
+            // token gives info about what data it contains. Compare this to the much worse
+            // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
+            var format = "You are too weak to fight. The ${character_type} was victorious.";
+            var message = template(format, { character_type: character.type });
+            var playerWon = false;
+            if (playerHealth > 0) {
+                playerHealth = Math.max(playerHealth - character.damage, 0);
+                characterHealth = Math.max(characterHealth - playerInfo.player.damage, 0);
 
-           var playerInfo = findPlayer.findPlayerByName(game, playerName);
-           var playerOrigHealth = playerInfo.player.health;
-           var characterOrigHealth = character.health;
-           var playerHealth = playerOrigHealth;
-           var characterHealth = characterOrigHealth;
+                // The victor is the combatant that does the biggest %age damage to the opponent.
+                var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+                var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
 
-           // Deal the damage
-           console.log("Before fight for. player.health: " + playerInfo.player.health +
-                          ", player.damage: " + playerInfo.player.damage +
-                          ", character.health: " + character.health +
-                          ", character damage: " + character.damage);
+                console.log("After fight for. player.health: " + playerHealth +
+                    ", character.health: " + character.health +
+                    ", player dealt damage: " + playerDamageDealt + "% " +
+                    ", character dealt damage: " + characterDamageDealt + "%");
 
-           // The player can't fight if health is 0.
-           // Note on the format/message split below. If we ever wish to localise the strings,
-           // "You are too weak to fight. The ${character_type} was victorious." is much better
-           // for translators as there is a full sentence to work with, and the embedded named
-           // token gives info about what data it contains. Compare this to the much worse
-           // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
-           var format = "You are too weak to fight. The ${character_type} was victorious.";
-           var message = template(format, {character_type: character.type});
-           var playerWon = false;
-           if (playerHealth > 0) {
-               playerHealth = Math.max(playerHealth - character.damage, 0);
-               characterHealth = Math.max(characterHealth - playerInfo.player.damage, 0);
+                var characterDied = false;
+                var playerDied = false;
+                message = "You fought valiantly.";
+                if (characterHealth === 0 && playerHealth > 0) {
+                    format = "You fought valiantly. The ${character_type} died.";
+                    characterDied = true;
+                    message = template(format, { character_type: character.type });
+                    playerWon = true;
+                } else if (characterHealth > 0 && playerHealth === 0) {
+                    message = "You fought valiantly, but you died.";
+                    playerDied = true;
+                } else if (characterHealth === 0 && playerHealth === 0) {
+                    message = "You fought valiantly, but you both died.";
+                } else {
+                    // Neither died. Judge the victor on who dealt the most %age damage, or if damage
+                    // was equal, judge based on remaining strength.
+                    if ((playerDamageDealt > characterDamageDealt) ||
+                        ((playerDamageDealt === characterDamageDealt) &&
+                            (playerHealth > characterHealth))) {
+                        message = "You fought valiantly and were victorious.";
+                        playerWon = true;
+                    } else if ((characterDamageDealt > playerDamageDealt) ||
+                        ((playerDamageDealt === characterDamageDealt) &&
+                            (characterHealth > playerHealth))) {
+                        format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
+                        message = template(format, { character_type: character.type });
+                    } else {
+                        // Evenly matched so far, declare a draw.
+                        message = "You both fought valiantly, but are evently matched.";
+                    }
+                }
+            }
 
-               // The victor is the combatant that does the biggest %age damage to the opponent.
-               var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
-               var characterDamageDealt = Math.round((character.damage / playerOrigHealth) * 100);
+            var resp = {
+                player: playerName,
+                description: {
+                    action: "fight",
+                    success: true,
+                    message: message
+                },
+                data: {
+                    playerHealth: playerHealth,
+                    characterHealth: characterHealth,
+                    playerWon: playerWon,
+                    playerDied: playerDied,
+                    characterDied: characterDied
+                }
+            };
 
-               console.log("After fight for. player.health: " + playerHealth +
-                              ", character.health: " + character.health +
-                              ", player dealt damage: " + playerDamageDealt + "% " +
-                              ", character dealt damage: " + characterDamageDealt + "%");
-
-               var characterDied = false;
-               var playerDied = false;
-               message = "You fought valiantly.";
-               if (characterHealth === 0 && playerHealth > 0) {
-                   format = "You fought valiantly. The ${character_type} died.";
-                   characterDied = true;
-                   message = template(format, {character_type: character.type});
-                   playerWon = true;
-               } else if (characterHealth > 0 && playerHealth === 0) {
-                   message = "You fought valiantly, but you died.";
-                   playerDied = true;
-               } else if (characterHealth === 0 && playerHealth === 0) {
-                   message = "You fought valiantly, but you both died.";
-               } else {
-                   // Neither died. Judge the victor on who dealt the most %age damage, or if damage
-                   // was equal, judge based on remaining strength.
-                   if ((playerDamageDealt > characterDamageDealt) ||
-                       ((playerDamageDealt === characterDamageDealt) &&
-                        (playerHealth > characterHealth))) {
-                       message = "You fought valiantly and were victorious.";
-                       playerWon = true;
-                   } else if ((characterDamageDealt > playerDamageDealt) ||
-                              ((playerDamageDealt === characterDamageDealt) &&
-                               (characterHealth > playerHealth))) {
-                       format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
-                       message = template(format, {character_type: character.type});
-                   } else {
-                       // Evenly matched so far, declare a draw.
-                       message = "You both fought valiantly, but are evently matched.";
-                   }
-               }
-           }
-
-           var resp = {
-               player: playerName,
-                  description: {
-                      action: "fight",
-                      success: true,
-                      message: message
-                  },
-                  data: {
-                      playerHealth: playerHealth,
-                      characterHealth: characterHealth,
-                      playerWon: playerWon,
-                      playerDied: playerDied,
-                      characterDied: characterDied
-                  }
-           };
-
-           console.log("in fight for() callback value");
-           callback(resp);
-       }
-  }
+            console.log("in fight for() callback value");
+            callback(resp);
+        }
+    }
 };
 

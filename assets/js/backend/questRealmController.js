@@ -5,18 +5,18 @@
  */
 
 var app = require('electron').app;
- 
+
 var workerId = process.env.ELECTRON_WORKER_ID; // worker id useful for logging
- 
+
 console.log('Hello from worker', workerId);
- 
-app.on('ready', function() {
+
+app.on('ready', function () {
   // first you will need to listen the `message` event in the process object
-  process.on('message', function(data) {
+  process.on('message', function (data) {
     if (!data) {
       return;
     }
- 
+
     // `electron-workers` will try to verify is your worker is alive sending you a `ping` event
     if (data.workerEvent === 'ping') {
       // responding the ping call.. this will notify `electron-workers` that your process is alive
@@ -24,11 +24,11 @@ app.on('ready', function() {
       process.send({ workerEvent: 'pong' });
     } else if (data.workerEvent === 'task') { // when a new task is executed, you will recive a `task` event
       console.log("workerEvent: " + data); //data -> { workerEvent: 'task', taskId: '....', payload: <whatever you have passed to `.execute`> }
- 
+
       console.log(data.payload.someData); // -> someData
- 
+
       // you can do whatever you want here..
- 
+
       // when the task has been processed,
       // respond with a `taskResponse` event, the `taskId` that you have received, and a custom `response`.
       // You can specify an `error` field if you want to indicate that something went wrong

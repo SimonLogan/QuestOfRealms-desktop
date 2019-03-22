@@ -10,26 +10,28 @@ const path = require('path')
 const remote = electron.remote
 const ipc = electron.ipcRenderer
 
-$('#cancelBtn').on('click', function() {
+$('#cancelBtn').on('click', function () {
     var window = remote.getCurrentWindow();
     window.close();
 });
 
-$('#saveBtn').on('click', function() {
-    var data = {'name': $('#itemName').val(),
-                'description': $('#itemDescription').val(),
-                'damage': $('#itemDamage').val()};
+$('#saveBtn').on('click', function () {
+    var data = {
+        'name': $('#itemName').val(),
+        'description': $('#itemDescription').val(),
+        'damage': $('#itemDamage').val()
+    };
     ipc.send('save-edit-inventoryItem', data);
     var window = remote.getCurrentWindow();
     window.close();
 });
 
 ipc.on('init', function (event, args) {
-   console.log('editInventoryItem.js init: ' + JSON.stringify(args));
-   ipc.send('logmsg', 'editInventoryItem.js init: ' + JSON.stringify(args));
-   $('#itemName').val(args.name);
-   $('#itemType').val(args.type);
-   $('#itemDescription').val(args.description);
-   $('#itemDamage').val(args.damage);
+    console.log('editInventoryItem.js init: ' + JSON.stringify(args));
+    ipc.send('logmsg', 'editInventoryItem.js init: ' + JSON.stringify(args));
+    $('#itemName').val(args.name);
+    $('#itemType').val(args.type);
+    $('#itemDescription').val(args.description);
+    $('#itemDamage').val(args.damage);
 })
 

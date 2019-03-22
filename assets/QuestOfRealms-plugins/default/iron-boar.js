@@ -16,7 +16,7 @@ module.exports = {
     drops: ["iron", "gold"]
   },
   handlers: {
-    "take from": function(ironboar, object, game, playerName, callback) {
+    "take from": function (ironboar, object, game, playerName, callback) {
       /*
        * The handler doesn't need to update the game. It just needs to
        * return description.success=true/false to indicate whether you
@@ -30,9 +30,9 @@ module.exports = {
       var resp = {
         player: playerName,
         description: {
-           action: "take from",
+          action: "take from",
         }
-     };
+      };
 
       if (object.type === "food") {
         resp.description.success = false;
@@ -44,7 +44,7 @@ module.exports = {
 
       console.log("in take from() callback value");
       callback(resp);
-   },
+    },
   }
 };
 

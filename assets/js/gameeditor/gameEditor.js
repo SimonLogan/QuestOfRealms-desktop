@@ -16,38 +16,38 @@ var gameData;
 var availableRealms = {};
 
 const TableDisplayMode = {
-    SHOW_WHEN_EMPTY : 0,
-    HIDE_WHEN_EMPTY : 1
+    SHOW_WHEN_EMPTY: 0,
+    HIDE_WHEN_EMPTY: 1
 }
 
 // Called when the realm editor is loaded.
 ipc.on('editGame-data', function (event, data) {
     //ipc.send('logmsg', 'realmEditor.js:editRealm-data. data=' + JSON.stringify(data));
 
-   // Load the game and available relams and call the functions below when they have been
-   // retrieved. You need to use this callback approach because the AJAX calls are
-   // asynchronous. This means the code here won't wait for them to complete,
-   // so you have to provide a function that can be called when the data is ready.
-   var x = new Date();
-   console.log("********** starting editGame-data " + x + "(" + Date.now() + ") **********")
-   async.waterfall([
-        function(callback) {
+    // Load the game and available relams and call the functions below when they have been
+    // retrieved. You need to use this callback approach because the AJAX calls are
+    // asynchronous. This means the code here won't wait for them to complete,
+    // so you have to provide a function that can be called when the data is ready.
+    var x = new Date();
+    console.log("********** starting editGame-data " + x + "(" + Date.now() + ") **********")
+    async.waterfall([
+        function (callback) {
             dbWrapper.openDesignerDB(callback);
         },
-        function(callback) {
+        function (callback) {
             loadAndDisplayAvailableRealms(callback);
         },
-        function(callback) {
+        function (callback) {
             loadAndDisplayGame(data.id, callback);
         }
     ],
-    function(err, results) {
-        // Create the tabbed panels
-        if (!err) enableControls();
-    });
+        function (err, results) {
+            // Create the tabbed panels
+            if (!err) enableControls();
+        });
 
     // Navigate back.
-    $(document).on('click', '#breadcrumb', function(e) {
+    $(document).on('click', '#breadcrumb', function (e) {
         ipc.send('frontpage');
     });
 });
@@ -60,22 +60,22 @@ ipc.on('editGame-data', function (event, data) {
 function enableControls() {
     $('#gameName').text("Game Designer: Editing game " + gameData.name);
 
-    $('#saveButton').on('click', function() {
+    $('#saveButton').on('click', function () {
         updateGameRealms();
     });
 
     // Allow creation of new realms by handling clicks on the "New Realm" button.
     // The jQuery selector $('#showCreateRealmDesignButton') selects the button by its "id" attribute.
-    $('#showCreateRealmDesignButton').click(function() {
+    $('#showCreateRealmDesignButton').click(function () {
         // $(this) is the button you just clicked.
         $(this).hide();
         $('#realmDesignContainer').show();
         $('#createRealmButton').prop('disabled', false);
     });
 
-     // Handle clicking the "Create!" button on the "New Realm" form.
-    $('#createRealmButton').click(function() {
-        createRealmDesign(function(newRealm) {
+    // Handle clicking the "Create!" button on the "New Realm" form.
+    $('#createRealmButton').click(function () {
+        createRealmDesign(function (newRealm) {
             $('#createRealmDesignPanel').hide();
             availableRealms[newRealm._id] = newRealm;
             displayAvailableRealms();
@@ -84,7 +84,7 @@ function enableControls() {
 
     // Allow creation of new games by handling clicks on the "New Game" button.
     // The jQuery selector $('#showCreateGameButton') selects the button by its "id" attribute.
-    $('#showCreateGameButton').click(function() {
+    $('#showCreateGameButton').click(function () {
         // $(this) is the button you just clicked.
         $(this).hide();
         $('#gameDesignContainer').show();
@@ -92,7 +92,7 @@ function enableControls() {
     });
 
     // Handle clicking the "Create!" button on the "New game" form.
-    $('#createGameButton').click(function() {
+    $('#createGameButton').click(function () {
         createGame();
     });
 }
@@ -167,12 +167,11 @@ function displayGameDetails(displayMode) {
 }
 
 
-function loadAndDisplayGame(gameId, callback)
-{
+function loadAndDisplayGame(gameId, callback) {
     console.log(Date.now() + ' loadAndDisplayGame');
 
     var db_collections = dbWrapper.getDBs();
-    db_collections.games.find({_id: gameId}, function (err, data) {
+    db_collections.games.find({ _id: gameId }, function (err, data) {
         ipc.send('logmsg', "loadGame found data: " + JSON.stringify(data));
         gameData = data[0];
         $('#breadcrumb').attr('data-gameId', gameData._id);
@@ -183,12 +182,11 @@ function loadAndDisplayGame(gameId, callback)
 }
 
 
-function saveGame(callback)
-{
+function saveGame(callback) {
     console.log(Date.now() + ' saveGame');
 
     var db_collections = dbWrapper.getDBs();
-    db_collections.games.update({_id: gameData._id}, gameData, {}, function (err, numReplaced) {
+    db_collections.games.update({ _id: gameData._id }, gameData, {}, function (err, numReplaced) {
         console.log("saveGame err:" + err);
         console.log("saveGame numReplaced:" + numReplaced);
         callback(null);
@@ -214,8 +212,7 @@ function displayAvailableRealms() {
     // Add a row to the table for each realm that the server sent back.
     var row = 0;
     var body = "";
-    for (var key in availableRealms)
-    {
+    for (var key in availableRealms) {
         if (!availableRealms.hasOwnProperty(key)) {
             continue;
         }
@@ -250,7 +247,7 @@ function displayAvailableRealms() {
 
         $('.deleteRealmDesign').on('click', function () {
             var realmId = $(this).closest('tr').attr('id');
-            deleteRealmDesign($(this), function(numRemoved) {
+            deleteRealmDesign($(this), function (numRemoved) {
                 if (!numRemoved) {
                     console.log("Failed to delete realm");
                     return;
@@ -258,8 +255,7 @@ function displayAvailableRealms() {
 
                 // Remove the deleted realm from the local collection rather
                 // than reloading all from the db.
-                for (var key in availableRealms)
-                {
+                for (var key in availableRealms) {
                     if (!availableRealms.hasOwnProperty(key)) {
                         // Should never happen.
                         continue;
@@ -286,9 +282,9 @@ function loadAndDisplayAvailableRealms(callback) {
     var db_collections = dbWrapper.getDBs();
     db_collections.questrealms.find({}, function (err, data) {
         console.log("loadAndDisplayAvailableRealms found data: " + JSON.stringify(data));
-        
+
         for (var i = 0; i < data.length; i++) {
-           availableRealms[data[i]._id] = data[i];
+            availableRealms[data[i]._id] = data[i];
         }
 
         displayAvailableRealms();
@@ -333,9 +329,9 @@ function checkRealm(realmId) {
     // adding the "start at" objective.
     // TODO: Could the location be removed after adding the objective?
     console.log("checkRealm: realmId: " + realm._id +
-                " startpoint: " +
-                " x:" + startPoint.params[0].value +
-                " y:" + startPoint.params[1].value);
+        " startpoint: " +
+        " x:" + startPoint.params[0].value +
+        " y:" + startPoint.params[1].value);
 
     return true;
 }
@@ -346,8 +342,8 @@ function addToGame(target) {
     var realmId = target.closest("tr").attr('id');
 
     if (gameData.realms.indexOf(realmId) >= 0) {
-       // The realm is already in the game.
-       return;
+        // The realm is already in the game.
+        return;
     }
 
     // Check the realm to ensure it is valid for adding to the game.
@@ -359,7 +355,7 @@ function addToGame(target) {
 
     gameData.realms.push(realmId);
     // Automatic save
-    saveGame(function() {
+    saveGame(function () {
         displayGameDetails();
     });
 }
@@ -372,15 +368,15 @@ function removeFromGame(target) {
     if (gameRealmIndex < 0) {
         // The realm is not in the game.
         return;
-     }
+    }
 
     gameData.realms.splice(gameRealmIndex, 1);
 
     // Automatic save
-    saveGame(function() {
-    displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
-    return;
-    }) 
+    saveGame(function () {
+        displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
+        return;
+    })
 }
 
 
@@ -389,8 +385,8 @@ function moveRealmUp(target) {
     var realmId = target.closest("tr").attr('data-realmId');
     var gameRealmIndex = gameData.realms.indexOf(realmId);
     if (gameRealmIndex < 0) {
-       // The realm is not in the game.
-       return;
+        // The realm is not in the game.
+        return;
     }
 
     // If we're moving an item up, start searching at the 2nd position.
@@ -398,9 +394,9 @@ function moveRealmUp(target) {
     gameData.realms[gameRealmIndex - 1] = gameData.realms[gameRealmIndex];
     gameData.realms[gameRealmIndex] = temp;
     // Automatic save
-    saveGame(function() {
-     displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
-     return;
+    saveGame(function () {
+        displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
+        return;
     });
 }
 
@@ -410,16 +406,16 @@ function moveRealmDown(target) {
     var realmId = target.closest("tr").attr('data-realmId');
     var gameRealmIndex = gameData.realms.indexOf(realmId);
     if (gameRealmIndex < 0) {
-       // The realm is not in the game.
-       return;
+        // The realm is not in the game.
+        return;
     }
 
     var temp = gameData.realms[gameRealmIndex + 1];
     gameData.realms[gameRealmIndex + 1] = gameData.realms[gameRealmIndex];
     gameData.realms[gameRealmIndex] = temp;
     // Automatic save
-    saveGame(function() {
-    displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
-    return;
+    saveGame(function () {
+        displayGameDetails(TableDisplayMode.SHOW_WHEN_EMPTY);
+        return;
     })
 }
