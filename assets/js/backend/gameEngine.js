@@ -655,20 +655,25 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
            return;
        }
 
-       // We don't need to send the updated target on to the client.
-       // Instead we'll send the updated game and mapLocation.
-       handlerResp.data = {};
-
-       // Take worked, so update the target.
+       // Take worked, so update the player and target.
        // Record who we took the object from so we can check for
        // "acquire from" objectives.
        object.source = {reason:"take from", from:targetName};
 
        if (gameData.player.inventory === undefined) {
-        gameData.player.inventory = [];
+           gameData.player.inventory = [];
        }
        gameData.player.inventory.push(object);
-       currentLocation.characters[recipientIndex] = character;
+
+       notifyData = {
+            player: playerName,
+            description: {
+                action: "take",
+                message: "You have taken a " + objectName + " from the " + targetName,
+                item: itemInfo.item
+            },
+            data: {}
+        };
 
         // Warning: NEDB does not support transactions. The code below assumes both updates work.
         saveGame(function(gameErr) {
@@ -782,10 +787,10 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
        if (characterInfo.character.inventory[j].type === objectName) {
             // Assume the buy will be successful. If not, we will
             // discard this edit.
-		        itemFound = true;
-		        object = characterInfo.character.inventory[j];
-		        characterInfo.character.inventory.splice(j, 1);
-		        console.log("Found item in inventory");
+		    itemFound = true;
+		    object = characterInfo.character.inventory[j];
+		    characterInfo.character.inventory.splice(j, 1);
+		    console.log("Found item in inventory");
 	     }
     }
 
@@ -810,7 +815,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
     // Command handlers are optional.
     if (module.handlers === undefined) {
        console.log("1 Module: " + handlerPath +
-                      " does not have a handler for \"buy from\".");
+                   " does not have a handler for \"buy from\".");
        statusCallback({error:true, message:"The " + targetName + " won't sell you the " + objectName});
        return;
     }
@@ -818,7 +823,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
     var handlerFunc = module.handlers["buy from"];
     if (handlerFunc === undefined) {
        console.log("2 Module: " + handlerPath +
-                      " does not have a handler for \"buy from\".");
+                   " does not have a handler for \"buy from\".");
        statusCallback({error:true, message:"The " + targetName + " won't sell you the " + objectName});
        return;
     }
@@ -861,10 +866,6 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
                }
            }
        }
-
-       // We don't need to send the updated target on to the client.
-       // Instead we'll send the updated game and mapLocation.
-       //handlerResp.data = {};
 
        notifyData = {
             player: playerName,
