@@ -470,6 +470,7 @@ function handleTake(command, playerName, statusCallback) {
     var commandArgs = command.split("from");
     var objectName = commandArgs[0].trim();
     var targetName = null;
+
     if (commandArgs.length === 1) {
        console.log("TAKE: " + objectName);
     } else {
@@ -669,69 +670,41 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
        gameData.player.inventory.push(object);
        currentLocation.characters[recipientIndex] = character;
 
-       async.waterfall([
-           function updateGame(validationCallback) {
-               Game.update(
-                  {id: game.id},
-                   game).exec(function(err, updatedGame) {
-                     console.log("take from() Game.update() callback");
-                     if (err) {
-                        console.log("take from() Game.update() callback, error. " + err);
-                        validationCallback("Failed to save the game");
-                     } else {
-                        console.log("take from() Game.update() callback, no error.");
-                        if (updatedGame) {
-                           console.log("take from() Game.update() callback " + JSON.stringify(updatedGame));
-                           validationCallback(null, updatedGame);
-                        } else {
-                           console.log("take from() Game.update() callback, game is null.");
-                           validationCallback("Failed to save the game");
-                        }
-                     }
-               });
-           },
-           function updateMapLocation(updatedGame, validationCallback) {
-               MapLocation.update(
-                   {id: currentLocation.id},
-                   currentLocation).exec(function(err, updatedLocation) {
-                   console.log("in MapLocation.update() callback");
-                   if (err) {
-                       console.log("in MapLocation.update() callback, error. " + err);
-                        validationCallback("Failed to save the maplocation");
-                   } else {
-                       console.log("in MapLocation.update() callback, no error.");
-                       if (updatedLocation) {
-                           console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                           validationCallback(null, updatedGame, updatedLocation);
-                       } else {
-                           console.log("in MapLocation.update() callback, item is null.");
-                           validationCallback("Failed to save the maplocation");
-                       }
-                   }
-               });
-           }
-       ], function (err, updatedGame, updatedLocation) {
-           console.log("in take from() all done. err:" + err);
-           console.log("in take from() all done. updatedGame:" + JSON.stringify(updatedGame));
-           console.log("in take from() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-           if (err) {
-               statusCallback({error: true, data: updatedGame});
-               return;
-           }
+        // Warning: NEDB does not support transactions. The code below assumes both updates work.
+        saveGame(function(gameErr) {
+            console.log("in Game.update() callback");
+            if (gameErr) {
+                console.log("in Game.update() callback, error. " + gameErr);
+                statusCallback({error:true, message:gameErr});
+                return;
+            }
 
-           var realmId = game.player.location.realmId;
-           handlerResp.data['game'] = updatedGame;
-           handlerResp.data['location'] = updatedLocation;
-           console.log("*** sending resp: " + JSON.stringify(handlerResp));
-           handlerResp.data = {game:updatedGame, location:updatedLocation};
-           sails.io.sockets.emit(realmId + "-status", handlerResp);
+            console.log("in Game.update() callback, no error.");
 
-           statusCallback({error: false, data:handlerResp});
-       });
+            saveRealm(function(realmErr) {
+                console.log("in realm.update() callback");
+                if (gameErr) {
+                    console.log("in realm.update() callback, error. " + realmErr);
+                    statusCallback({error:true, message:realmErr});
+                    return;
+                }
+
+                console.log("in realm.update() callback, no error.");
+                notifyData.data = {game: local_getGameData(),
+                                   mapLocation: copyMapLocation(currentLocation)};
+
+                // In a multiplayer game, we need to broadcast the status update.
+                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+                //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+                statusCallback({error:false, responseData:notifyData});
+                return;
+            });
+        });
     });
 }
 
-function handleBuy(command, game, playerName, statusCallback) {
+function handleBuy(command, playerName, statusCallback) {
     command = command.replace(/buy[\s+]/i, "");
     var commandArgs = command.split("from");
     var objectName = commandArgs[0].trim();
@@ -751,41 +724,37 @@ function handleBuy(command, game, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleBuy.find() invalid player.");
         statusCallback({error:true, message:"Invalid player"});
-		    return;
+		return;
     }
 
-    var currentX = parseInt(playerInfo.player.location.x);
-    var currentY = parseInt(playerInfo.player.location.y);
-    var realmId = game.players[playerInfo.playerIndex].location.realmId;
+    var currentX = gameData.player.location.x;
+    var currentY = gameData.player.location.y;
+    console.log("in handleTake.find() searching for location [" + currentX + ", " + currentY + "].");
+    var currentLocation = findLocation(currentX, currentY);
+    if (!currentLocation) {
+        var errorMessage = "Current location not found";
+        console.log("Current location not found");
+        statusCallback({error:true, message:errorMessage});
+        return;
+    }
 
-    // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString()}).exec(function(err, currentLocation) {
-        console.log("in handleBuy.find() callback");
-        if (err) {
-            console.log("in handleBuy db err:" + err);
-            statusCallback({error:true, message:err});
-			      return;
-        }
+    console.log("in handleBuy.find() callback " + JSON.stringify(currentLocation));
 
-        console.log("in handleBuy.find() callback, no error.");
-        if (!currentLocation) {
-            var errorMessage = "Current location not found";
-            console.log("Current location not found");
-            statusCallback({error:true, message:errorMessage});
-			      return;
-        }
+    if (!currentLocation) {
+        var errorMessage = "Current location not found";
+        console.log("Current location not found");
+        statusCallback({error:true, message:errorMessage});
+                return;
+    }
 
-        console.log("in handleBuy.find() callback " + JSON.stringify(currentLocation));
-
-        handleBuyFromNPC(objectName, targetName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
-    });
+    handleBuyFromNPC(objectName, targetName, currentLocation, playerName, playerInfo.playerIndex, statusCallback);
 }
 
-function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerName, playerIndex, statusCallback) {
+function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, playerIndex, statusCallback) {
     console.log("In handleBuyFromNPC()");
 
     // Find the requested item in the specified target's inventory.
@@ -827,13 +796,15 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
         return;
     }
 
-    console.log("Found objectName: " + JSON.stringify(characterInfo.character.inventory[j]));
+    console.log("Found objectName: " + JSON.stringify(object));
     console.log("characterIndex: " + characterInfo.characterIndex);
 
     // We found the item. See if we can buy it.
     var path = require('path');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-    var handlerPath =  pathroot + characterInfo.character.module + "/" + characterInfo.character.filename;
+    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    console.log("gameDir: " + gameDir);
+    var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
+    console.log("HandlerPath: " + handlerPath);
     var module = require(handlerPath);
 
     // Command handlers are optional.
@@ -853,7 +824,8 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
     }
 
     console.log("calling buy from()");
-    handlerFunc(characterInfo.character, object, game, playerName, function(handlerResp) {
+    // TODO: pass copies of characterInfo, object, and gameData
+    handlerFunc(characterInfo.character, object, gameData, playerName, function(handlerResp) {
        console.log("handlerResp: " + handlerResp);
        if (!handlerResp) {
            console.log("1 Buy from failed - null handlerResp");
@@ -873,17 +845,18 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
        // "acquire from" objectives.
        object.source = {reason:"buy from", from:targetName};
 
-       if (game.player.inventory === undefined) {
-           game.player.inventory = [];
+       if (gameData.player.inventory === undefined) {
+        gameData.player.inventory = [];
        }
-       game.player.inventory.push(object);
+       gameData.player.inventory.push(object);
 
        //  Now pay!
        if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {
-           for (var i=0; i<game.player.inventory.length; i++) {
-               if (game.player.inventory[i].type === handlerResp.data.payment.type) {
-                  currentLocation.characters[characterInfo.characterIndex].inventory.push(game.player.inventory[i]);
-                  game.player.inventory.splice(i, 1);
+           for (var i = 0; i < gameData.player.inventory.length; i++) {
+               if (gameData.player.inventory[i].type === handlerResp.data.payment.type) {
+                  // could use characterInfo.character instead of currentLocation.characters[characterInfo.characterIndex]
+                  currentLocation.characters[characterInfo.characterIndex].inventory.push(gameData.player.inventory[i]);
+                  gameData.player.inventory.splice(i, 1);
                   break;
                }
            }
@@ -891,67 +864,49 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, game, playerN
 
        // We don't need to send the updated target on to the client.
        // Instead we'll send the updated game and mapLocation.
-       handlerResp.data = {};
+       //handlerResp.data = {};
 
-       async.waterfall([
-           function updateGame(validationCallback) {
-               Game.update(
-                  {id: game.id},
-                   game).exec(function(err, updatedGame) {
-                     console.log("buy from() Game.update() callback");
-                     if (err) {
-                        console.log("buy from() Game.update() callback, error. " + err);
-                        validationCallback("Failed to save the game");
-                     } else {
-                        console.log("buy from() Game.update() callback, no error.");
-                        if (updatedGame) {
-                           console.log("buy from() Game.update() callback " + JSON.stringify(updatedGame));
-                           validationCallback(null, updatedGame);
-                        } else {
-                           console.log("buy from() Game.update() callback, game is null.");
-                           validationCallback("Failed to save the game");
-                        }
-                     }
-               });
-           },
-           function updateMapLocation(updatedGame, validationCallback) {
-               MapLocation.update(
-                   {id: currentLocation.id},
-                   currentLocation).exec(function(err, updatedLocation) {
-                   console.log("in MapLocation.update() callback");
-                   if (err) {
-                       console.log("in MapLocation.update() callback, error. " + err);
-                        validationCallback("Failed to save the maplocation");
-                   } else {
-                       console.log("in MapLocation.update() callback, no error.");
-                       if (updatedLocation) {
-                           console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                           validationCallback(null, updatedGame, updatedLocation);
-                       } else {
-                           console.log("in MapLocation.update() callback, item is null.");
-                           validationCallback("Failed to save the maplocation");
-                       }
-                   }
-               });
-           }
-       ], function (err, updatedGame, updatedLocation) {
-           console.log("in buy from() all done. err:" + err);
-           console.log("in buy from() all done. updatedGame:" + JSON.stringify(updatedGame));
-           console.log("in buy from() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-           if (err) {
-               statusCallback({error: true, data: updatedGame});
-               return;
-           }
+       notifyData = {
+            player: playerName,
+            description: {
+                action: "buy",
+                message: "You have bought a " + objectName + " from the " + targetName,
+                item: itemInfo.item
+            },
+            data: {}
+        };
 
-           handlerResp.data['game'] = updatedGame;
-           handlerResp.data['location'] = updatedLocation;
-           console.log("*** sending resp: " + JSON.stringify(handlerResp));
-           handlerResp.data = {game:updatedGame, location:updatedLocation};
-           var realmId = game.player.location.realmId;
-           sails.io.sockets.emit(realmId + "-status", handlerResp);
+        // Warning: NEDB does not support transactions. The code below assumes both updates work.
+        saveGame(function(gameErr) {
+            console.log("in Game.update() callback");
+            if (gameErr) {
+                console.log("in Game.update() callback, error. " + gameErr);
+                statusCallback({error:true, message:gameErr});
+                return;
+            }
 
-           statusCallback({error: false, data:handlerResp});
-       });
+            console.log("in Game.update() callback, no error.");
+
+            saveRealm(function(realmErr) {
+                console.log("in realm.update() callback");
+                if (gameErr) {
+                    console.log("in realm.update() callback, error. " + realmErr);
+                    statusCallback({error:true, message:realmErr});
+                    return;
+                }
+
+                console.log("in realm.update() callback, no error.");
+                notifyData.data = {game: local_getGameData(),
+                                   mapLocation: copyMapLocation(currentLocation)};
+
+                // In a multiplayer game, we need to broadcast the status update.
+                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+                //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+                statusCallback({error:false, responseData:notifyData});
+                return;
+            });
+        });
     });
 }
 
@@ -1972,7 +1927,7 @@ function checkObjectives(game, playerName, callback) {
     }
 }
 
-function handleCommand(commandTokens, game, playerName, statusCallback) {
+function handleCommand(commandTokens, playerName, statusCallback) {
     var errorMessage = "Unknown comand";
     console.log(errorMessage);
     statusCallback({error:true, message:errorMessage});

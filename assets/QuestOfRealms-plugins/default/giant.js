@@ -75,15 +75,8 @@ module.exports = {
           console.log("*** ");
 
           // Check whether the player can pay.
-          var player = null;
-          for (var i=0; i<game.players.length; i++) {
-             if (game.players[i].name === playerName) {
-                player = game.players[i];
-                break;
-             }
-          }
-
           // Giants sell all items for 1 coin.
+          var player = game.player;
           var payment = null;
           if (player.inventory !== undefined) {
               for (var i=0; i<player.inventory.length; i++) {

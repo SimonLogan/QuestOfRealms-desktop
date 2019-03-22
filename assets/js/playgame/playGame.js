@@ -305,18 +305,33 @@ function processTakeNotification(message) {
 }
 
 function processBuyNotification(message) {
-    g_gameData = message.data.game[0];
-    mapLocation = message.data.location[0];
-    mapLocationData[parseInt(mapLocation.y)-1][parseInt(mapLocation.x)-1] = mapLocation;
+    var responseData = message.responseData;
+    g_gameData = responseData.data.game;
+    var locationData = responseData.data.mapLocation;
 
-    if (message.player === g_gameData.player.name) {
-        console.log(message.description.message);
-        displayMessageBlock(message.description.message);
+    if (responseData.player === g_gameData.player.name) {
+        console.log(responseData.description.message);
+        displayMessageBlock(responseData.description.message);
 
-        if (shouldDrawMapLocation(mapLocation)) {
-            // Show the player in the new location.
-            drawMapLocation(mapLocation);
-            showPlayerLocation(mapLocation.y, mapLocation.x);
+        var mapLocation = findLocation(
+            locationData.x.toString(),
+            locationData.y.toString());
+        
+        if (!mapLocation) {
+            alert("Unable to find the updated location");
+            return;
+        }
+
+        // Update the corresponding model in the maplocation collection.
+        // The view will automatically render the new data.
+        mapLocation.set(locationData);
+
+        // Show the player if we updated the current location.
+        // The g_locationData update will not show the player location
+        // as that is not part of the collection.
+        if (locationData.x == g_gameData.player.location.x &&
+            locationData.y == g_gameData.player.location.y) {
+            showPlayerLocation(mapLocation);
         }
     }
 }
