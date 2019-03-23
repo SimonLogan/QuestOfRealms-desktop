@@ -1205,7 +1205,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
     });
 }
 
-function handleUse(command, game, playerName, statusCallback) {
+function handleUse(command, playerName, statusCallback) {
     commandArgs = command.replace(/use[\s+]/i, "");
 
     console.log("Use: " + JSON.stringify(commandArgs));
@@ -1283,11 +1283,12 @@ function handleUse(command, game, playerName, statusCallback) {
     }
 }
 
-function handleFight(command, game, playerName, statusCallback) {
+function handleFight(command, playerName, statusCallback) {
     command = command.replace(/fight[\s+]/i, "");
     var commandArgs = command.split("for");
     var targetName = commandArgs[0].trim();
     var objectName = null;
+
     if (commandArgs.length === 1) {
         console.log("FIGHT: " + targetName);
     } else {
@@ -1300,59 +1301,68 @@ function handleFight(command, game, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleFight.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var currentX = parseInt(playerInfo.player.location.x);
-    var currentY = parseInt(playerInfo.player.location.y);
-    var realmId = game.players[playerInfo.playerIndex].location.realmId;
+    var currentX = gameData.player.location.x;
+    var currentY = gameData.player.location.y;
+    console.log("in handleFight.find() searching for location [" + currentX + ", " + currentY + "].");
+    var currentLocation = findLocation(currentX, currentY);
+    if (!currentLocation) {
+        var errorMessage = "Current location not found";
+        console.log("Current location not found");
+        statusCallback({ error: true, message: errorMessage });
+        return;
+    }
 
-    // TODO: store the coordinates as int instead of string.
-    MapLocation.findOne({ 'realmId': realmId, 'x': currentX.toString(), 'y': currentY.toString() }).exec(function (err, currentLocation) {
-        console.log("in handleFight.find() callback");
-        if (err) {
-            console.log("in handleFight db err:" + err);
-            statusCallback({ error: true, message: err });
-            return;
-        }
-
-        console.log("in handleFight.find() callback, no error.");
-        if (!currentLocation) {
-            var errorMessage = "Current location not found";
-            console.log("Current location not found");
-            statusCallback({ error: true, message: errorMessage });
-            return;
-        }
-
-        console.log("in handleFight.find() callback " + JSON.stringify(currentLocation));
-
-        if (objectName === null) {
-            handleFightNPC(targetName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
-        } else {
-            handleFightNPCforItem(targetName, objectName, currentLocation, game, playerName, playerInfo.playerIndex, statusCallback);
-        }
-    });
+    if (objectName === null) {
+        handleFightNPC(targetName, currentLocation, playerInfo, statusCallback);
+    } else {
+        handleFightNPCforItem(targetName, objectName, currentLocation, playerInfo, statusCallback);
+    }
 }
 
-function handleCharacterDeath(characterIndex, currentLocation, game) {
+function handleCharacterDeath(character, currentLocation) {
     // The character will drop its inventory.
-    var character = currentLocation.characters[characterIndex];
     if (character.inventory !== undefined) {
         for (var i = 0; i < character.inventory.length; i++) {
             currentLocation.items.push(character.inventory[i]);
         }
     }
+
+    character.inventory = [];
+
+    /// TODO: handle character.drops
+}
+
+function handleCharacterDefeat(character, currentLocation) {
+    // The character will drop its inventory.
+    if (character.inventory !== undefined) {
+        for (var i = 0; i < character.inventory.length; i++) {
+            currentLocation.items.push(character.inventory[i]);
+        }
+    }
+
+    character.inventory = [];
+}
+
+function handlePlayerDefeat(player, currentLocation) {
+    // You will drop your inventory.
+    for (var i = 0; i < player.inventory.length; i++) {
+        currentLocation.items.push(player.inventory[i]);
+    }
+    
+    player.inventory = [];
 }
 
 // Fight with no particular objective in mind.
-function handleFightNPC(targetName, currentLocation, game, playerName, playerIndex, statusCallback) {
+function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback) {
     console.log("In handleFightNPC()");
 
-    // If fighting for an object, find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
         var errorMessage = "There is no " + targetName + ".";
@@ -1362,18 +1372,16 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
     }
 
     console.log("Found targetName: " + JSON.stringify(targetName));
-    console.log("characterIndex: " + characterInfo.characterIndex);
 
     var path = require('path');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-    var module = null;
-    var handlerFunc = null;
+    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    console.log("gameDir: " + gameDir);
 
     // Perform the default fight operation and call the optional handler to modify the
     // NPC's behaviour.
     var tryHandlers = [
-        pathroot + characterInfo.character.module + "/" + characterInfo.character.filename,
-        pathroot + "default/default-handlers.js"
+        path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename),
+        path.join(gameDir, "modules", "default", "default-handlers.js")
     ];
 
     for (var i = 0; i < tryHandlers.length; i++) {
@@ -1403,7 +1411,43 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
     }
 
     console.log("calling fight()");
-    handlerFunc(characterInfo.character, game, playerName, function (handlerResp) {
+
+    // For string template substitution.
+    var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
+
+    // Note on the format/message split below. If we ever wish to localise the strings,
+    // "You are too weak to fight. The ${character_type} was victorious." is much better
+    // for translators as there is a full sentence to work with, and the embedded named
+    // token gives info about what data it contains. Compare this to the much worse
+    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
+
+    console.log(
+        "Before fight. player.health: " + playerInfo.player.health +
+        ", player.damage: " + playerInfo.player.damage +
+        ", character.health: " + characterInfo.character.health +
+        ", character damage: " + characterInfo.character.damage);
+
+    // The player can't fight if health is 0.
+    if (playerInfo.player.health === 0) {
+        var format = "You are too weak to fight. The ${character_type} was victorious.";
+        var message = template(format, { character_type: characterInfo.character.type });
+        var notifyData = {
+            player: playerInfo.player.name,
+            description: {
+                action: "fight",
+                success: true,
+                message: message
+            },
+            data: {}
+        };
+
+        statusCallback({ error: false, responseData: notifyData });
+        return;
+    }
+
+    var characterOrigHealth = characterInfo.character.health;
+    var playerOrigHealth = playerInfo.player.health;
+    handlerFunc(characterInfo.character, gameData, playerInfo, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 fight - null handlerResp");
@@ -1422,100 +1466,118 @@ function handleFightNPC(targetName, currentLocation, game, playerName, playerInd
         if (!handlerResp.hasOwnProperty('data')) {
             console.log("*** 1 sending resp: " + JSON.stringify(handlerResp));
             handlerResp.data = { game: game, location: currentLocation };
-            sails.io.sockets.emit(game.id + "-status", handlerResp);
+            //sails.io.sockets.emit(game.id + "-status", handlerResp);
             statusCallback({ error: false, data: handlerResp });
             return;
         }
 
-        var returnProperties = ['playerHealth', 'characterHealth', 'playerWon',
-            'playerDied', 'characterDied'];
-        for (var i = 0; i < returnProperties.length; i++) {
-            console.log("Checking return property " + returnProperties[i]);
-            if (!handlerResp.data.hasOwnProperty(returnProperties[i])) {
-                var errorMessage = "Handler response did not contain " + returnProperties[i];
-                console.log(errorMessage);
-                statusCallback({ error: true, message: errorMessage });
-                return;
+        // In "fight" your opponent can die.
+        // In "fight for" they can be totally defeated but will not die.
+        var characterDied = false;
+        var playerTotallyDefeated = false;
+        var playerWon = false;
+
+        // The victor is the combatant that does the biggest %age damage to the opponent.
+        var playerHealth = handlerResp.data.playerHealth;
+        var characterHealth = handlerResp.data.characterHealth;
+        var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+        var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
+
+        console.log(
+            "After fight. player.health: " + playerHealth +
+            ", character.health: " + characterHealth +
+            ", player dealt damage: " + playerDamageDealt + "% " +
+            ", character dealt damage: " + characterDamageDealt + "%");
+
+        message = "You fought valiantly.";
+        if (characterHealth === 0 && playerHealth > 0) {
+            format = "You fought valiantly. The ${character_type} died.";
+            characterDied = true;
+            message = template(format, { character_type: characterInfo.character.type });
+            playerWon = true;
+        } else if (characterHealth > 0 && playerHealth === 0) {
+            message = "You fought valiantly, but you were totally defeated.";
+            playerTotallyDefeated = true;
+        } else if (characterHealth === 0 && playerHealth === 0) {
+            message = "You fought valiantly, but the ${character_type} died and you were totally defeated.";
+        } else {
+            // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
+            // was equal, judge based on remaining strength.
+            if ((playerDamageDealt > characterDamageDealt) ||
+                ((playerDamageDealt === characterDamageDealt) &&
+                 (playerHealth > characterHealth))) {
+                message = "You fought valiantly and were victorious.";
+                playerWon = true;
+            } else if ((characterDamageDealt > playerDamageDealt) ||
+                       ((playerDamageDealt === characterDamageDealt) &&
+                        (characterHealth > playerHealth))) {
+                format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
+                message = template(format, { character_type: characterInfo.character.type });
+            } else {
+                // Evenly matched so far, declare a draw.
+                message = "You both fought valiantly, but are evently matched.";
             }
         }
 
-        game.player.health = handlerResp.data.playerHealth;
-        currentLocation.characters[characterInfo.characterIndex].health = handlerResp.data.characterHealth;
+        gameData.player.health = playerHealth;
+        characterInfo.character.health = characterHealth;
 
-        if (handlerResp.data.characterDied) {
-            handleCharacterDeath(characterInfo.characterIndex, currentLocation, game);
+        if (characterDied) {
+            handleCharacterDeath(characterInfo.character, currentLocation);
             currentLocation.characters.splice(characterInfo.characterIndex, 1);
         }
 
-        // TODO: what should happen if the player dies? For now the player can't
-        // actually die, but should you forfeit your inventory?
+        if (playerTotallyDefeated) {
+            handlePlayerDefeat(playerInfo.player, currentLocation);
+        }
 
-        // We don't need to send the updated target on to the client.
-        // Instead we'll send the updated game and mapLocation.
-        handlerResp.data = {};
-
-        async.waterfall([
-            function updateGame(validationCallback) {
-                Game.update(
-                    { id: game.id },
-                    game).exec(function (err, updatedGame) {
-                        console.log("fight() Game.update() callback");
-                        if (err) {
-                            console.log("fight() Game.update() callback, error. " + err);
-                            validationCallback("Failed to save the game");
-                        } else {
-                            console.log("fight() Game.update() callback, no error.");
-                            if (updatedGame) {
-                                console.log("fight() Game.update() callback " + JSON.stringify(updatedGame));
-                                validationCallback(null, updatedGame);
-                            } else {
-                                console.log("fight() Game.update() callback, game is null.");
-                                validationCallback("Failed to save the game");
-                            }
-                        }
-                    });
+        notifyData = {
+            player: playerInfo.player.name,
+            description: {
+                action: "fight",
+                message: message
             },
-            function updateMapLocation(updatedGame, validationCallback) {
-                MapLocation.update(
-                    { id: currentLocation.id },
-                    currentLocation).exec(function (err, updatedLocation) {
-                        console.log("in MapLocation.update() callback");
-                        if (err) {
-                            console.log("in MapLocation.update() callback, error. " + err);
-                            validationCallback("Failed to save the maplocation");
-                        } else {
-                            console.log("in MapLocation.update() callback, no error.");
-                            if (updatedLocation) {
-                                console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                                validationCallback(null, updatedGame, updatedLocation);
-                            } else {
-                                console.log("in MapLocation.update() callback, item is null.");
-                                validationCallback("Failed to save the maplocation");
-                            }
-                        }
-                    });
-            }
-        ], function (err, updatedGame, updatedLocation) {
-            console.log("in fight() all done. err:" + err);
-            console.log("in fight() all done. updatedGame:" + JSON.stringify(updatedGame));
-            console.log("in fight() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-            if (err) {
-                statusCallback({ error: true, data: updatedGame });
+            data: {}
+        };
+
+        // Warning: NEDB does not support transactions. The code below assumes both updates work.
+        saveGame(function (gameErr) {
+            console.log("in Game.update() callback");
+            if (gameErr) {
+                console.log("in Game.update() callback, error. " + gameErr);
+                statusCallback({ error: true, message: gameErr });
                 return;
             }
 
-            console.log("*** sending resp: " + JSON.stringify(handlerResp));
-            handlerResp.data = { game: updatedGame, location: updatedLocation };
-            var realmId = game.player.location.realmId;
-            sails.io.sockets.emit(realmId + "-status", handlerResp);
+            console.log("in Game.update() callback, no error.");
 
-            statusCallback({ error: false, data: handlerResp });
+            saveRealm(function (realmErr) {
+                console.log("in realm.update() callback");
+                if (gameErr) {
+                    console.log("in realm.update() callback, error. " + realmErr);
+                    statusCallback({ error: true, message: realmErr });
+                    return;
+                }
+
+                console.log("in realm.update() callback, no error.");
+                notifyData.data = {
+                    game: local_getGameData(),
+                    mapLocation: copyMapLocation(currentLocation)
+                };
+
+                // In a multiplayer game, we need to broadcast the status update.
+                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+                //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+                statusCallback({ error: false, responseData: notifyData });
+                return;
+            });
         });
     });
 }
 
 // Fight until you beat the NPC and take the object
-function handleFightNPCforItem(targetName, objectName, currentLocation, game, playerName, playerIndex, statusCallback) {
+function handleFightNPCforItem(targetName, objectName, currentLocation, playerInfo, statusCallback) {
     console.log("In handleFightNPCforItem()");
 
     // If fighting for an object, find the requested item in the specified target's inventory.
@@ -1556,15 +1618,14 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
     }
 
     var path = require('path');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-    var module = null;
-    var handlerFunc = null;
+    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    console.log("gameDir: " + gameDir);
 
     // Perform the default fight operation and call the optional handler to modify the
     // NPC's behaviour.
     var tryHandlers = [
-        pathroot + characterInfo.character.module + "/" + characterInfo.character.filename,
-        pathroot + "default/default-handlers.js"
+        path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename),
+        path.join(gameDir, "modules", "default", "default-handlers.js")
     ];
 
     for (var i = 0; i < tryHandlers.length; i++) {
@@ -1577,7 +1638,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
             continue;
         }
 
-        if (module.handlers !== undefined && module.handlers["fight"] !== undefined) {
+        if (module.handlers !== undefined && module.handlers["fight for"] !== undefined) {
             handlerFunc = module.handlers["fight for"];
             console.log("found fight handler");
             break;
@@ -1594,7 +1655,43 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
     }
 
     console.log("calling fight for()");
-    handlerFunc(characterInfo.character, object, game, playerName, function (handlerResp) {
+
+    // For string template substitution.
+    var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
+
+    // Note on the format/message split below. If we ever wish to localise the strings,
+    // "You are too weak to fight. The ${character_type} was victorious." is much better
+    // for translators as there is a full sentence to work with, and the embedded named
+    // token gives info about what data it contains. Compare this to the much worse
+    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
+
+    console.log(
+        "Before fight. player.health: " + playerInfo.player.health +
+        ", player.damage: " + playerInfo.player.damage +
+        ", character.health: " + characterInfo.character.health +
+        ", character damage: " + characterInfo.character.damage);
+
+    // The player can't fight if health is 0.
+    if (playerInfo.player.health === 0) {
+        var format = "You are too weak to fight. The ${character_type} was victorious.";
+        var message = template(format, { character_type: characterInfo.character.type });
+        var notifyData = {
+            player: playerInfo.player.name,
+            description: {
+                action: "fight",
+                success: true,
+                message: message
+            },
+            data: {}
+        };
+
+        statusCallback({ error: false, responseData: notifyData });
+        return;
+    }
+
+    var characterOrigHealth = characterInfo.character.health;
+    var playerOrigHealth = playerInfo.player.health;
+    handlerFunc(characterInfo.character, object, gameData, playerInfo, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 fight for - null handlerResp");
@@ -1613,222 +1710,121 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, game, pl
         if (!handlerResp.hasOwnProperty('data')) {
             console.log("*** 1 sending resp: " + JSON.stringify(handlerResp));
             handlerResp.data = { game: game, location: currentLocation };
-            sails.io.sockets.emit(game.id + "-status", handlerResp);
+            //sails.io.sockets.emit(game.id + "-status", handlerResp);
             statusCallback({ error: false, data: handlerResp });
             return;
         }
 
-        var returnProperties = ['playerHealth', 'characterHealth', 'playerWon',
-            'playerDied', 'characterDied'];
-        for (var i = 0; i < returnProperties.length; i++) {
-            console.log("Checking return property " + returnProperties[i]);
-            if (!handlerResp.data.hasOwnProperty(returnProperties[i])) {
-                var errorMessage = "Handler response did not contain " + returnProperties[i];
-                console.log(errorMessage);
-                statusCallback({ error: true, message: errorMessage });
-                return;
+        // In "fight" your opponent can die.
+        // In "fight for" they can be totally defeated but will not die.
+        var characterTotallyDefeated = false;
+        var playerTotallyDefeated = false;
+        var playerWon = false;
+
+        // The victor is the combatant that does the biggest %age damage to the opponent.
+        var playerHealth = handlerResp.data.playerHealth;
+        var characterHealth = handlerResp.data.characterHealth;
+        var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+        var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
+
+        console.log(
+            "After fight. player.health: " + playerHealth +
+            ", character.health: " + characterHealth +
+            ", player dealt damage: " + playerDamageDealt + "% " +
+            ", character dealt damage: " + characterDamageDealt + "%");
+
+        message = "You fought valiantly.";
+        if (characterHealth === 0 && playerHealth > 0) {
+            format = "You fought valiantly. The ${character_type} was totally defeated.";
+            characterTotallyDefeated = true;
+            message = template(format, { character_type: characterInfo.character.type });
+            playerWon = true;
+        } else if (characterHealth > 0 && playerHealth === 0) {
+            message = "You fought valiantly, but you were totally defeated.";
+            playerDied = true;
+        } else if (characterHealth === 0 && playerHealth === 0) {
+            message = "You fought valiantly, but you were both totally defeated.";
+        } else {
+            // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
+            // was equal, judge based on remaining strength.
+            if ((playerDamageDealt > characterDamageDealt) ||
+                ((playerDamageDealt === characterDamageDealt) &&
+                 (playerHealth > characterHealth))) {
+                message = "You fought valiantly and were victorious.";
+                playerWon = true;
+            } else if ((characterDamageDealt > playerDamageDealt) ||
+                       ((playerDamageDealt === characterDamageDealt) &&
+                        (characterHealth > playerHealth))) {
+                format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
+                message = template(format, { character_type: characterInfo.character.type });
+            } else {
+                // Evenly matched so far, declare a draw.
+                message = "You both fought valiantly, but are evently matched.";
             }
         }
 
+        gameData.player.health = playerHealth;
+        characterInfo.character.health = characterHealth;
+        
         // Fight worked, so update the target.
+        if (characterTotallyDefeated) {
+            handleCharacterDefeat(characterInfo.character, currentLocation);
+        }
+
+        if (playerTotallyDefeated) {
+            handlePlayerDefeat(playerInfo.player, currentLocation);
+        }
+
         // Record who we took the object from so we can check for
         // "acquire from" objectives.
-        object.source = { reason: "take from", from: targetName };
-        if (game.player.inventory === undefined) {
-            game.player.inventory = [];
-        }
-        game.player.inventory.push(object);
-
-        game.player.health = handlerResp.data.playerHealth;
-        currentLocation.characters[characterInfo.characterIndex].health = handlerResp.data.characterHealth;
-
-        if (handlerResp.data.characterDied) {
-            handleCharacterDeath(characterInfo.characterIndex, currentLocation, game);
-            currentLocation.characters.splice(characterInfo.characterIndex, 1);
+        if (playerWon) {
+            object.source = { reason: "take from", from: targetName };
+            gameData.player.inventory.push(object);
         }
 
-        // TODO: what should happen if the player dies? For now the player can't
-        // actually die, but should you forfeit your inventory?
-
-        // We don't need to send the updated target on to the client.
-        // Instead we'll send the updated game and mapLocation.
-        handlerResp.data = {};
-
-        async.waterfall([
-            function updateGame(validationCallback) {
-                Game.update(
-                    { id: game.id },
-                    game).exec(function (err, updatedGame) {
-                        console.log("fight for() Game.update() callback");
-                        if (err) {
-                            console.log("fight for() Game.update() callback, error. " + err);
-                            validationCallback("Failed to save the game");
-                        } else {
-                            console.log("fight for() Game.update() callback, no error.");
-                            if (updatedGame) {
-                                console.log("fight for() Game.update() callback " + JSON.stringify(updatedGame));
-                                validationCallback(null, updatedGame);
-                            } else {
-                                console.log("fight for() Game.update() callback, game is null.");
-                                validationCallback("Failed to save the game");
-                            }
-                        }
-                    });
+        notifyData = {
+            player: playerInfo.player.name,
+            description: {
+                action: "fight",
+                message: message
             },
-            function updateMapLocation(updatedGame, validationCallback) {
-                MapLocation.update(
-                    { id: currentLocation.id },
-                    currentLocation).exec(function (err, updatedLocation) {
-                        console.log("in MapLocation.update() callback");
-                        if (err) {
-                            console.log("in MapLocation.update() callback, error. " + err);
-                            validationCallback("Failed to save the maplocation");
-                        } else {
-                            console.log("in MapLocation.update() callback, no error.");
-                            if (updatedLocation) {
-                                console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                                validationCallback(null, updatedGame, updatedLocation);
-                            } else {
-                                console.log("in MapLocation.update() callback, item is null.");
-                                validationCallback("Failed to save the maplocation");
-                            }
-                        }
-                    });
-            }
-        ], function (err, updatedGame, updatedLocation) {
-            console.log("in fight for() all done. err:" + err);
-            console.log("in fight for() all done. updatedGame:" + JSON.stringify(updatedGame));
-            console.log("in fight for() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-            if (err) {
-                statusCallback({ error: true, data: updatedGame });
+            data: {}
+        };
+
+        // Warning: NEDB does not support transactions. The code below assumes both updates work.
+        saveGame(function (gameErr) {
+            console.log("in Game.update() callback");
+            if (gameErr) {
+                console.log("in Game.update() callback, error. " + gameErr);
+                statusCallback({ error: true, message: gameErr });
                 return;
             }
 
-            console.log("*** sending resp: " + JSON.stringify(handlerResp));
-            handlerResp.data = { game: updatedGame, location: updatedLocation };
-            var realmId = game.player.location.realmId;
-            sails.io.sockets.emit(realmId + "-status", handlerResp);
+            console.log("in Game.update() callback, no error.");
 
-            statusCallback({ error: false, data: handlerResp });
+            saveRealm(function (realmErr) {
+                console.log("in realm.update() callback");
+                if (gameErr) {
+                    console.log("in realm.update() callback, error. " + realmErr);
+                    statusCallback({ error: true, message: realmErr });
+                    return;
+                }
+
+                console.log("in realm.update() callback, no error.");
+                notifyData.data = {
+                    game: local_getGameData(),
+                    mapLocation: copyMapLocation(currentLocation)
+                };
+
+                // In a multiplayer game, we need to broadcast the status update.
+                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+                //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+                statusCallback({ error: false, responseData: notifyData });
+                return;
+            });
         });
     });
-    /*
-        console.log("Found objectName: " + JSON.stringify(characterInfo.character.inventory[j]));
-        console.log("characterIndex: " + characterInfo.characterIndex);
-    
-        // We found the item. See if we can take it.
-        var path = require('path');
-        var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-        var handlerPath =  pathroot + characterInfo.character.module + "/" + characterInfo.character.filename;
-        var module = require(handlerPath);
-    
-        // Command handlers are optional.
-        if (module.handlers === undefined) {
-           console.log("1 Module: " + handlerPath +
-                          " does not have a handler for \"take from\".");
-           statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
-           return;
-        }
-    
-        var handlerFunc = module.handlers["take from"];
-        if (handlerFunc === undefined) {
-           console.log("2 Module: " + handlerPath +
-                          " does not have a handler for \"take from\".");
-           statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
-           return;
-        }
-    
-        console.log("calling take from()");
-        handlerFunc(characterInfo.character, object, game, playerName, function(handlerResp) {
-           console.log("handlerResp: " + handlerResp);
-           if (!handlerResp) {
-               console.log("1 Take from failed - null handlerResp");
-               statusCallback({error:true, message:"The " + targetName + " won't give you the " + objectName});
-               return;
-           }
-    
-           console.log("Valid handlerResp " + JSON.stringify(handlerResp));
-           if (!handlerResp.description.success) {
-               console.log("2 Take from failed: " + handlerResp.description.message);
-               statusCallback({error:true, message:handlerResp.description.message});
-               return;
-           }
-    
-           // We don't need to send the updated target on to the client.
-           // Instead we'll send the updated game and mapLocation.
-           handlerResp.data = {};
-    
-           // Take worked, so update the target.
-           // Record who we took the object from so we can check for
-           // "acquire from" objectives.
-           object.source = {reason:"take from", from:targetName};
-    
-           if (game.player.inventory === undefined) {
-               game.player.inventory = [];
-           }
-           game.player.inventory.push(object);
-           currentLocation.characters[recipientIndex] = character;
-    
-           async.waterfall([
-               function updateGame(validationCallback) {
-                   Game.update(
-                      {id: game.id},
-                       game).exec(function(err, updatedGame) {
-                         console.log("take from() Game.update() callback");
-                         if (err) {
-                            console.log("take from() Game.update() callback, error. " + err);
-                            validationCallback("Failed to save the game");
-                         } else {
-                            console.log("take from() Game.update() callback, no error.");
-                            if (updatedGame) {
-                               console.log("take from() Game.update() callback " + JSON.stringify(updatedGame));
-                               validationCallback(null, updatedGame);
-                            } else {
-                               console.log("take from() Game.update() callback, game is null.");
-                               validationCallback("Failed to save the game");
-                            }
-                         }
-                   });
-               },
-               function updateMapLocation(updatedGame, validationCallback) {
-                   MapLocation.update(
-                       {id: currentLocation.id},
-                       currentLocation).exec(function(err, updatedLocation) {
-                       console.log("in MapLocation.update() callback");
-                       if (err) {
-                           console.log("in MapLocation.update() callback, error. " + err);
-                            validationCallback("Failed to save the maplocation");
-                       } else {
-                           console.log("in MapLocation.update() callback, no error.");
-                           if (updatedLocation) {
-                               console.log("in MapLocation.update() callback " + JSON.stringify(updatedLocation));
-                               validationCallback(null, updatedGame, updatedLocation);
-                           } else {
-                               console.log("in MapLocation.update() callback, item is null.");
-                               validationCallback("Failed to save the maplocation");
-                           }
-                       }
-                   });
-               }
-           ], function (err, updatedGame, updatedLocation) {
-               console.log("in take from() all done. err:" + err);
-               console.log("in take from() all done. updatedGame:" + JSON.stringify(updatedGame));
-               console.log("in take from() all done. updatedLocation:" + JSON.stringify(updatedLocation));
-               if (err) {
-                   statusCallback({error: true, data: updatedGame});
-                   return;
-               }
-    
-               handlerResp.data['game'] = updatedGame;
-               handlerResp.data['location'] = updatedLocation;
-               console.log("*** sending resp: " + JSON.stringify(handlerResp));
-               handlerResp.data = {game:updatedGame, location:updatedLocation};
-               sails.io.sockets.emit(game.id + "-status", handlerResp);
-    
-               statusCallback({error: false, data:handlerResp});
-           });
-        });
-     */
 }
 
 function checkObjectives(game, playerName, callback) {

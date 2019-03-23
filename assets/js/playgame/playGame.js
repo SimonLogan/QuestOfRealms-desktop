@@ -104,10 +104,18 @@ class playerInfo {
 
 class findPlayer {
     static findPlayerByName(game, playerName) {
+        // If we allow more than oneplayer in future:
+        /*
         for (var i = 0; i < game.players.length; i++) {
             if (game.players[i].name === playerName) {
                 return new playerInfo(game.players[i], i);
             }
+        }
+        */
+
+        // For now there is only a single player.
+        if (game.player.name === playerName) {
+            return new playerInfo(game.player, 0);
         }
 
         return null;
@@ -395,18 +403,33 @@ function processUseNotification(message) {
 }
 
 function processFightNotification(message) {
-    g_gameData = message.data.game[0];
-    mapLocation = message.data.location[0];
-    mapLocationData[parseInt(mapLocation.y) - 1][parseInt(mapLocation.x) - 1] = mapLocation;
+    var responseData = message.responseData;
+    g_gameData = responseData.data.game;
+    var locationData = responseData.data.mapLocation;
 
-    if (message.player === g_gameData.players[0].name) {
-        console.log(message.description.message);
-        displayMessageBlock(message.description.message);
+    if (responseData.player === g_gameData.player.name) {
+        console.log(responseData.description.message);
+        displayMessageBlock(responseData.description.message);
 
-        if (shouldDrawMapLocation(mapLocation)) {
-            // Show the player in the new location.
-            drawMapLocation(mapLocation);
-            showPlayerLocation(mapLocation.y, mapLocation.x);
+        var mapLocation = findLocation(
+            locationData.x.toString(),
+            locationData.y.toString());
+
+        if (!mapLocation) {
+            alert("Unable to find the updated location");
+            return;
+        }
+
+        // Update the corresponding model in the maplocation collection.
+        // The view will automatically render the new data.
+        mapLocation.set(locationData);
+
+        // Show the player if we updated the current location.
+        // The g_locationData update will not show the player location
+        // as that is not part of the collection.
+        if (locationData.x == g_gameData.player.location.x &&
+            locationData.y == g_gameData.player.location.y) {
+            showPlayerLocation(mapLocation);
         }
     }
 }
@@ -1116,7 +1139,7 @@ function handleStatus(playerLocation, tokens) {
     // For now the assumption is that you are playing as g_gameData.players[0].
     // This will not be true when we support multi-player mode.
 
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, g_gameData.players[0].name);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, g_gameData.player.name);
     if (null === playerInfo) {
         console.log("in handleUse.find() invalid player.");
         return;
@@ -1125,9 +1148,18 @@ function handleStatus(playerLocation, tokens) {
     displayMessage("Health: " + playerInfo.player.health);
     displayMessage("Damage: " + playerInfo.player.damage);
 
-    if (playerInfo.player.using !== undefined) {
-        displayMessage("Using: " + playerInfo.player.using.type);
+    var usingMessage = "You are not using any objects.";
+    if (playerInfo.player.using.length > 0)
+    {
+        usingMessage = "Using: ";
+        for (var j = 0; j < playerInfo.player.using.length; j++) {
+            usingMessage += playerInfo.player.using[j].type;
+            if (j < playerInfo.player.using.length -1) {
+                usingMessage = usingMessage + ",";
+            }
+        }
     }
+    displayMessage(usingMessage);
 
     var allComplete = true;
     if (g_currentRealmData.objectives.length > 0) {
@@ -1143,10 +1175,13 @@ function handleStatus(playerLocation, tokens) {
             }
 
             displayMessage("&nbsp;&nbsp;" +
-                buildObjectiveDescription(g_currentRealmData.objectives[i]) + ": " +
-                (g_currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
+                buildObjectiveDescription(
+                    g_currentRealmData.objectives[i]) + ": " +
+                    (g_currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
         }
 
+        // TODO: "start at" doesn't really count as an objective. If that is the only one then say
+        // "you have no objectives".
         if (allComplete) {
             displayMessage("All objectives are complete.");
         }

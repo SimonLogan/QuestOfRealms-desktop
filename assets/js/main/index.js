@@ -187,6 +187,8 @@ function initializePlayer(playerName, gameName) {
                 'visited': {},
                 'inventory': [],
                 'using': [],
+                'damage': 5,
+                'health': 25,
                 'mapDrawMode': mapDrawModeEnum.AUTO_ALL
             };
 
