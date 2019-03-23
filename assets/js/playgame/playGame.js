@@ -377,28 +377,22 @@ function processDropNotification(message) {
 }
 
 function processGiveNotification(message) {
-    g_gameData = message.data.game[0];
-    mapLocation = message.data.location[0];
-    mapLocationData[parseInt(mapLocation.y) - 1][parseInt(mapLocation.x) - 1] = mapLocation;
+    var responseData = message.responseData;
+    g_gameData = responseData.data.game;
 
-    if (message.player === g_gameData.players[0].name) {
-        console.log(message.description.message);
-        displayMessageBlock(message.description.message);
-
-        if (shouldDrawMapLocation(mapLocation)) {
-            // Show the player in the new location.
-            drawMapLocation(mapLocation);
-            showPlayerLocation(mapLocation.y, mapLocation.x);
-        }
+    if (responseData.player === g_gameData.player.name) {
+        console.log(responseData.description.message);
+        displayMessageBlock(responseData.description.message);
     }
 }
 
 function processUseNotification(message) {
-    g_gameData = message.data.game[0];
+    var responseData = message.responseData;
+    g_gameData = responseData.data.game;
 
-    if (message.player === g_gameData.players[0].name) {
-        console.log(message.description.message);
-        displayMessageBlock(message.description.message);
+    if (responseData.player === g_gameData.player.name) {
+        console.log(responseData.description.message);
+        displayMessageBlock(responseData.description.message);
     }
 }
 

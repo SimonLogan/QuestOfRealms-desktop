@@ -1214,7 +1214,7 @@ function handleUse(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
     var objectName = commandArgs.trim();
 
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
+    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleUse.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
@@ -1222,65 +1222,57 @@ function handleUse(command, playerName, statusCallback) {
     }
 
     // Find the requested item in the inventory.
-    var found = false;
+    var item = null;
     for (var i = 0; i < playerInfo.player.inventory.length; i++) {
         // TODO: handle ambiguous object descriptions (e.g. "use sword" when there are two swords).
         if (playerInfo.player.inventory[i].type !== objectName) {
             continue;
         }
 
-        found = true;
-        var item = playerInfo.player.inventory[i];
-        playerInfo.player.using = item;
-        game.players[playerInfo.playerIndex] = playerInfo.player;
-
-        // TODO: serious limitation - waterline doesn't support transactions so
-        // if anything below fails the db could be left in an inconsistent state.
-        // See if I can implement this myself using the .transaction() interface.
-        Game.update(
-            { id: game.id },
-            game).exec(function (err, updatedGame) {
-                console.log("in Game.update() callback");
-                if (err) {
-                    console.log("in Game.update() callback, error. " + err);
-                    statusCallback({ error: true, message: err });
-                    return;
-                }
-
-                console.log("in Game.update() callback, no error.");
-                if (!updatedGame) {
-                    console.log("in Game.update() callback, item is null.");
-                    statusCallback({ error: true, message: "failed to find game" });
-                    return;
-                }
-
-                console.log("in Game.update() callback " + JSON.stringify(updatedGame));
-                var realmId = game.players[playerInfo.playerIndex].location.realmId;
-                console.log("sending socket messages for subject '" + realmId + "-status'");
-                notifyData = {
-                    player: playerName,
-                    description: {
-                        action: "use",
-                        message: "You are using the " + item.type,
-                        item: item,
-                    },
-                    data: {
-                        game: updatedGame
-                    }
-                };
-
-                sails.io.sockets.emit(realmId + "-status", notifyData);
-                statusCallback({ error: false });
-                return;
-            });
+        item = playerInfo.player.inventory[i];
+        break;
     }
 
-    if (!found) {
+    if (!item) {
         var errorMessage = "You do not have a " + objectName + ".";
         console.log(errorMessage);
         statusCallback({ error: true, message: errorMessage });
         return;
     }
+
+    playerInfo.player.using = [];
+    playerInfo.player.using.push(item);
+
+    // Warning: NEDB does not support transactions. The code below assumes both updates work.
+    saveGame(function (gameErr) {
+        console.log("in Game.update() callback");
+        if (gameErr) {
+            console.log("in Game.update() callback, error. " + gameErr);
+            statusCallback({ error: true, message: gameErr });
+            return;
+        }
+
+        console.log("in Game.update() callback, no error.");
+
+        notifyData = {
+            player: playerName,
+            description: {
+                action: "use",
+                message: "You are using the " + item.type,
+                item: itemInfo.item
+            },
+            data: {
+                game: local_getGameData()
+            }
+        };
+
+        // In a multiplayer game, we need to broadcast the status update.
+        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+        //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+        statusCallback({ error: false, responseData: notifyData });
+        return;
+    });
 }
 
 function handleFight(command, playerName, statusCallback) {
@@ -1355,7 +1347,7 @@ function handlePlayerDefeat(player, currentLocation) {
     for (var i = 0; i < player.inventory.length; i++) {
         currentLocation.items.push(player.inventory[i]);
     }
-    
+
     player.inventory = [];
 }
 
