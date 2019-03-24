@@ -119,6 +119,20 @@ module.exports = {
         // Return a copy of currentRealmData;
         return local_getCurrentRealmData();
     },
+    setPlayerPrefs(prefs, callback) {
+        if (prefs.hasOwnProperty("mapDrawMode")) {
+            switch (prefs.mapDrawMode) {
+                case mapDrawModeEnum.AUTO_ALL:
+                case mapDrawModeEnum.AUTO_VISITED:
+                case mapDrawModeEnum.MANUAL:
+                    gameData.player.mapDrawMode = prefs.mapDrawMode;
+                    saveGame(callback);
+                    break;
+                default:
+                    callback("Unexpected draw choice value [" + prefs.mapDrawMode + "].");
+            }
+        }
+    },
     gameCommand: function (command, callback) {
         // In a multiplayer game, gameCommand() would be invoked via
         // an HTTP request. It would return ok or fail (HTTP 200 or 500)
@@ -238,7 +252,7 @@ module.exports = {
                     }
                 });
         }
-    }
+    },
 };
 
 function loadGame(callback) {

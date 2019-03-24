@@ -146,7 +146,6 @@ ipc.on('playGame-data', function (event, data) {
         switch (g_gameData.player.mapDrawMode) {
             case mapDrawModeEnum.AUTO_ALL:
                 $('#drawChoice_autoAll').prop('checked', true);
-                //$('input[name="drawChoice"][value="drawChoice_autoAll"]').prop('checked', true);
                 break;
             case mapDrawModeEnum.AUTO_VISITED:
                 $('#drawChoice_autoVisited').prop('checked', true);
@@ -160,7 +159,6 @@ ipc.on('playGame-data', function (event, data) {
         }
 
         g_currentRealmData = gameEngine.getCurrentRealmData();
-        //$('#realmName').text("Editing realm " + g_currentRealmData.name);
 
         drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
         mView = new LocationsView({ collection: g_locationData });
@@ -199,18 +197,26 @@ ipc.on('playGame-data', function (event, data) {
         }
     });
 
-    // Show / edit map locations
-    $(document).on('mouseenter', '#mapPanel', function () { });
-
-    $(document).on('mouseleave', '#mapPanel', function () { });
-
     $('input[name=drawChoice]').on('change', function changeDrawMode(selectedOption) {
         console.log(selectedOption.target.value);
         g_gameData.player.mapDrawMode = selectedOption.target.value;
-        saveGame();
-        drawMapGrid(g_currentRealmData.width, g_currentRealmData.height, selectedOption.target.value);
-        var playerLocation = findPlayerLocation();
-        showPlayerLocation(playerLocation.y, playerLocation.x);
+
+        var prefs = { 'mapDrawMode': selectedOption.target.value };
+        gameEngine.setPlayerPrefs(prefs, function (err) {
+            if (err) {
+                console.error(err);
+                return;
+            }
+
+            drawMapGrid(g_currentRealmData.width, g_currentRealmData.height, selectedOption.target.value);
+
+            g_locationData.forEach(function (item) {
+                drawMapLocation(item);
+            });
+
+            var playerLocation = findPlayerLocation();
+            showPlayerLocation(playerLocation);
+        });
     });
 }); // ipc.on('playGame-data')
 
@@ -276,6 +282,7 @@ function processMoveNotification(message) {
         drawMapLocation(oldLocation);
 
         // Show the player in the new location.
+        drawMapLocation(newLocation);
         showPlayerLocation(newLocation);
     }
 }
@@ -598,9 +605,6 @@ function drawMapLocation(locationData) {
     }
 }
 
-
-
-
 // Decide whether to show a maplocation depending on thr mapdraw mode.
 function shouldDrawMapLocation(locationData) {
     var player = g_gameData.player;
@@ -613,10 +617,10 @@ function shouldDrawMapLocation(locationData) {
     // The list of locations the player has visited is a dictionary for
     // quick searching when drawing the map. Using a list
     // will scale badly when drawing the whole map.
-    var visitedKey = locationData.x.toString() + "_" + locationData.y.toString();
-    var playerVistitedLocation = (visitedKey in g_gameData.player.visited[locationData.realmId]);
-    var mapDrawMode = g_gameData.player.mapDrawMode;
-    if (("autoAll" == mapDrawMode) || ("autoVisited" == mapDrawMode && playerVistitedLocation)) {
+    var visitedKey = locationData.attributes.x.toString() + "_" + locationData.attributes.y.toString();
+    var playerVistitedLocation = (
+        visitedKey in g_gameData.player.visited[g_gameData.player.location.realm]);
+    if ("autoVisited" == player.mapDrawMode && playerVistitedLocation) {
         return true;
     }
 
