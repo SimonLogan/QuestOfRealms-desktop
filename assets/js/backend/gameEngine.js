@@ -867,7 +867,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
         // "acquire from" objectives.
         foundInventoryItem.source = { reason: "buy from", from: targetName };
         characterInfo.character.inventory.splice(foundIndex, 1);
-        
+
         if (gameData.player.inventory === undefined) {
             gameData.player.inventory = [];
         }
@@ -1090,26 +1090,27 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
         return;
     }
 
-    var object = null;
+    var foundInventoryItem = null;
+    var foundItemIndex = -1;
     for (var i = 0; i < playerInfo.player.inventory.length; i++) {
         // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
         if (playerInfo.player.inventory[i].type === objectName) {
             // Update the player inventory now. If the give operation fails we
             // won't save this change.
-            object = playerInfo.player.inventory[i];
-            playerInfo.player.inventory.splice(i, 1);
+            foundItemIndex = i;
+            foundInventoryItem = playerInfo.player.inventory[foundItemIndex];
             break;
         }
     }
 
-    if (object === null) {
+    if (foundItemIndex === -1) {
         var errorMessage = "You do not have an " + objectName;
         console.log(errorMessage);
         statusCallback({ error: true, message: errorMessage });
         return;
     }
 
-    console.log("Found object: " + JSON.stringify(object));
+    console.log("Found object: " + JSON.stringify(foundInventoryItem));
 
     // Found the item, now find the recipient.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
@@ -1146,7 +1147,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
     }
 
     console.log("calling give()");
-    handlerFunc(targetName, object, gameData, playerName, function (handlerResp) {
+    handlerFunc(targetName, foundInventoryItem, gameData, playerName, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("Give failed - null handlerResp");
@@ -1169,12 +1170,13 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
 
         // Give worked, so update the recipient.
         // Record who gave the object so we can check for "give" objectives.
-        object.source = { reason: "give", from: playerName };
+        foundInventoryItem.source = { reason: "give", from: playerName };
+        playerInfo.player.inventory.splice(foundItemIndex, 1);
 
         if (characterInfo.character.inventory === undefined) {
             characterInfo.character.inventory = [];
         }
-        characterInfo.character.inventory.push(object);
+        characterInfo.character.inventory.push(foundInventoryItem);
 
         notifyData = {
             player: playerInfo.player.name,
@@ -1608,18 +1610,17 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
     }
 
     console.log("Checking inventory");
-    var itemFound = false;
-    var object = null;
+    var foundIndex = -1;
+    var foundInventoryItem = null;
     for (var j = 0; j < characterInfo.character.inventory.length; j++) {
         if (characterInfo.character.inventory[j].type === objectName) {
-            itemFound = true;
-            object = characterInfo.character.inventory[j];
-            characterInfo.character.inventory.splice(j, 1);
+            foundIndex = j;
+            foundInventoryItem = characterInfo.character.inventory[foundIndex];
             console.log("Found item in inventory");
         }
     }
 
-    if (!itemFound) {
+    if (foundIndex === -1) {
         var errorMessage = "The " + targetName + " has no " + objectName + ".";
         console.log(errorMessage);
         statusCallback({ error: true, message: errorMessage });
@@ -1700,7 +1701,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
 
     var characterOrigHealth = characterInfo.character.health;
     var playerOrigHealth = playerInfo.player.health;
-    handlerFunc(characterInfo.character, object, gameData, playerInfo, function (handlerResp) {
+    handlerFunc(characterInfo.character, foundInventoryItem, gameData, playerInfo, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 fight for - null handlerResp");
@@ -1787,8 +1788,9 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
         // Record who we took the object from so we can check for
         // "acquire from" objectives.
         if (playerWon) {
-            object.source = { reason: "take from", from: targetName };
-            gameData.player.inventory.push(object);
+            foundInventoryItem.source = { reason: "take from", from: targetName };
+            gameData.player.inventory.push(foundInventoryItem);
+            characterInfo.character.inventory.splice(foundIndex, 1);
         }
 
         notifyData = {
