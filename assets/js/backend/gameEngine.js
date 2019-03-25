@@ -607,25 +607,24 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
     }
 
     console.log("Checking inventory");
-    var itemFound = false;
-    var object = null;
+    var foundIndex = -1;
+    var foundInventoryItem = null;
     for (var j = 0; j < characterInfo.character.inventory.length; j++) {
         if (characterInfo.character.inventory[j].type === objectName) {
-            itemFound = true;
-            object = characterInfo.character.inventory[j];
-            characterInfo.character.inventory.splice(j, 1);
+            foundIndex = j;
+            foundInventoryItem = characterInfo.character.inventory[foundIndex];
             console.log("Found item in inventory");
         }
     }
 
-    if (!itemFound) {
+    if (foundIndex === -1) {
         var errorMessage = "The " + targetName + " has no " + objectName + ".";
         console.log(errorMessage);
         statusCallback({ error: true, message: errorMessage });
         return;
     }
 
-    console.log("Found objectName: " + JSON.stringify(object));
+    console.log("Found objectName: " + JSON.stringify(foundInventoryItem));
     console.log("characterIndex: " + characterInfo.characterIndex);
 
     // We found the item. See if we can take it.
@@ -653,7 +652,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
     }
 
     console.log("calling take from()");
-    handlerFunc(characterInfo.character, object, gameData, playerName, function (handlerResp) {
+    handlerFunc(characterInfo.character, foundInventoryItem, gameData, playerName, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 Take from failed - null handlerResp");
@@ -671,12 +670,13 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
         // Take worked, so update the player and target.
         // Record who we took the object from so we can check for
         // "acquire from" objectives.
-        object.source = { reason: "take from", from: targetName };
+        foundInventoryItem.source = { reason: "take from", from: targetName };
+        characterInfo.character.inventory.splice(foundIndex, 1);
 
         if (gameData.player.inventory === undefined) {
             gameData.player.inventory = [];
         }
-        gameData.player.inventory.push(object);
+        gameData.player.inventory.push(foundInventoryItem);
 
         notifyData = {
             player: playerName,
@@ -753,7 +753,7 @@ function handleBuy(command, playerName, statusCallback) {
 
     var currentX = gameData.player.location.x;
     var currentY = gameData.player.location.y;
-    console.log("in handleTake.find() searching for location [" + currentX + ", " + currentY + "].");
+    console.log("in handleBuy.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -796,27 +796,29 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
     }
 
     console.log("Checking inventory");
-    var itemFound = false;
-    var object = null;
+    var foundIndex = -1;
+    var foundInventoryItem = null;
     for (var j = 0; j < characterInfo.character.inventory.length; j++) {
+        console.log("Checking inventory item " + j.toString());
         if (characterInfo.character.inventory[j].type === objectName) {
             // Assume the buy will be successful. If not, we will
             // discard this edit.
-            itemFound = true;
-            object = characterInfo.character.inventory[j];
-            characterInfo.character.inventory.splice(j, 1);
+            foundIndex = j;
+            foundInventoryItem = characterInfo.character.inventory[foundIndex];
             console.log("Found item in inventory");
+            break;
         }
     }
 
-    if (!itemFound) {
+    console.log("After checking inventory");
+    if (foundIndex === -1) {
         var errorMessage = "The " + targetName + " has no " + objectName + ".";
         console.log(errorMessage);
         statusCallback({ error: true, message: errorMessage });
         return;
     }
 
-    console.log("Found objectName: " + JSON.stringify(object));
+    console.log("Found objectName: " + JSON.stringify(foundInventoryItem));
     console.log("characterIndex: " + characterInfo.characterIndex);
 
     // We found the item. See if we can buy it.
@@ -845,7 +847,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
 
     console.log("calling buy from()");
     // TODO: pass copies of characterInfo, object, and gameData
-    handlerFunc(characterInfo.character, object, gameData, playerName, function (handlerResp) {
+    handlerFunc(characterInfo.character, foundInventoryItem, gameData, playerName, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 Buy from failed - null handlerResp");
@@ -863,12 +865,13 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
         // Buy worked, so update the player and target.
         // Record who we bought the object from so we can check for
         // "acquire from" objectives.
-        object.source = { reason: "buy from", from: targetName };
-
+        foundInventoryItem.source = { reason: "buy from", from: targetName };
+        characterInfo.character.inventory.splice(foundIndex, 1);
+        
         if (gameData.player.inventory === undefined) {
             gameData.player.inventory = [];
         }
-        gameData.player.inventory.push(object);
+        gameData.player.inventory.push(foundInventoryItem);
 
         //  Now pay!
         if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {

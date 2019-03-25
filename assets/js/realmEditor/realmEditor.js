@@ -182,12 +182,12 @@ ipc.on('editRealm-data', function (event, data) {
             });
         }
     ],
-        function (err, results) {
-            // Create the tabbed panels
-            $("#paletteInnerPanel").tabs();
-            $("#propertiesInnerPanel").tabs();
-            //if (!err) enableControls();
-        });
+    function (err, results) {
+        // Create the tabbed panels
+        $("#paletteInnerPanel").tabs();
+        $("#propertiesInnerPanel").tabs();
+        //if (!err) enableControls();
+    });
 
     /*
     _.templateSettings = {
@@ -688,7 +688,7 @@ function drawMapLocation(item) {
     target.attr('data-id', item.id);
     target.attr('data-module', item.attributes.module);
     target.html('');
-    target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + item.attributes.type + ".png'/>");
+    target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + item.attributes.image + "' />");
 
     // To allow it to be dragged to the wastebasket.
     target.addClass('draggable mapItem');
@@ -780,6 +780,7 @@ function addMapLocation(realmId, droppedItem, originalLocation, newLocation) {
         x: newLocation.attr('data-x'),
         y: newLocation.attr('data-y'),
         type: environment,
+        image: droppedItem.attr('data-image'),
         module: droppedItem.attr('data-module'),
         filename: droppedItem.attr('data-filename'),
         items: copiedItems,
@@ -955,6 +956,7 @@ function addItemToLocation(droppedItem, location) {
     location[0].attributes.items.push(
         {
             type: droppedItem.attr('data-type'),
+            image: droppedItem.attr('data-image'),
             module: droppedItem.attr('data-module'),
             filename: droppedItem.attr('data-filename'),
             name: '',
@@ -1022,6 +1024,7 @@ function addCharacterToLocation(droppedCharacter, location) {
     location[0].attributes.characters.push(
         {
             type: droppedCharacter.attr('data-type'),
+            image: droppedCharacter.attr('data-image'),
             module: droppedCharacter.attr('data-module'),
             filename: droppedCharacter.attr('data-filename'),
             name: '',
@@ -1398,6 +1401,7 @@ function loadEnvPalette(callback) {
                         // to be identified when dropping an item onto the map.
                         "data-category='" + envPaletteData.category + "' " +
                         "data-type='" + item.type + "' " +
+                        "data-image='" + item.image + "' " +
                         "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
@@ -1459,6 +1463,7 @@ function loadItemsPalette(callback) {
                         // to be identified when dropping an item onto the map.
                         "data-category='" + itemPaletteData.category + "' " +
                         "data-type='" + item.type + "' " +
+                        "data-image='" + item.image + "' " +
                         "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
@@ -1520,6 +1525,7 @@ function loadCharactersPalette(callback) {
                         // to be identified when dropping an item onto the map.
                         "data-category='" + characterPaletteData.category + "' " +
                         "data-type='" + character.type + "' " +
+                        "data-image='" + character.image + "' " +
                         "><img src='" + pathroot + "/" + moduleName + "/images/" + character.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
