@@ -504,20 +504,6 @@ function displayObjectives() {
 }
 
 
-function saveGame(callback) {
-    console.log(Date.now() + ' saveGame');
-
-    var db_collections = dbWrapper.getDBs();
-    db_collections.game.update({ _id: g_gameData._id }, g_gameData, {}, function (err, numReplaced) {
-        console.log("saveGame err:" + err);
-        console.log("saveGame numReplaced:" + numReplaced);
-        if (callback) {
-            callback(null);
-        }
-    });
-}
-
-
 function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
     var mapTable = $('#mapTable');
     var tableContents = '';
@@ -1172,7 +1158,7 @@ function handleStatus(playerLocation, tokens) {
                 allComplete = false;
             }
 
-            displayMessage("&nbsp;&nbsp;" +
+            displayMessage("      " +
                 buildObjectiveDescription(
                     g_currentRealmData.objectives[i]) + ": " +
                     (g_currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
