@@ -12,6 +12,7 @@ const Backbone = require('backbone');
 var path = require('path');
 var pluginsPath = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 const gameEngine = require(path.join(__dirname, '../../assets/js/backend/gameEngine.js'));
+const async = require('async');
 
 // Constants
 describeDetailEnum = {
@@ -20,10 +21,14 @@ describeDetailEnum = {
 };
 
 // The game data. This will be retrieved initially and then kept updated
-// via socket messages. The "g_" prefix is to prevent accidental assignment
-// in a function.
+// via callbacks from the game engine. The "g_" prefix is to prevent accidental
+// assignment in a function.
 var g_gameData;
 var g_currentRealmData;
+
+// Load the attributes of all plugins used by this game. This allows us to
+// reduce data duplication in the database.
+var g_dependencyInfo = {};
 
 // Backbone is a Model-View-Controller (MVC) framework. Extend the
 // default Model with additional attributes that we need.
@@ -127,46 +132,60 @@ ipc.on('playGame-data', function (event, data) {
     $('#page_title').text("Play Game " + data.name);
 
     const app = electron.remote.app;
-    var gameBasedir = path.join(app.getPath('userData'), "games");
-    var dbPath = path.join(gameBasedir, data.name);
+    var gamePath = path.join(app.getPath('userData'), "games", data.name);
 
     // Load details of the game.
     console.log("********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
     ipc.send('logmsg', "********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
 
-    gameEngine.initialize(dbPath, function (err) {
-        if (err) {
-            alert("Failed to load game: " + err);
-            return;
+    async.series([
+        function(callback) {
+            gameEngine.initialize(gamePath, function (err) {
+                if (err) {
+                    alert("Failed to load game: " + err);
+                    callback(err);
+                    return;
+                }
+
+                g_gameData = gameEngine.getGameData();
+                $('#page_title').text("Play Game " + g_gameData.name);
+                $('#playing_as').text("Playing as " + g_gameData.player.name);
+                switch (g_gameData.player.mapDrawMode) {
+                    case mapDrawModeEnum.AUTO_ALL:
+                        $('#drawChoice_autoAll').prop('checked', true);
+                        break;
+                    case mapDrawModeEnum.AUTO_VISITED:
+                        $('#drawChoice_autoVisited').prop('checked', true);
+                        break;
+                    case mapDrawModeEnum.MANUAL:
+                        $('#drawChoice_manual').prop('checked', true);
+                        break;
+                    default:
+                        $('#drawChoice_autoAll').prop('checked', true);
+                        console.error("Unexpected draw choice value. Assuming auto_all");
+                }
+
+                g_currentRealmData = gameEngine.getCurrentRealmData();
+                callback(null);
+            });
+        },
+        function(callback) {
+            loadDependencyData(gamePath);
+            callback(null);
+        },
+        function(callback) {
+            drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
+            mView = new LocationsView({ collection: g_locationData });
+            if (g_currentRealmData.hasOwnProperty('mapLocations')) {
+                g_locationData.reset(g_currentRealmData.mapLocations);
+            }
+
+            displayObjectives();
+            callback(null);
         }
-
-        g_gameData = gameEngine.getGameData();
-        $('#page_title').text("Play Game " + g_gameData.name);
-        $('#playing_as').text("Playing as " + g_gameData.player.name);
-        switch (g_gameData.player.mapDrawMode) {
-            case mapDrawModeEnum.AUTO_ALL:
-                $('#drawChoice_autoAll').prop('checked', true);
-                break;
-            case mapDrawModeEnum.AUTO_VISITED:
-                $('#drawChoice_autoVisited').prop('checked', true);
-                break;
-            case mapDrawModeEnum.MANUAL:
-                $('#drawChoice_manual').prop('checked', true);
-                break;
-            default:
-                $('#drawChoice_autoAll').prop('checked', true);
-                console.error("Unexpected draw choice value. Assuming auto_all");
-        }
-
-        g_currentRealmData = gameEngine.getCurrentRealmData();
-
-        drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
-        mView = new LocationsView({ collection: g_locationData });
-        if (g_currentRealmData.hasOwnProperty('mapLocations')) {
-            g_locationData.reset(g_currentRealmData.mapLocations);
-        }
-
-        displayObjectives();
+    ],
+    function(err, results) {
+        console.log("Series end. err: " + err + ", results: " + JSON.stringify(results));
     });
 
     // Handle game commands
@@ -223,6 +242,54 @@ ipc.on('playGame-data', function (event, data) {
 //
 // Utility functions
 //
+
+// Load the attributes of any plugins required by the game.
+// This will be used to augment data from the db.
+// TODO: maybe we only need to load the plugins for this realm,
+// but that would require examining the database.
+function loadDependencyData(gamePath) {
+    var manifest = readManifest(gamePath);
+    if (0 === Object.keys(manifest).length) {
+        console.error("Ignoring path " + gamePath + " - Failed to read manifest.json.");
+        return;
+    }
+
+    // Example manifest data
+    /*
+        {
+            "name": "game1",
+            "description": "",
+            "modules": {
+                "default": {
+                    "environments.js": ["mountains","grassland"],
+                    "items.js": ["coin","long sword","short sword","food"],
+                    "giant.js": ["Giant"],
+                    "iron-boar.js": ["Iron boar"]
+                },
+                "default2": {
+                    "environments2.js": ["water"]
+                }
+            }
+        }
+    */
+
+    // Use jQuery to iterate the modules dict.
+    $.each(manifest.modules, function(moduleName, moduleDetails) {
+        // For each javascript file that is required from this module,
+        // load the attributes of all available resources. It's not worth
+        // the bother searching for just required resources.
+        console.log("processing module " + moduleName);
+        g_dependencyInfo[moduleName] = {};
+        $.each(moduleDetails, function(fileName, resourceList) {
+            console.log("   processing file " + fileName);
+            var fileInfo = require(path.join(gamePath, "modules", moduleName, fileName));
+            g_dependencyInfo[moduleName][fileName] = fileInfo.attributes;
+            //$.each(resourceList, function(index, resourceName) {
+            //    console.log("      processing resource " + resourceName);
+            //});
+        });
+    });
+}
 
 function processMessage(thisMessage) {
     console.log("======== starting processMessage() ========");
@@ -568,7 +635,6 @@ function drawMapLocation(locationData) {
         // Always show the terrain once the player has visited the location, as terrain never changes.
         var target = $('#mapTable td[id="cell_' + locationData.attributes.x + '_' + locationData.attributes.y + '"]').find('div');
         target.addClass('terrainCell');
-        var html = '';
 
         target.attr('data-env', locationData.attributes.type);
         target.attr('data-id', locationData.id);
@@ -586,8 +652,6 @@ function drawMapLocation(locationData) {
         if (locationData.attributes.items.length > 0) {
             target.append('<img src="../../assets/images/object-icon.png" class="itemIcon">');
         }
-
-        var dummy = 5;
     }
 }
 
@@ -1173,6 +1237,7 @@ function handleStatus(playerLocation, tokens) {
 
     displayMessage("");
 }
+
 
 // escapeHtml implementation taken from mustache.js
 // https://github.com/janl/mustache.js/blob/eae8aa3ba9396bd994f2d5bbe3b9fc14d702a7c2/mustache.js#L60
