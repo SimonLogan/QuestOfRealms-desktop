@@ -41,10 +41,10 @@ ipc.on('editGame-data', function (event, data) {
             loadAndDisplayGame(data.id, callback);
         }
     ],
-        function (err, results) {
-            // Create the tabbed panels
-            if (!err) enableControls();
-        });
+    function (err, results) {
+        // Create the tabbed panels
+        if (!err) enableControls();
+    });
 
     // Navigate back.
     $(document).on('click', '#breadcrumb', function (e) {

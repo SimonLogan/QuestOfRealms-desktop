@@ -6,9 +6,8 @@
 module.exports = {
 
    category: "objective",
-   attributes: [
-      {
-         name: "Start at",
+   attributes: {
+      "Start at": {
          description: "Where you start the game.",
          mandatory: true,
          parameters: [
@@ -16,31 +15,28 @@ module.exports = {
             { name: "y", type: "int" }
          ]
       },
-      {
-         name: "Navigate to",
+      "Navigate to": {
          description: "Navigate to a specified map location.",
          parameters: [
             { name: "x", type: "int" },
             { name: "y", type: "int" }
          ]
       },
-      {
-         name: "Acquire item",
+      "Acquire item": {
          description: "Acquire a particular item.",
          parameters: [
             { name: "item name", type: "string" },
             { name: "number", type: "int" }
          ]
       },
-      {
-         name: "Give item",
+      "Give item": {
          description: "Give an item away.",
          parameters: [
             { name: "item name", type: "string" },
             { name: "recipient", type: "string" }
          ]
       }
-   ],
+   },
    handlers: {
       "Navigate to": function (objective, game, realm, playerName, callback) {
          console.log("in Navigate to()");

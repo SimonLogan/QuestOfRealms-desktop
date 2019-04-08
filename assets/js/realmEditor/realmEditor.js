@@ -105,19 +105,7 @@ var LocationsView = Backbone.View.extend({
         console.log("in view.change:  " + JSON.stringify(item));
 
         // Update the local display with the message data.
-        var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-        target.attr('data-env', item.attributes.type);
-
-        if (item.attributes.startLocation !== undefined) {
-            target.attr('data-startLocation', item.attributes.startLocation);
-        }
-
-        target.html('');
-        target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + item.attributes.type + ".png'/>");
-
-        // To allow it to be dragged to the wastebasket.
-        target.addClass('draggable mapItem');
-        target.draggable({ helper: 'clone', revert: 'invalid' });
+       drawMapLocation(item);
 
         // Populate the relevant location properties if this location is currently
         // open in the properties window.
@@ -684,11 +672,16 @@ ipc.on('editRealm-data', function (event, data) {
 function drawMapLocation(item) {
     // Update the local display with the message data.
     var target = $('#mapTable td[id="cell_' + item.attributes.x + '_' + item.attributes.y + '"]').find('div');
-    target.attr('data-env', item.attributes.type);
     target.attr('data-id', item.id);
     target.attr('data-module', item.attributes.module);
+    target.attr('data-filename', item.attributes.filename);
+    target.attr('data-type', item.attributes.type);
     target.html('');
-    target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + item.attributes.image + "' />");
+
+    // Look up the image from the envPaletteData
+    var imgName = envPaletteData.modules[item.attributes.module]
+                     [item.attributes.filename][item.attributes.type].image;
+    target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + imgName + "' />");
 
     // To allow it to be dragged to the wastebasket.
     target.addClass('draggable mapItem');
@@ -736,7 +729,7 @@ function drawMapGrid(realmWidth, realmHeight) {
                 // Draw the regular map cells.
                 tableContents += '<td id="cell_' + xCounter + "_" + yCounter + '"> ' +
                     '<div class="droppable" style="width:50px; height:50px;" ' +
-                    'data-x="' + xCounter + '" data-y="' + yCounter + '" data-env=""></div>' +
+                    'data-x="' + xCounter + '" data-y="' + yCounter + '"></div>' +
                     '</td>';
             }
         }
@@ -757,9 +750,6 @@ function drawMapGrid(realmWidth, realmHeight) {
 
 
 function addMapLocation(realmId, droppedItem, originalLocation, newLocation) {
-    var environment = (droppedItem.is('.paletteItem') ?
-        droppedItem.attr('data-type') : droppedItem.attr('data-env'));
-
     // If dragging an existing map item, treat this as a move.
     // Simulate a move by creating and deleting. This will publish events for both.
     copiedItems = [];
@@ -779,8 +769,7 @@ function addMapLocation(realmId, droppedItem, originalLocation, newLocation) {
         //id: `${newLocation.attr('data-x')}_${newLocation.attr('data-y')}`,
         x: newLocation.attr('data-x'),
         y: newLocation.attr('data-y'),
-        type: environment,
-        image: droppedItem.attr('data-image'),
+        type: droppedItem.attr('data-type'),
         module: droppedItem.attr('data-module'),
         filename: droppedItem.attr('data-filename'),
         items: copiedItems,
@@ -794,7 +783,6 @@ function addMapLocation(realmId, droppedItem, originalLocation, newLocation) {
     }
 
     locationData.sync();
-    //locationData.trigger('change', location[0]);
 }
 
 
@@ -952,16 +940,11 @@ function changeItemLocation(droppedItem, newLocation) {
 
 
 function addItemToLocation(droppedItem, location) {
-    var fullItemDetails = findPaletteItem(itemPaletteData, droppedItem);
     location[0].attributes.items.push(
         {
             type: droppedItem.attr('data-type'),
-            image: droppedItem.attr('data-image'),
             module: droppedItem.attr('data-module'),
-            filename: droppedItem.attr('data-filename'),
-            name: '',
-            description: fullItemDetails.description,
-            damage: fullItemDetails.damage
+            filename: droppedItem.attr('data-filename')
         }
     );
 
@@ -1020,19 +1003,11 @@ function changeCharacterLocation(droppedItem, newLocation) {
 
 
 function addCharacterToLocation(droppedCharacter, location) {
-    var fullCharacterDetails = findPaletteItem(characterPaletteData, droppedCharacter);
     location[0].attributes.characters.push(
         {
             type: droppedCharacter.attr('data-type'),
-            image: droppedCharacter.attr('data-image'),
             module: droppedCharacter.attr('data-module'),
             filename: droppedCharacter.attr('data-filename'),
-            name: '',
-            description: fullCharacterDetails.description,
-            additionalInfo: fullCharacterDetails.additional_info,
-            damage: fullCharacterDetails.damage,
-            health: fullCharacterDetails.health,
-            drops: fullCharacterDetails.drops,
             npc: true
         }
     );
@@ -1126,8 +1101,20 @@ function populateLocationItemDetails(item) {
 
     $('#itemName').val(itemData.name);
     $('#itemType').text(itemData.type);
-    $('#itemDescription').text(itemData.description);
-    $('#itemDamage').text(itemData.damage);
+
+    // The following items will only be populated if they have been editied.
+    // If not populated, use the default values.
+    if (!itemData.description) {
+        $('#itemDescription').text(itemPaletteData.modules[itemData.module][itemData.filename][itemData.type].description);
+    } else {
+        $('#itemDescription').text(itemData.description);
+    }
+
+    if (!itemData.damage) {
+        $('#itemDamage').text(itemPaletteData.modules[itemData.module][itemData.filename][itemData.type].damage);
+    } else {
+        $('#itemDamage').text(itemData.damage);
+    }
 }
 
 
@@ -1135,6 +1122,7 @@ function clearLocationItemDetails() {
     $('#itemName').val('');
     $('#itemType').text('');
     $('#itemDescription').text('');
+    $('#itemDamage').text('');
 }
 
 
@@ -1178,11 +1166,33 @@ function populateLocationCharacterDetails(character) {
     // Character data
     $('#characterName').val(characterData.name);
     $('#characterType').text(characterData.type);
-    $('#characterDescription').text(characterData.description);
     $('#characterAddInfo').text(characterData.additionalInfo);
-    $('#characterDamage').text(characterData.damage);
-    $('#characterHealth').text(characterData.health);
-    $('#characterDrops').text(characterData.drops);
+
+    // The following items will only be populated if they have been edited.
+    // If not populated, use the default values.
+    if (!characterData.damage) {
+        $('#characterDamage').text(characterPaletteData.modules[characterData.module][characterData.filename][characterData.type].damage);
+    } else {
+        $('#characterDamage').text(characterPaletteData.damage);
+    }
+
+    if (!characterData.health) {
+        $('#characterHealth').text(characterPaletteData.modules[characterData.module][characterData.filename][characterData.type].health);
+    } else {
+        $('#characterHealth').text(characterPaletteData.health);
+    }
+
+    if (!characterData.description) {
+        $('#characterDescription').text(characterPaletteData.modules[characterData.module][characterData.filename][characterData.type].description);
+    } else {
+        $('#characterDescription').text(characterPaletteData.description);
+    }
+
+    if (!characterData.drops) {
+        $('#characterDrops').text(characterPaletteData.modules[characterPaletteData.module][characterPaletteData.filename][characterPaletteData.type].drops);
+    } else {
+        $('#characterDrops').text(characterData.drops);
+    }
 
     // And its inventory, if it has any.
     if (characterData.inventory === undefined) {
@@ -1326,14 +1336,17 @@ function findPaletteItem(dataSet, itemToFind) {
         return null; // The filename was not found
     }
 
-    for (var i = 0, len = fileContents.length; i < len; i++) {
-        var thisContent = fileContents[i];
-        if (thisContent.type === itemToFind.attr('data-type')) {
-            return thisContent; // Return as soon as the object is found
-        }
+    var match = fileContents[itemToFind.attr('data-type')];
+    if (match) {
+        // Match found. Add the type attribute, to help the
+        // UI identify it upon mouseover.
+        // Edit a copy to avoid polluting the original data.
+        var matchCopy = JSON.parse(JSON.stringify(match));
+        matchCopy.type = itemToFind.attr('data-type');
+        return matchCopy;
     }
 
-    return null; // The object was not found
+    return null; // The item type was not found
 }
 
 
@@ -1349,14 +1362,17 @@ function findLocationItem(dataSet, itemToFind) {
         return null; // The filename was not found
     }
 
-    for (var i = 0, len = fileContents.length; i < len; i++) {
-        var thisContent = fileContents[i];
-        if (thisContent.type === itemToFind.type) {
-            return thisContent; // Return as soon as the object is found
-        }
+    var match = fileContents[itemToFind.type];
+    if (match) {
+        // Match found. Add the type attribute, to help the
+        // UI identify it upon mouseover.
+        // Edit a copy to avoid polluting the original data.
+        var matchCopy = JSON.parse(JSON.stringify(match));
+        matchCopy.type = itemToFind.type;
+        return matchCopy;
     }
 
-    return null; // The object was not found
+    return null; // The item type was not found
 }
 
 
@@ -1367,7 +1383,6 @@ function loadEnvPalette(callback) {
         ipc.send('logmsg', 'found plugins:' + JSON.stringify(envPaletteData));
 
         var path = require('path');
-        var fs = require('fs');
         var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 
         var target = $('#paletteEnvList');
@@ -1391,7 +1406,7 @@ function loadEnvPalette(callback) {
             var childContainer = $("<div></div>");
             for (var fileName in envPaletteData.modules[moduleName]) {
                 var thisEntry = envPaletteData.modules[moduleName][fileName];
-                thisEntry.forEach(function (item) {
+                $.each(thisEntry, function (envType, envData) {
                     var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                     var html = "<div class='paletteItem draggable ui-widget-content' " +
                         "id='env_" + envNum++ + "' " +
@@ -1400,9 +1415,8 @@ function loadEnvPalette(callback) {
                         // data-category is needed to allow the category
                         // to be identified when dropping an item onto the map.
                         "data-category='" + envPaletteData.category + "' " +
-                        "data-type='" + item.type + "' " +
-                        "data-image='" + item.image + "' " +
-                        "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
+                        "data-type='" + envType + "' >" +
+                        "<img src='" + pathroot + "/" + moduleName + "/images/" + envData.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
                     paletteItem.draggable({ helper: 'clone', revert: 'invalid' });
@@ -1453,7 +1467,7 @@ function loadItemsPalette(callback) {
             var childContainer = $("<div></div>");
             for (var fileName in itemPaletteData.modules[moduleName]) {
                 var thisEntry = itemPaletteData.modules[moduleName][fileName];
-                thisEntry.forEach(function (item) {
+                $.each(thisEntry, function (itemType, itemData) {
                     var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                     var html = "<div class='paletteItem draggable ui-widget-content' " +
                         "id='item_" + itemNum++ + "' " +
@@ -1462,9 +1476,8 @@ function loadItemsPalette(callback) {
                         // data-category is needed to allow the category
                         // to be identified when dropping an item onto the map.
                         "data-category='" + itemPaletteData.category + "' " +
-                        "data-type='" + item.type + "' " +
-                        "data-image='" + item.image + "' " +
-                        "><img src='" + pathroot + "/" + moduleName + "/images/" + item.image + "'/>";
+                        "data-type='" + itemType + "' >" +
+                        "<img src='" + pathroot + "/" + moduleName + "/images/" + itemData.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
                     paletteItem.draggable({ helper: 'clone', revert: 'invalid' });
@@ -1515,7 +1528,7 @@ function loadCharactersPalette(callback) {
             var childContainer = $("<div></div>");
             for (var fileName in characterPaletteData.modules[moduleName]) {
                 var thisEntry = characterPaletteData.modules[moduleName][fileName];
-                thisEntry.forEach(function (character) {
+                $.each(thisEntry, function (characterType, characterData) {
                     var container = $("<div style='display: inline-block; padding: 2px;'></div>");
                     var html = "<div class='paletteItem draggable ui-widget-content' " +
                         "id='char_" + characterNum++ + "' " +
@@ -1524,9 +1537,8 @@ function loadCharactersPalette(callback) {
                         // data-category is needed to allow the category
                         // to be identified when dropping an item onto the map.
                         "data-category='" + characterPaletteData.category + "' " +
-                        "data-type='" + character.type + "' " +
-                        "data-image='" + character.image + "' " +
-                        "><img src='" + pathroot + "/" + moduleName + "/images/" + character.image + "'/>";
+                        "data-type='" + characterType + "' >" +
+                        "<img src='" + pathroot + "/" + moduleName + "/images/" + characterData.image + "'/>";
                     html += "</div>";
                     var paletteItem = $(html);
                     paletteItem.draggable({ helper: 'clone', revert: 'invalid' });

@@ -785,284 +785,41 @@ function createZipFile(tmpDir, gameName, callback) {
 }
 
 
-function exportGame_orig() {
-    // Create a temporary working directory.
-    var fs = require('fs');
-    var os = require('os');
-    const app = electron.remote.app;
+// The game designer questrealms.db is not normalized. mapLocation attributes such as image and description
+// are repeated when they should really be loaded from the plugin attributes. The game play code does this
+// lookup, so strip these attributes out when exporting a game.
+// TODO: update the realm editor to behave the same way, then this function can be removed.
+function stripRealmData(realmData) {
+    return realmData;
+    
+    // Make a copy to avoid altering the original data.
+    var strippedData = JSON.parse(JSON.stringify(realmData));
 
-    // https://nodejs.org/api/fs.html
-    fs.mkdtemp(path.join(os.tmpdir(), 'questexport-'), (err, tmpDir) => {
-        if (err) throw err;
+    $.each(strippedData.mapLocations, function(thisLocation) {
+        delete thisLocation.image;
 
-        // Export the game and the realms from the master db.
-        var gameId = $('#exportGameId').val().trim();
-        var gameDB = new Datastore({ filename: tmpDir + '/game.db', autoload: true });
-        var realmDB = new Datastore({ filename: tmpDir + '/questrealms.db', autoload: true });
-        var exportFileName = $('#exportGameName').val();
+        // TODO: For now we're only stripping verbose repeated info such as description.
+        // We could really strip everything except the module, filename, and type since
+        // all other standard attributes can be looked up from the module data.
+        // TODO: Only store these values if they have been edited. Rely on runtime lookup
+        // for all standard values. In this case, there will be no need for stripping
+        // description etc. as the editor will only store them if the values have been edited.
+        $.each(thisLocation.items, function(thisItem) {
+            delete thisItem.description;
+        });
 
-        var db_collections = dbWrapper.getDBs();
-        db_collections.games.find({ '_id': gameId }, function (err, gameData) {
-            if (err) {
-                console.error("Failed to find db");
-                return;
-            }
-
-            // There are several steps in the game export process, which must happen
-            // in sequence, despite some being asynchronous.
-            async.waterfall([
-                function (callback) {
-                    // Export the game db entry.
-                    gameDB.insert(gameData[0], function (err, newGame) {
-                        if (err) {
-                            alert("Error: " + JSON.stringify(err));
-                            callback(err);
-                        }
-
-                        callback(null, newGame);
-                    });
-                },
-                function (newGame, callback) {
-                    // Export the realm db entries. Record the module dependencies
-                    // for use in subsequent stages.
-                    var manifestData = {
-                        'name': newGame.name,
-                        'description': newGame.description,
-                    };
-
-                    // Iterate over the game realms, exporting each in turn.
-                    async.eachSeries(
-                        gameData[0].realms,
-                        function (realmId, callback) {
-                            db_collections.questrealms.find({ '_id': realmId }, function (err, realmData) {
-                                if (err) {
-                                    console.error("Failed to find realm " + realmId);
-                                    callback(err);
-                                }
-
-                                realmDB.insert(realmData[0], function (err, newRealm) {
-                                    if (err) {
-                                        alert("Error: " + JSON.stringify(err));
-                                        callback(err);
-                                    }
-
-                                    // Keep track of the module dependencies.
-                                    findRealmModules(newRealm, manifestData);
-
-                                    // Move on to the next realm.
-                                    callback();
-                                });
-                            });
-                        },
-                        function (err) {
-                            // All done processing the realms, or aborted early with an error.
-                            console.log("realms done. err: " + err + ", modules: " + JSON.stringify(manifestData));
-                            if (err) {
-                                callback(err);
-                                return;
-                            }
-
-                            callback(err, manifestData)
-                        }
-                    );
-                },
-                function (manifestData, callback) {
-                    // This function is synchronous, so no callback arg required.
-                    writeGameManifest(tmpDir, manifestData);
-                    callback(null, manifestData);
-                },
-                function (manifestData, callback) {
-                    // This function is asynchronous, so needs a callback arg.
-                    exportModules(tmpDir, manifestData, function (err) {
-                        callback(err);
-                    });
-                },
-                function (callback) {
-                    console.log("before create zip file");
-                    createZipFile(tmpDir, exportFileName, function () {
-                        console.log("after create zip file");
-                        callback();
-                    });
-                },
-                function (callback) {
-                    console.log("remove tmpdir");
-                    var rimraf = require('rimraf');
-                    rimraf(tmpDir, function (err) {
-                        callback(err);
-                    });
-                }
-            ],
-                function (err) {
-                    // All done processing the games and realms, or aborted early with an error.
-                    if (err) {
-                        console.error("Failed to export game: " + err);
-                        return;
-                    }
-
-                    console.log("all done.");
-                    cleanAndHideExportGamePanel();
-                    alert("Exported game to " + os.tmpdir() + "/" + exportFileName);
-                });
+        $.each(thisLocation.characters, function(thisCharacter) {
+            delete thisCharacter.description;
         });
     });
+
+    //strippedData.mapLocations = strippedData.mapLocations(function(thisLocation) {
+    //    delete thisLocation.image;
+    //    return thisLocation;
+    //});
+
 }
 
-function exportGame_v1() {
-    // Create a temporary working directory.
-    var fs = require('fs');
-    const app = electron.remote.app;
-    var gameBasedir = app.getPath('userData') + "/exported-games/";
-
-    // Export the game and the realms from the master db.
-    var exportFileName = $('#exportGameName').val();
-    var gameDir = path.join(gameBasedir, exportFileName);
-    var gameId = $('#exportGameId').val().trim();
-
-    var db_collections = dbWrapper.getDBs();
-    db_collections.games.find({ '_id': gameId }, function (err, gameData) {
-        if (err) {
-            console.error("Failed to find db");
-            return;
-        }
-
-        // There are several steps in the game export process, which must happen
-        // in sequence, despite some being asynchronous.
-        async.waterfall([
-            function (callback) {
-                var fullExportFileName = path.join(gameBasedir, exportFileName + ".zip");
-                fs.access(fullExportFileName, fs.constants.F_OK, function (err) {
-                    console.log(`${fullExportFileName} ${err ? 'does not exist' : 'exists'}`);
-                    if (err) {
-                        if (err.code === "ENOENT") {
-                            // Good, we want it to not exist.
-                            callback(null);
-                        } else {
-                            callback(err);
-                        }
-                    } else {
-                        callback(`Game ${fullExportFileName} already exists.`);
-                    }
-                });
-            },
-            // Should be able to do the mkdir in one step with the { recursive: true }
-            // option to fs.mkdir() but that isn't working in the current version
-            // of node.
-            function (callback) {
-                fs.mkdir(gameBasedir, function (err) {
-                    if (err && err.code !== "EEXIST") {
-                        console.log("Info: " + JSON.stringify(err));
-                    }
-
-                    callback(null);
-                });
-            },
-            function (callback) {
-                fs.mkdir(gameDir, function (err) {
-                    if (err) {
-                        alert("Error: " + JSON.stringify(err));
-                    }
-
-                    callback(err);
-                });
-            },
-            function (callback) {
-                // Export the game db entry.
-                var gameDB = new Datastore({ filename: gameDir + '/game.db', autoload: true });
-
-                gameDB.insert(gameData[0], function (err, newGame) {
-                    if (err) {
-                        alert("Error: " + JSON.stringify(err));
-                        callback(err);
-                    }
-
-                    callback(null, newGame);
-                });
-            },
-            function (newGame, callback) {
-                // Export the realm db entries. Record the module dependencies
-                // for use in subsequent stages.
-                var manifestData = {
-                    'name': newGame.name,
-                    'description': newGame.description,
-                };
-
-                // Iterate over the game realms, exporting each in turn.
-                async.eachSeries(
-                    gameData[0].realms,
-                    function (realmId, callback) {
-                        db_collections.questrealms.find({ '_id': realmId }, function (err, realmData) {
-                            if (err) {
-                                console.error("Failed to find realm " + realmId);
-                                callback(err);
-                            }
-
-                            var realmDB = new Datastore({ filename: gameDir + '/questrealms.db', autoload: true });
-                            realmDB.insert(realmData[0], function (err, newRealm) {
-                                if (err) {
-                                    alert("Error: " + JSON.stringify(err));
-                                    callback(err);
-                                }
-
-                                // Keep track of the module dependencies.
-                                findRealmModules(newRealm, manifestData);
-
-                                // Move on to the next realm.
-                                callback();
-                            });
-                        });
-                    },
-                    function (err) {
-                        // All done processing the realms, or aborted early with an error.
-                        console.log("realms done. err: " + err + ", modules: " + JSON.stringify(manifestData));
-                        if (err) {
-                            callback(err);
-                            return;
-                        }
-
-                        callback(err, manifestData)
-                    }
-                );
-            },
-            function (manifestData, callback) {
-                // This function is synchronous, so no callback arg required.
-                writeGameManifest(gameDir, manifestData);
-                callback(null, manifestData);
-            },
-            function (manifestData, callback) {
-                // This function is asynchronous, so needs a callback arg.
-                exportModules(gameDir, manifestData, function (err) {
-                    callback(err);
-                });
-            },
-            function (callback) {
-                console.log("before create zip file");
-                createZipFile(gameDir, exportFileName, function () {
-                    console.log("after create zip file");
-                    callback();
-                });
-            },
-            function (callback) {
-                console.log("remove tmpdir");
-                var rimraf = require('rimraf');
-                rimraf(gameDir, function (err) {
-                    callback(err);
-                });
-            }
-        ],
-            function (err) {
-                // All done processing the games and realms, or aborted early with an error.
-                if (err) {
-                    console.error("Failed to export game: " + err);
-                    alert("Failed to export game: " + err);
-                    return;
-                }
-
-                console.log("all done.");
-                cleanAndHideExportGamePanel();
-                alert("Exported game to " + gameDir);
-            });
-    });
-}
 
 function exportGame(gameBasedir, callback) {
     // Create a temporary working directory.
@@ -1152,7 +909,8 @@ function exportGame(gameBasedir, callback) {
                             }
 
                             var realmDB = new Datastore({ filename: gameDir + '/questrealms.db', autoload: true });
-                            realmDB.insert(realmData[0], function (err, newRealm) {
+                            var strippedRealmData = stripRealmData(realmData[0]);
+                            realmDB.insert(strippedRealmData, function (err, newRealm) {
                                 if (err) {
                                     alert("Error: " + JSON.stringify(err));
                                     callback(err);

@@ -1,5 +1,5 @@
 /**
- * Manage access to plugin data.
+ * Manage access to QuestOfRealms plugin data.
  * (c) Simon Logan 2018
  */
 
@@ -29,24 +29,11 @@ module.exports = {
                if (stat && !stat.isDirectory()) {
                   var thisItem = require(nextLevelDirOrFile);
                   if (thisItem.category === pluginData.category && thisItem.attributes) {
-                     var thisFileData = [];
-
-                     // Support defining more than one environment type in the same file.
-                     // It is recommended to use one file per character though, to stop the
-                     // files becoming too large.
-                     if (Object.prototype.toString.call(thisItem.attributes) === '[object Array]') {
-                        for (var index3 in thisItem.attributes) {
-                           thisFileData.push(thisItem.attributes[index3]);
-                        }
-                     } else {
-                        thisFileData.push(thisItem.attributes);
-                     }
-
                      if (!(moduleName in pluginData.modules)) {
                         pluginData.modules[moduleName] = {};
                      }
 
-                     pluginData.modules[moduleName][filename] = thisFileData;
+                     pluginData.modules[moduleName][filename] = thisItem.attributes;
                   }
                }
             }

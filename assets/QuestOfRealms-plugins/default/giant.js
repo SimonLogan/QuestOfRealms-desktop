@@ -7,13 +7,14 @@ module.exports = {
 
    category: "character",
    attributes: {
-      type: "Giant",
-      image: "Giant.png",
-      description: "Lumbering, stupid humanoids.",
-      additional_info: "Can be found herding Iron Boars. Easily killed by Gryphons. They love gold.",
-      health: 15,
-      damage: 5,
-      drops: ["leather"]
+      "Giant": {
+         image: "Giant.png",
+         description: "Lumbering, stupid humanoids.",
+         additional_info: "Can be found herding Iron Boars. Easily killed by Gryphons. They love gold.",
+         health: 15,
+         damage: 5,
+         drops: ["leather"]
+      }
    },
    handlers: {
       "give": function (giant, object, game, playerName, callback) {
