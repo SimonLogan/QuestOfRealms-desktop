@@ -7,7 +7,6 @@
 
 window.$ = window.jQuery = require('jquery');
 const electron = require('electron')
-const path = require('path')
 const remote = electron.remote
 const ipc = electron.ipcRenderer
 
@@ -65,32 +64,20 @@ $('#objectiveChoice').change(function () {
     var moduleName = selection.attr('data-module');
     var fileName = selection.attr('data-filename');
     var module = objectivePaletteData.modules[moduleName];
-    var objectiveTypes = module[fileName];
+    var objective = module[fileName][selectedObjectiveType];
 
-    for (var i = 0; i < objectiveTypes.length; i++) {
-        if (objectiveTypes[i].name === selectedObjectiveType) {
-            var html = "<table>";
-            objectiveTypes[i].parameters.forEach(function (param) {
-                html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
-                html += "<td><input type='text'/></td></tr>";
-            });
-
-            html += "</table>";
-            $('#objectiveParamsPanel').html(html);
-            return;
-        }
-    }
-
-    $('#objectiveParamsPanel').html("");
+    var html = "<table>";
+    objective.parameters.forEach(function (param) {
+        html += "<tr><td class='detailsHeading'>" + param.name + "</td>";
+        html += "<td><input type='text'/></td></tr>";
+    });
+    html += "</table>";
+    $('#objectiveParamsPanel').html(html);
 });
 
 ipc.on('init', function (event, args) {
     console.log('editObjective.js init: ' + JSON.stringify(args));
     ipc.send('logmsg', 'editObjective.js init: ' + JSON.stringify(args));
-
-    var path = require('path');
-    var fs = require('fs');
-    var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 
     var html = "<option value='choose' title='choose' disabled selected>Choose</option>";
 
@@ -107,13 +94,15 @@ ipc.on('init', function (event, args) {
     $.each(objectivePaletteData.modules, function (moduleName) {
         for (var fileName in objectivePaletteData.modules[moduleName]) {
             var thisEntry = objectivePaletteData.modules[moduleName][fileName];
-            for (var i = 0; i < thisEntry.length; i++) {
-                html += "<option value='" + i + "' ";
-                html += "title='" + thisEntry[i].description + "' ";
+            var index = 0;
+            $.each(thisEntry, function (objectiveName) {
+                var objectiveData = thisEntry[objectiveName];
+                html += "<option value='" + (index++) + "' ";
+                html += "title='" + objectiveData.description + "' ";
                 html += "data-module='" + moduleName + "' ";
                 html += "data-filename='" + fileName + "' ";
-                html += ">" + thisEntry[i].name + "</option>";
-            }
+                html += ">" + objectiveName + "</option>";
+            });
         };
     });
 

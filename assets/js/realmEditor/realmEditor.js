@@ -174,6 +174,7 @@ ipc.on('editRealm-data', function (event, data) {
         // Create the tabbed panels
         $("#paletteInnerPanel").tabs();
         $("#propertiesInnerPanel").tabs();
+        displayObjectives();
         //if (!err) enableControls();
     });
 
@@ -664,7 +665,6 @@ ipc.on('editRealm-data', function (event, data) {
 });
 
 
-
 //
 // Utility functions
 //
@@ -682,6 +682,14 @@ function drawMapLocation(item) {
     var imgName = envPaletteData.modules[item.attributes.module]
                      [item.attributes.filename][item.attributes.type].image;
     target.append("<img src='" + pluginsPath + item.attributes.module + "/images/" + imgName + "' />");
+
+    if (item.attributes.characters.length > 0) {
+        target.append('<img src="../../assets/images/other-character-icon.png" class="characterIcon">');
+    }
+
+    if (item.attributes.items.length > 0) {
+        target.append('<img src="../../assets/images/object-icon.png" class="itemIcon">');
+    }
 
     // To allow it to be dragged to the wastebasket.
     target.addClass('draggable mapItem');
@@ -1189,7 +1197,7 @@ function populateLocationCharacterDetails(character) {
     }
 
     if (!characterData.drops) {
-        $('#characterDrops').text(characterPaletteData.modules[characterPaletteData.module][characterPaletteData.filename][characterPaletteData.type].drops);
+        $('#characterDrops').text(characterPaletteData.modules[characterData.module][characterData.filename][characterData.type].drops);
     } else {
         $('#characterDrops').text(characterData.drops);
     }
@@ -1601,7 +1609,6 @@ function loadRealm(realmId, callback) {
             }
         });
 
-        displayObjectives();
         callback(null);
     });
 }
@@ -1701,6 +1708,32 @@ function displayLocationCharacterInventory(character) {
 }
 
 
+function showStartLocation(objective) {
+    // Get the coordinates of the "start at" objective.
+    var x = null;
+    var y = null;
+    $.each(objective.params, function (thisParam) {
+        if (objective.params[thisParam].name === "x") {
+            x = objective.params[thisParam].value;
+        }
+        else if (objective.params[thisParam].name === "y") {
+            y = objective.params[thisParam].value;
+        }
+    });
+
+    if (!x || !y) {
+        console.error("Couldn't find start at co-ordinates");
+        return;
+    }
+
+    var mapLocation = locationData.where({ x: x, y: y })[0];
+    var target = $('#mapTable td[id="cell_' + mapLocation.attributes.x + '_' + mapLocation.attributes.y + '"]').find('div');
+    var html = target.html();
+    html += '<img id="simon" src="../../assets/images/player-icon.png" class="playerIcon">';
+    target.html(html);
+}
+
+
 function displayObjectiveDetails(item) {
     var description = "";
 
@@ -1715,6 +1748,11 @@ function displayObjectiveDetails(item) {
 
 function displayObjectives() {
     console.log(Date.now() + ' displayObjectives');
+
+    // Remove the existing "start at" marker, as the start at objectivemay have
+    // been deleted.
+    $('.playerIcon').remove();
+    
     var target = $('#objectiveList').html("");
     var html = "";
 
@@ -1726,6 +1764,10 @@ function displayObjectives() {
             html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
             html += "<td><input class='deleteObjective' type='image' src='../../assets/images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
             html += "</tr>";
+
+            if (item.type === 'Start at') {
+                showStartLocation(item);
+            }
         });
     }
 

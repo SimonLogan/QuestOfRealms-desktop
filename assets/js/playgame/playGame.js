@@ -140,7 +140,11 @@ ipc.on('playGame-data', function (event, data) {
 
     async.series([
         function(callback) {
-            gameEngine.initialize(gamePath, function (err) {
+            loadDependencyData(gamePath);
+            callback(null);
+        },
+        function(callback) {
+            gameEngine.initialize(gamePath, g_dependencyInfo, function (err) {
                 if (err) {
                     alert("Failed to load game: " + err);
                     callback(err);
@@ -168,10 +172,6 @@ ipc.on('playGame-data', function (event, data) {
                 g_currentRealmData = gameEngine.getCurrentRealmData();
                 callback(null);
             });
-        },
-        function(callback) {
-            loadDependencyData(gamePath);
-            callback(null);
         },
         function(callback) {
             drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
@@ -284,9 +284,6 @@ function loadDependencyData(gamePath) {
             console.log("   processing file " + fileName);
             var fileInfo = require(path.join(gamePath, "modules", moduleName, fileName));
             g_dependencyInfo[moduleName][fileName] = fileInfo.attributes;
-            //$.each(resourceList, function(index, resourceName) {
-            //    console.log("      processing resource " + resourceName);
-            //});
         });
     });
 }
@@ -1063,29 +1060,29 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
     }
     displayMessage(message);
 
-    if (thisCharacter.description) {
-        displayMessage(thisCharacter.description);
+    // In all cases below, character-specific values are optional in the db.
+    // If nothing found, use the default value (from the module data) instead.
+    // Some values (such as additonalInfo) are optional in the module data too.
+    var moduleData = g_dependencyInfo[thisCharacter.module][thisCharacter.filename][thisCharacter.type];
+
+    displayMessage(readProperty(thisCharacter.description, moduleData.description));
+
+    var addInfo = readProperty(thisCharacter.additionalInfo, moduleData.additionalInfo);
+    if (addInfo) {
+        displayMessage(addInfo);
     }
 
-    if (thisCharacter.additionalInfo) {
-        displayMessage(thisCharacter.additionalInfo);
-    }
+    displayMessage("Damage: " + readProperty(thisCharacter.damage, moduleData.damage));
+    displayMessage("Health: " + readProperty(thisCharacter.health, moduleData.health));
 
-    if (thisCharacter.damage) {
-        displayMessage("Damage: " + thisCharacter.damage);
-    }
-
-    if (thisCharacter.health) {
-        displayMessage("Health: " + thisCharacter.health);
-    }
-
-    if (thisCharacter.drops) {
-        if (Object.prototype.toString.call(thisCharacter.drops) === '[object Array]') {
-            displayMessage("Drops: " + thisCharacter.drops.join(", "));
+   var drops = readProperty(thisCharacter.drops, moduleData.drops);
+    if (drops) {
+        if (Object.prototype.toString.call(drops) === '[object Array]') {
+            displayMessage("Drops: " + drops.join(", "));
         } else {
             // If the drops[] array defined in the plugin module only contained a single
             // entry, it will have been converted to a string when the object was saved.
-            displayMessage("Drops: " + thisCharacter.drops);
+            displayMessage("Drops: " + drops);
         }
     }
 
@@ -1129,12 +1126,20 @@ function describeLocationItem(playerLocation, itemName, itemNumber) {
     }
     displayMessage(message);
 
+    // In all cases below, character-specific values are optional in the db.
+    // If nothing found, use the default value (from the module data) instead.
+    var moduleData = g_dependencyInfo[thisItem.module][thisItem.filename][thisItem.type];
+
     if (thisItem.description) {
         displayMessage(thisItem.description);
+    } else {
+        displayMessage(moduleData.description);
     }
 
     if (thisItem.damage) {
         displayMessage("Damage: " + thisItem.damage);
+    } else {
+        displayMessage("Damage: " + moduleData.damage);
     }
 
     return true;

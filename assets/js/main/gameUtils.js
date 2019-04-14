@@ -18,3 +18,12 @@ function readManifest(dir) {
 
     return manifest;
 }
+
+
+// Try to retrieve the named property from the supplied object.
+// If not found, take it from the named defaults collection instead.
+// This is because some properties aren't stored in the db if they
+// have default values.
+function readProperty(objectProperty, defaultProperty) {
+    return objectProperty ? objectProperty: defaultProperty;
+}

@@ -5,10 +5,12 @@
 
 const dbWrapper = require('../utils/dbWrapper');
 const async = require('async');
+const _ = require('underscore');
 const app = electron.remote.app;
 
-var gameData;
-var currentRealmData;
+var g_gameData;
+var g_currentRealmData;
+var g_dependencyInfo;
 
 // Find a player.
 class playerInfo {
@@ -93,9 +95,10 @@ module.exports = {
     //   dbPath - the location of the game db.
     //   loadCallback - a function to notify the caller when the game
     //                  has finished loading.
-    initialize: function (dbPath, loadCallback) {
+    initialize: function (dbPath, dependencyInfo, loadCallback) {
         async.waterfall([
             function (callback) {
+                g_dependencyInfo = dependencyInfo;
                 dbWrapper.openGameDB(callback, dbPath);
             },
             function (callback) {
@@ -104,12 +107,12 @@ module.exports = {
             function (callback) {
                 // Initially assume the first realm. Later, we need to
                 // load the current realm from the player data.
-                loadRealm(gameData.realms[0], callback);
+                loadRealm(g_gameData.realms[0], callback);
             }
         ],
-            function (err, results) {
-                loadCallback(err);
-            });
+        function (err, results) {
+            loadCallback(err);
+        });
     },
     getGameData: function () {
         // Return a copy of gameData;
@@ -125,7 +128,7 @@ module.exports = {
                 case mapDrawModeEnum.AUTO_ALL:
                 case mapDrawModeEnum.AUTO_VISITED:
                 case mapDrawModeEnum.MANUAL:
-                    gameData.player.mapDrawMode = prefs.mapDrawMode;
+                    g_gameData.player.mapDrawMode = prefs.mapDrawMode;
                     saveGame(callback);
                     break;
                 default:
@@ -143,7 +146,7 @@ module.exports = {
         // returned in either case, for example completing an action and
         // completing a goal as a result of the action.
 
-        var playerName = gameData.player.name;
+        var playerName = g_gameData.player.name;
 
         // Split the comandline into whitespace-separated tokens. Remove the first and use
         // this as the command verb. The others are the args.
@@ -277,7 +280,7 @@ function loadGame(callback) {
             return;
         }
 
-        gameData = data[0];
+        g_gameData = data[0];
         callback(null);
     });
 }
@@ -289,18 +292,18 @@ function loadRealm(realmId, callback) {
     db_collections.questrealms.find({ _id: realmId }, function (err, data) {
         console.log("gameEngine.loadRealm found data: " + JSON.stringify(data));
 
-        currentRealmData = data[0];
+        g_currentRealmData = data[0];
         callback(null);
     });
 }
 
 function local_getGameData() {
     // Return a copy of gameData;
-    return JSON.parse(JSON.stringify(gameData));
+    return JSON.parse(JSON.stringify(g_gameData));
 }
 
 function local_getCurrentRealmData() {
-    return JSON.parse(JSON.stringify(currentRealmData));
+    return JSON.parse(JSON.stringify(g_currentRealmData));
 }
 
 function copyMapLocation(location) {
@@ -311,7 +314,7 @@ function saveGame(callback) {
     console.log(Date.now() + ' saveGame');
 
     var db_collections = dbWrapper.getDBs();
-    db_collections.game.update({ _id: gameData._id }, gameData, {}, function (err, numReplaced) {
+    db_collections.game.update({ _id: g_gameData._id }, g_gameData, {}, function (err, numReplaced) {
         console.log("saveGame err:" + err);
         console.log("saveGame numReplaced:" + numReplaced);
         callback(null);
@@ -322,7 +325,7 @@ function saveRealm(callback) {
     console.log(Date.now() + ' saveRealm');
 
     var db_collections = dbWrapper.getDBs();
-    db_collections.questrealms.update({ _id: currentRealmData._id }, currentRealmData, {}, function (err, numReplaced) {
+    db_collections.questrealms.update({ _id: g_currentRealmData._id }, g_currentRealmData, {}, function (err, numReplaced) {
         console.log("saveRealm err:" + err);
         console.log("saveRealm numReplaced:" + numReplaced);
         callback(null);
@@ -332,10 +335,10 @@ function saveRealm(callback) {
 // Consider using a backbone collection for the maplocations here.
 // For now just filter the data directly.
 function findLocation(x, y) {
-    for (var i = 0; i < currentRealmData.mapLocations.length; i++) {
-        if (currentRealmData.mapLocations[i].x === x &&
-            currentRealmData.mapLocations[i].y === y) {
-            return currentRealmData.mapLocations[i];
+    for (var i = 0; i < g_currentRealmData.mapLocations.length; i++) {
+        if (g_currentRealmData.mapLocations[i].x === x &&
+            g_currentRealmData.mapLocations[i].y === y) {
+            return g_currentRealmData.mapLocations[i];
         }
     }
 
@@ -385,15 +388,15 @@ function handleMove(command, playerName, statusCallback) {
     }
 
     // Does the requested location exist? First get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleMove.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var originalX = parseInt(gameData.player.location.x);
-    var originalY = parseInt(gameData.player.location.y);
+    var originalX = parseInt(g_gameData.player.location.x);
+    var originalY = parseInt(g_gameData.player.location.y);
     var newX = originalX + deltaX;
     var newY = originalY + deltaY;
     console.log("in handleMove.find() searching for location [" + newX + ", " + newY + "].");
@@ -432,16 +435,16 @@ function handleMove(command, playerName, statusCallback) {
     } else {
         game.players[playerInfo.playerIndex].health -= healthCost;
     */
-    gameData.player.location.x = newX.toString();
-    gameData.player.location.y = newY.toString();
+    g_gameData.player.location.x = newX.toString();
+    g_gameData.player.location.y = newY.toString();
 
     // Update the list of locations the player has visited.
     // This is a dictionary for quick searching. Using a list
     // will scale badly when drawing the whole map on the UI.
     var visitedKey = newX.toString() + "_" + newY.toString();
-    var playerVistitedLocation = (visitedKey in gameData.player.visited[currentRealmData._id]);
+    var playerVistitedLocation = (visitedKey in g_gameData.player.visited[g_currentRealmData._id]);
     if (!playerVistitedLocation) {
-        gameData.player.visited[currentRealmData._id][visitedKey] = true;
+        g_gameData.player.visited[g_currentRealmData._id][visitedKey] = true;
     }
 
     notifyData = {
@@ -494,15 +497,15 @@ function handleTake(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleTake.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var currentX = gameData.player.location.x;
-    var currentY = gameData.player.location.y;
+    var currentX = g_gameData.player.location.x;
+    var currentY = g_gameData.player.location.y;
     console.log("in handleTake.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
@@ -533,11 +536,11 @@ function handleTakeFromLocation(objectName, currentLocation, playerName, statusC
         return;
     }
 
-    if (undefined === gameData.player.inventory) {
-        gameData.player.inventory = [];
+    if (undefined === g_gameData.player.inventory) {
+        g_gameData.player.inventory = [];
     }
 
-    gameData.player.inventory.push(itemInfo.item);
+    g_gameData.player.inventory.push(itemInfo.item);
     currentLocation.items.splice(itemInfo.itemIndex, 1);
 
     notifyData = {
@@ -629,7 +632,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
 
     // We found the item. See if we can take it.
     var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
     console.log("gameDir: " + gameDir);
     var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
     console.log("HandlerPath: " + handlerPath);
@@ -652,7 +655,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
     }
 
     console.log("calling take from()");
-    handlerFunc(characterInfo.character, foundInventoryItem, gameData, playerName, function (handlerResp) {
+    handlerFunc(characterInfo.character, foundInventoryItem, g_gameData, playerName, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 Take from failed - null handlerResp");
@@ -673,10 +676,10 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
         foundInventoryItem.source = { reason: "take from", from: targetName };
         characterInfo.character.inventory.splice(foundIndex, 1);
 
-        if (gameData.player.inventory === undefined) {
-            gameData.player.inventory = [];
+        if (g_gameData.player.inventory === undefined) {
+            g_gameData.player.inventory = [];
         }
-        gameData.player.inventory.push(foundInventoryItem);
+        g_gameData.player.inventory.push(foundInventoryItem);
 
         notifyData = {
             player: playerName,
@@ -744,15 +747,15 @@ function handleBuy(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleBuy.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var currentX = gameData.player.location.x;
-    var currentY = gameData.player.location.y;
+    var currentX = g_gameData.player.location.x;
+    var currentY = g_gameData.player.location.y;
     console.log("in handleBuy.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
@@ -823,7 +826,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
 
     // We found the item. See if we can buy it.
     var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
     console.log("gameDir: " + gameDir);
     var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
     console.log("HandlerPath: " + handlerPath);
@@ -847,7 +850,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
 
     console.log("calling buy from()");
     // TODO: pass copies of characterInfo, object, and gameData
-    handlerFunc(characterInfo.character, foundInventoryItem, gameData, playerName, function (handlerResp) {
+    handlerFunc(characterInfo.character, foundInventoryItem, g_gameData, playerName, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 Buy from failed - null handlerResp");
@@ -868,18 +871,18 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
         foundInventoryItem.source = { reason: "buy from", from: targetName };
         characterInfo.character.inventory.splice(foundIndex, 1);
 
-        if (gameData.player.inventory === undefined) {
-            gameData.player.inventory = [];
+        if (g_gameData.player.inventory === undefined) {
+            g_gameData.player.inventory = [];
         }
-        gameData.player.inventory.push(foundInventoryItem);
+        g_gameData.player.inventory.push(foundInventoryItem);
 
         //  Now pay!
         if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {
-            for (var i = 0; i < gameData.player.inventory.length; i++) {
-                if (gameData.player.inventory[i].type === handlerResp.data.payment.type) {
+            for (var i = 0; i < g_gameData.player.inventory.length; i++) {
+                if (g_gameData.player.inventory[i].type === handlerResp.data.payment.type) {
                     // could use characterInfo.character instead of currentLocation.characters[characterInfo.characterIndex]
-                    currentLocation.characters[characterInfo.characterIndex].inventory.push(gameData.player.inventory[i]);
-                    gameData.player.inventory.splice(i, 1);
+                    currentLocation.characters[characterInfo.characterIndex].inventory.push(g_gameData.player.inventory[i]);
+                    g_gameData.player.inventory.splice(i, 1);
                     break;
                 }
             }
@@ -939,15 +942,15 @@ function handleDrop(command, playerName, statusCallback) {
     console.log("DROP: " + target);
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleDrop.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var currentX = gameData.player.location.x;
-    var currentY = gameData.player.location.y;
+    var currentX = g_gameData.player.location.x;
+    var currentY = g_gameData.player.location.y;
     console.log("in handleDrop.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
@@ -991,7 +994,7 @@ function handleDrop(command, playerName, statusCallback) {
         playerInfo.player.using = [];
     }
 
-    gameData.player = playerInfo.player;
+    g_gameData.player = playerInfo.player;
 
     notifyData = {
         player: playerName,
@@ -1056,15 +1059,15 @@ function handleGive(command, playerName, statusCallback) {
     console.log("GIVE: " + objectName + " to " + targetName);
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleGive.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var currentX = gameData.player.location.x;
-    var currentY = gameData.player.location.y;
+    var currentX = g_gameData.player.location.x;
+    var currentY = g_gameData.player.location.y;
     console.log("in handleGive.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
@@ -1124,7 +1127,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
     console.log("Found recipient: " + JSON.stringify(targetName));
 
     var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
     console.log("gameDir: " + gameDir);
     var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
     console.log("HandlerPath: " + handlerPath);
@@ -1147,7 +1150,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
     }
 
     console.log("calling give()");
-    handlerFunc(targetName, foundInventoryItem, gameData, playerName, function (handlerResp) {
+    handlerFunc(targetName, foundInventoryItem, g_gameData, playerName, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("Give failed - null handlerResp");
@@ -1233,7 +1236,7 @@ function handleUse(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
     var objectName = commandArgs.trim();
 
-    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleUse.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
@@ -1312,15 +1315,15 @@ function handleFight(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(gameData, playerName);
+    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
     if (null === playerInfo) {
         console.log("in handleFight.find() invalid player.");
         statusCallback({ error: true, message: "Invalid player" });
         return;
     }
 
-    var currentX = gameData.player.location.x;
-    var currentY = gameData.player.location.y;
+    var currentX = g_gameData.player.location.x;
+    var currentY = g_gameData.player.location.y;
     console.log("in handleFight.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
@@ -1385,7 +1388,7 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
     console.log("Found targetName: " + JSON.stringify(targetName));
 
     var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
     console.log("gameDir: " + gameDir);
 
     // Perform the default fight operation and call the optional handler to modify the
@@ -1432,6 +1435,11 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
     // token gives info about what data it contains. Compare this to the much worse
     // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
 
+    var moduleData = g_dependencyInfo[characterInfo.character.module]
+        [characterInfo.character.filename][characterInfo.character.type];
+    characterInfo.character.health = readProperty(characterInfo.character.health, moduleData.health);
+    characterInfo.character.damage = readProperty(characterInfo.character.damage, moduleData.damage);
+
     console.log(
         "Before fight. player.health: " + playerInfo.player.health +
         ", player.damage: " + playerInfo.player.damage +
@@ -1458,7 +1466,7 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
 
     var characterOrigHealth = characterInfo.character.health;
     var playerOrigHealth = playerInfo.player.health;
-    handlerFunc(characterInfo.character, gameData, playerInfo, function (handlerResp) {
+    handlerFunc(characterInfo.character, g_gameData, playerInfo, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 fight - null handlerResp");
@@ -1530,7 +1538,7 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
             }
         }
 
-        gameData.player.health = playerHealth;
+        g_gameData.player.health = playerHealth;
         characterInfo.character.health = characterHealth;
 
         if (characterDied) {
@@ -1628,7 +1636,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
     }
 
     var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", gameData.name);
+    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
     console.log("gameDir: " + gameDir);
 
     // Perform the default fight operation and call the optional handler to modify the
@@ -1675,6 +1683,11 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
     // token gives info about what data it contains. Compare this to the much worse
     // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
 
+    var moduleData = g_dependencyInfo[characterInfo.character.module]
+        [characterInfo.character.filename][characterInfo.character.type];
+    characterInfo.character.health = readProperty(characterInfo.character.health, moduleData.health);
+    characterInfo.character.damage = readProperty(characterInfo.character.damage, moduleData.damage);
+
     console.log(
         "Before fight. player.health: " + playerInfo.player.health +
         ", player.damage: " + playerInfo.player.damage +
@@ -1701,7 +1714,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
 
     var characterOrigHealth = characterInfo.character.health;
     var playerOrigHealth = playerInfo.player.health;
-    handlerFunc(characterInfo.character, foundInventoryItem, gameData, playerInfo, function (handlerResp) {
+    handlerFunc(characterInfo.character, foundInventoryItem, g_gameData, playerInfo, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("1 fight for - null handlerResp");
@@ -1773,7 +1786,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
             }
         }
 
-        gameData.player.health = playerHealth;
+        g_gameData.player.health = playerHealth;
         characterInfo.character.health = characterHealth;
         
         // Fight worked, so update the target.
@@ -1789,7 +1802,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
         // "acquire from" objectives.
         if (playerWon) {
             foundInventoryItem.source = { reason: "take from", from: targetName };
-            gameData.player.inventory.push(foundInventoryItem);
+            g_gameData.player.inventory.push(foundInventoryItem);
             characterInfo.character.inventory.splice(foundIndex, 1);
         }
 
@@ -1848,19 +1861,19 @@ function checkObjectives(game, playerName, callback) {
         return;
     }
 
-    console.log("Objectives: " + JSON.stringify(currentRealmData.objectives));
+    console.log("Objectives: " + JSON.stringify(g_currentRealmData.objectives));
 
-    for (var i = 0; i < currentRealmData.objectives.length; i++) {
-        if (currentRealmData.objectives[i].completed === "true") {
+    for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
+        if (g_currentRealmData.objectives[i].completed === "true") {
             continue;
         }
 
         // Special handling for the "Start at" objective.
-        if (currentRealmData.objectives[i].type === "Start at") {
+        if (g_currentRealmData.objectives[i].type === "Start at") {
             continue;
         }
 
-        var objective = currentRealmData.objectives[i];
+        var objective = g_currentRealmData.objectives[i];
         console.log("Evaluating objective " + i + ": " + JSON.stringify(objective));
         var path = require('path');
         var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
@@ -1875,8 +1888,8 @@ function checkObjectives(game, playerName, callback) {
         }
 
         console.log("Found handlerPath:" + handlerPath);
-        console.log("calling " + objective.type + "() with game: " + JSON.stringify(gameData));
-        handlerFunc(objective, gameData, currentRealmData, playerName, function (handlerResp) {
+        console.log("calling " + objective.type + "() with game: " + JSON.stringify(g_gameData));
+        handlerFunc(objective, g_gameData, g_currentRealmData, playerName, function (handlerResp) {
             console.log("handlerResp: " + handlerResp);
             if (!handlerResp) {
                 console.log("Invalid handler response.");
@@ -1886,7 +1899,7 @@ function checkObjectives(game, playerName, callback) {
 
             console.log("Valid handlerResp: " + JSON.stringify(handlerResp));
             var id = handlerResp.data.objective.id;
-            currentRealmData.objectives[id] = handlerResp.data.objective;
+            g_currentRealmData.objectives[id] = handlerResp.data.objective;
 
             saveRealm(function (err) {
                 if (err) {
