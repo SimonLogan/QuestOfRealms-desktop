@@ -159,11 +159,16 @@ module.exports = {
                 handleMove(command, playerName, function (handlerResult) {
                     console.log("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
                 break;
@@ -171,11 +176,16 @@ module.exports = {
                 handleTake(command, playerName, function (handlerResult) {
                     console.log("in gameCommand. handleTake result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
                 break;
@@ -183,11 +193,16 @@ module.exports = {
                 handleBuy(command, playerName, function (handlerResult) {
                     console.log("in gameCommand. handleBuy result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
                 break;
@@ -195,11 +210,16 @@ module.exports = {
                 handleDrop(command, playerName, function (handlerResult) {
                     console.log("in gameCommand. handleDrop result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
                 break;
@@ -208,11 +228,15 @@ module.exports = {
                     console.log("in gameCommand. handleGive result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
                 break;
@@ -220,12 +244,16 @@ module.exports = {
                 handleUse(command, playerName, function (handlerResult) {
                     console.log("in gameCommand. handleUse result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
-
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+                    
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
                 break;
@@ -234,11 +262,15 @@ module.exports = {
                     console.log("in gameCommand. handleFight result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
                 break;
@@ -247,11 +279,15 @@ module.exports = {
                     console.log("in gameCommand. handleCommand result = " + handlerResult);
                     callback(handlerResult);
 
-                    if (handlerResult.hasOwnProperty("data")) {
-                        checkObjectives(handlerResult.data.data.game, playerName, function (objectiveResult) {
-                            console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                            callback(objectiveResult);
-                        });
+                    if (handlerResult.hasOwnProperty("responseData")) {
+                        if (handlerResult.responseData.hasOwnProperty("data")) {
+                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
+                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
+                                if (objectiveResult) {
+                                    callback(objectiveResult);
+                                }
+                            });
+                        }
                     }
                 });
         }
@@ -343,6 +379,48 @@ function findLocation(x, y) {
     }
 
     return null;
+}
+
+// Try to fnd a handler function for the specified action.
+// Specifying useDefault: true for the findOptions will
+// look for a default handler if the module does not
+// provide one.
+function findHandler(object, action, findOptions) {
+    var path = require('path');
+    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
+    console.log("gameDir: " + gameDir);
+
+    var handlerFunc = null;
+
+    var tryHandlers = [
+        path.join(gameDir, "modules", object.module, object.filename)
+    ];
+
+    if (findOptions && findOptions.hasOwnProperty('useDefault') && findOptions.useDefault === true) {
+        tryHandlers.push(path.join(gameDir, "modules", "default", "default-handlers.js"));
+    }
+
+    for (var i = 0; i < tryHandlers.length; i++) {
+        var handlerPath = tryHandlers[i];
+        console.log("tryhandlers[" + i + "] = " + handlerPath);
+        try {
+            module = require(handlerPath);
+        } catch (err) {
+            console.log(JSON.stringify(err));
+            continue;
+        }
+
+        if (module.handlers !== undefined && module.handlers[action] !== undefined) {
+            handlerFunc = module.handlers[action];
+            console.log("found " + action + " handler");
+            break;
+        } else {
+            console.log("1 Module: " + handlerPath +
+                " does not have a handler for \"" + action + "\".");
+        }
+    }
+	
+	return handlerFunc;
 }
 
 function handleMove(command, playerName, statusCallback) {
@@ -631,25 +709,8 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
     console.log("characterIndex: " + characterInfo.characterIndex);
 
     // We found the item. See if we can take it.
-    var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
-    console.log("gameDir: " + gameDir);
-    var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
-    console.log("HandlerPath: " + handlerPath);
-    var module = require(handlerPath);
-
-    // Command handlers are optional.
-    if (module.handlers === undefined) {
-        console.log("1 Module: " + handlerPath +
-            " does not have a handler for \"take from\".");
-        statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
-        return;
-    }
-
-    var handlerFunc = module.handlers["take from"];
+    var handlerFunc = findHandler(characterInfo.character, "take from");
     if (handlerFunc === undefined) {
-        console.log("2 Module: " + handlerPath +
-            " does not have a handler for \"take from\".");
         statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
         return;
     }
@@ -825,25 +886,8 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
     console.log("characterIndex: " + characterInfo.characterIndex);
 
     // We found the item. See if we can buy it.
-    var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
-    console.log("gameDir: " + gameDir);
-    var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
-    console.log("HandlerPath: " + handlerPath);
-    var module = require(handlerPath);
-
-    // Command handlers are optional.
-    if (module.handlers === undefined) {
-        console.log("1 Module: " + handlerPath +
-            " does not have a handler for \"buy from\".");
-        statusCallback({ error: true, message: "The " + targetName + " won't sell you the " + objectName });
-        return;
-    }
-
-    var handlerFunc = module.handlers["buy from"];
+    var handlerFunc = findHandler(characterInfo.character, "buy from");
     if (handlerFunc === undefined) {
-        console.log("2 Module: " + handlerPath +
-            " does not have a handler for \"buy from\".");
         statusCallback({ error: true, message: "The " + targetName + " won't sell you the " + objectName });
         return;
     }
@@ -1125,32 +1169,14 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
     }
 
     console.log("Found recipient: " + JSON.stringify(targetName));
-
-    var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
-    console.log("gameDir: " + gameDir);
-    var handlerPath = path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename);
-    console.log("HandlerPath: " + handlerPath);
-    var module = require(handlerPath);
-
-    // Command handlers are optional.
-    if (module.handlers === undefined) {
-        console.log("Module: " + handlerPath +
-            " does not have a handler for \"give\".");
-        statusCallback({ error: true, message: "You can't give an " + objectName + " to the " + targetName });
-        return;
-    }
-
-    var handlerFunc = module.handlers["give"];
-    if (handlerFunc === undefined) {
-        console.log("Module: " + handlerPath +
-            " does not have a handler for \"give\".");
+    var handlerFunc = findHandler(characterInfo.character, "give");
+    if (!handlerFunc) {
         statusCallback({ error: true, message: "You can't give an " + objectName + " to the " + targetName });
         return;
     }
 
     console.log("calling give()");
-    handlerFunc(targetName, foundInventoryItem, g_gameData, playerName, function (handlerResp) {
+    handlerFunc(targetName, foundInventoryItem, g_gameData, playerInfo.player.name, function (handlerResp) {
         console.log("handlerResp: " + handlerResp);
         if (!handlerResp) {
             console.log("Give failed - null handlerResp");
@@ -1173,7 +1199,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
 
         // Give worked, so update the recipient.
         // Record who gave the object so we can check for "give" objectives.
-        foundInventoryItem.source = { reason: "give", from: playerName };
+        foundInventoryItem.source = { reason: "give", from: playerInfo.player.name };
         playerInfo.player.inventory.splice(foundItemIndex, 1);
 
         if (characterInfo.character.inventory === undefined) {
@@ -1184,7 +1210,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
         notifyData = {
             player: playerInfo.player.name,
             description: {
-                action: "take",
+                action: "give",
                 message: "You have given a " + objectName + " to the " + targetName,
                 item: itemInfo.item
             },
@@ -1393,33 +1419,8 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
 
     // Perform the default fight operation and call the optional handler to modify the
     // NPC's behaviour.
-    var tryHandlers = [
-        path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename),
-        path.join(gameDir, "modules", "default", "default-handlers.js")
-    ];
-
-    for (var i = 0; i < tryHandlers.length; i++) {
-        var handlerPath = tryHandlers[i];
-        console.log("tryhandlers[" + i + "] = " + handlerPath);
-        try {
-            module = require(handlerPath);
-        } catch (err) {
-            sails.log.error(JSON.stringify(err));
-            continue;
-        }
-
-        if (module.handlers !== undefined && module.handlers["fight"] !== undefined) {
-            handlerFunc = module.handlers["fight"];
-            console.log("found fight handler");
-            break;
-        } else {
-            console.log("1 Module: " + handlerPath +
-                " does not have a handler for \"fight\".");
-        }
-    }
-
+    var handlerFunc = findHandler(characterInfo.character, "fight", {'useDefault': true});
     if (!handlerFunc) {
-        console.log("There is no handler for \"fight\" available.");
         statusCallback({ error: true, message: "There is no handler for \"fight\" available" });
         return;
     }
@@ -1635,39 +1636,9 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
         return;
     }
 
-    var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
-    console.log("gameDir: " + gameDir);
 
-    // Perform the default fight operation and call the optional handler to modify the
-    // NPC's behaviour.
-    var tryHandlers = [
-        path.join(gameDir, "modules", characterInfo.character.module, characterInfo.character.filename),
-        path.join(gameDir, "modules", "default", "default-handlers.js")
-    ];
-
-    for (var i = 0; i < tryHandlers.length; i++) {
-        var handlerPath = tryHandlers[i];
-        console.log("tryhandlers[" + i + "] = " + handlerPath);
-        try {
-            module = require(handlerPath);
-        } catch (err) {
-            sails.log.error(JSON.stringify(err));
-            continue;
-        }
-
-        if (module.handlers !== undefined && module.handlers["fight for"] !== undefined) {
-            handlerFunc = module.handlers["fight for"];
-            console.log("found fight handler");
-            break;
-        } else {
-            console.log("1 Module: " + handlerPath +
-                " does not have a handler for \"fight for\".");
-        }
-    }
-
+    var handlerFunc = findHandler(characterInfo.character, "fight for", {'useDefault': true});
     if (!handlerFunc) {
-        console.log("There is no handler for \"fight for\" available.");
         statusCallback({ error: true, message: "There is no handler for \"fight for\" available" });
         return;
     }
@@ -1856,44 +1827,43 @@ function checkObjectives(game, playerName, callback) {
 
     var playerInfo = findPlayer.findPlayerByName(game, playerName);
     if (null === playerInfo) {
-        console.log("in handleUse.find() invalid player.");
+        console.log("in checkObjectives() invalid player.");
         callback({ error: true, message: "Invalid player" });
+        return;
+    }
+
+    // find the current location. Some objectives depend on it.
+    var location = findLocation(playerInfo.player.location.x,
+                                playerInfo.player.location.y);
+    if (!location) {
+        console.log("in checkObjectives() invalid location.");
+        callback({ error: true, message: "Invalid location" });
         return;
     }
 
     console.log("Objectives: " + JSON.stringify(g_currentRealmData.objectives));
 
     for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
-        if (g_currentRealmData.objectives[i].completed === "true") {
+        var objective = g_currentRealmData.objectives[i];
+
+        if (objective.completed === "true") {
             continue;
         }
 
         // Special handling for the "Start at" objective.
-        if (g_currentRealmData.objectives[i].type === "Start at") {
+        if (objective.type === "Start at") {
             continue;
         }
 
-        var objective = g_currentRealmData.objectives[i];
         console.log("Evaluating objective " + i + ": " + JSON.stringify(objective));
-        var path = require('path');
-        var pathroot = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
-        var handlerPath = pathroot + objective.module + "/" + objective.filename;
-        var module = require(handlerPath);
-        var handlerFunc = module.handlers[objective.type];
-        if (handlerFunc === undefined) {
-            console.log("Module: " + handlerPath +
-                " does not have a handler for \"" +
-                objective.type + "\".");
-            continue;
-        }
+        var handlerFunc = findHandler(objective, objective.type);
 
-        console.log("Found handlerPath:" + handlerPath);
         console.log("calling " + objective.type + "() with game: " + JSON.stringify(g_gameData));
-        handlerFunc(objective, g_gameData, g_currentRealmData, playerName, function (handlerResp) {
+        handlerFunc(objective, g_gameData, g_currentRealmData, playerName, location, function (handlerResp) {
             console.log("handlerResp: " + handlerResp);
             if (!handlerResp) {
-                console.log("Invalid handler response.");
-                callback({ error: true, message: "Invalid handler response" });
+                console.log("Objective not completed.");
+                callback(null);
                 return;
             }
 
@@ -1908,8 +1878,9 @@ function checkObjectives(game, playerName, callback) {
                     return;
                 }
 
-                console.log("checkObjectives() QuestRealm.update() callback " + JSON.stringify(updatedRealm));
-                handlerResp.data['realm'] = updatedRealm;
+                // TODO: this is potentially a lot of data to send back.
+                // Revisit this logic.
+                handlerResp.data['realm'] = g_currentRealmData;
 
                 // In a multiplayer game we'd want to broadcast a status update:
                 /*
@@ -1919,7 +1890,7 @@ function checkObjectives(game, playerName, callback) {
                    handlerResp);
                 */
 
-                callback({ error: false, data: handlerResp });
+                callback({ error: false, responseData: handlerResp });
                 return;
             });
         });

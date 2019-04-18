@@ -500,10 +500,11 @@ function processFightNotification(message) {
 }
 
 function processObjectiveCompletedNotification(message) {
-    g_currentRealmData = message.data.realm[0];
-    var objective = message.data.objective;
+    var responseData = message.responseData;
+    g_currentRealmData = responseData.data.realm;
+    var objective = responseData.data.objective;
 
-    if (message.player === g_gameData.players[0].name) {
+    if (responseData.player === g_gameData.player.name) {
         var status = "You have completed an objective: " +
             buildObjectiveDescription(objective) + ".";
 
@@ -511,7 +512,7 @@ function processObjectiveCompletedNotification(message) {
         displayMessage(status);
 
         for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
-            if (g_currentRealmData.objectives[i].completed === "false") {
+            if (!g_currentRealmData.objectives[i].completed) {
                 displayMessage("");
                 return;
             }
@@ -1223,7 +1224,7 @@ function handleStatus(playerLocation, tokens) {
                 continue;
             }
 
-            if (g_currentRealmData.objectives[i].completed === "false") {
+            if (!g_currentRealmData.objectives[i].completed) {
                 allComplete = false;
             }
 
