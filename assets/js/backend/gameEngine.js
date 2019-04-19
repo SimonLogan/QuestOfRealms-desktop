@@ -162,12 +162,7 @@ module.exports = {
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -179,12 +174,7 @@ module.exports = {
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -196,12 +186,7 @@ module.exports = {
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -213,12 +198,7 @@ module.exports = {
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -230,12 +210,7 @@ module.exports = {
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -247,12 +222,7 @@ module.exports = {
                     
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -264,12 +234,7 @@ module.exports = {
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -281,12 +246,7 @@ module.exports = {
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, function (objectiveResult) {
-                                console.log("in gameCommand. checkObjectives result = " + JSON.stringify(objectiveResult));
-                                if (objectiveResult) {
-                                    callback(objectiveResult);
-                                }
-                            });
+                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
                 });
@@ -1827,54 +1787,53 @@ function checkObjectives(game, playerName, callback) {
 
     var playerInfo = findPlayer.findPlayerByName(game, playerName);
     if (null === playerInfo) {
-        console.log("in checkObjectives() invalid player.");
-        callback({ error: true, message: "Invalid player" });
+        console.error("in checkObjectives() invalid player.");
         return;
     }
 
-    // find the current location. Some objectives depend on it.
+    // Find the current location. Some objectives depend on it.
     var location = findLocation(playerInfo.player.location.x,
                                 playerInfo.player.location.y);
     if (!location) {
-        console.log("in checkObjectives() invalid location.");
-        callback({ error: true, message: "Invalid location" });
+        console.error("in checkObjectives() invalid location.");
         return;
     }
 
     console.log("Objectives: " + JSON.stringify(g_currentRealmData.objectives));
 
+    var allcompleted = true;
     for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
-        var objective = g_currentRealmData.objectives[i];
+        // We need to keep track of the id for later on.
+        var objective = {'id': i, 'value': g_currentRealmData.objectives[i]};
 
-        if (objective.completed === "true") {
+        if (objective.value.completed === "true") {
             continue;
         }
 
         // Special handling for the "Start at" objective.
-        if (objective.type === "Start at") {
+        if (objective.value.type === "Start at") {
             continue;
         }
 
         console.log("Evaluating objective " + i + ": " + JSON.stringify(objective));
-        var handlerFunc = findHandler(objective, objective.type);
+        var handlerFunc = findHandler(objective.value, objective.value.type);
 
-        console.log("calling " + objective.type + "() with game: " + JSON.stringify(g_gameData));
-        handlerFunc(objective, g_gameData, g_currentRealmData, playerName, location, function (handlerResp) {
+        console.log("calling " + objective.value.type + "() with game: " + JSON.stringify(g_gameData));
+        handlerFunc(objective.value, g_gameData, g_currentRealmData, playerName, location, function (handlerResp) {
             console.log("handlerResp: " + handlerResp);
             if (!handlerResp) {
                 console.log("Objective not completed.");
-                callback(null);
+                allcompleted = false;
                 return;
             }
 
             console.log("Valid handlerResp: " + JSON.stringify(handlerResp));
-            var id = handlerResp.data.objective.id;
+            var id = objective.id;
             g_currentRealmData.objectives[id] = handlerResp.data.objective;
 
             saveRealm(function (err) {
                 if (err) {
-                    console.log("Failed to update the db.");
-                    callback({ error: true, message: "Failed to update the db" });
+                    console.error("Failed to update the db.");
                     return;
                 }
 

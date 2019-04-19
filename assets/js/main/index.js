@@ -812,12 +812,6 @@ function stripRealmData(realmData) {
             delete thisCharacter.description;
         });
     });
-
-    //strippedData.mapLocations = strippedData.mapLocations(function(thisLocation) {
-    //    delete thisLocation.image;
-    //    return thisLocation;
-    //});
-
 }
 
 
