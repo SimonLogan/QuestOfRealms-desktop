@@ -12,6 +12,8 @@ var g_gameData;
 var g_currentRealmData;
 var g_dependencyInfo;
 
+var g_gameInfo = {};
+
 // Find a player.
 class playerInfo {
     constructor(player, playerIndex) {
@@ -95,10 +97,17 @@ module.exports = {
     //   dbPath - the location of the game db.
     //   loadCallback - a function to notify the caller when the game
     //                  has finished loading.
-    initialize: function (dbPath, dependencyInfo, loadCallback) {
+    initialize: function (gamePath, instance, maxInstance, dependencyInfo, loadCallback) {
         async.waterfall([
             function (callback) {
                 g_dependencyInfo = dependencyInfo;
+                g_gameInfo = {
+                    'gamePath': gamePath,
+                    'gameInstance': instance,
+                    'maxGameInstance': maxInstance
+                };
+
+                var dbPath = path.join(gamePath, instance);
                 dbWrapper.openGameDB(callback, dbPath);
             },
             function (callback) {
@@ -121,20 +130,6 @@ module.exports = {
     getCurrentRealmData: function () {
         // Return a copy of currentRealmData;
         return local_getCurrentRealmData();
-    },
-    setPlayerPrefs(prefs, callback) {
-        if (prefs.hasOwnProperty("mapDrawMode")) {
-            switch (prefs.mapDrawMode) {
-                case mapDrawModeEnum.AUTO_ALL:
-                case mapDrawModeEnum.AUTO_VISITED:
-                case mapDrawModeEnum.MANUAL:
-                    g_gameData.player.mapDrawMode = prefs.mapDrawMode;
-                    saveGame(callback);
-                    break;
-                default:
-                    callback("Unexpected draw choice value [" + prefs.mapDrawMode + "].");
-            }
-        }
     },
     gameCommand: function (command, callback) {
         // In a multiplayer game, gameCommand() would be invoked via
@@ -237,6 +232,12 @@ module.exports = {
                             checkObjectives(handlerResult.responseData.data.game, playerName, callback);
                         }
                     }
+                });
+                break;
+            case "save":
+                handleSave(command, function (saveResult) {
+                    console.log("in gameCommand. handleSave result = " + JSON.stringify(saveResult));
+                    callback(saveResult);
                 });
                 break;
             default:
@@ -496,25 +497,15 @@ function handleMove(command, playerName, statusCallback) {
         data: {}
     };
 
-    saveGame(function (err) {
-        console.log("in Game.update() callback");
-        if (err) {
-            console.log("in Game.update() callback, error. " + err);
-            statusCallback({ error: true, message: err });
-            return;
-        }
+    console.log("in Game.update() callback, no error.");
+    notifyData.data = { game: local_getGameData() };
 
-        console.log("in Game.update() callback, no error.");
-        notifyData.data = { game: local_getGameData() };
+    // In a multiplayer game, we need to broadcast the status update.
+    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+    //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-        // In a multiplayer game, we need to broadcast the status update.
-        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-        //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-        statusCallback({ error: false, responseData: notifyData });
-        return;
-    });
-    //});
+    statusCallback({ error: false, responseData: notifyData });
+    return;
 }
 
 function handleTake(command, playerName, statusCallback) {
@@ -591,39 +582,17 @@ function handleTakeFromLocation(objectName, currentLocation, playerName, statusC
         data: {}
     };
 
-    // Warning: NEDB does not support transactions. The code below assumes both updates work.
-    saveGame(function (gameErr) {
-        console.log("in Game.update() callback");
-        if (gameErr) {
-            console.log("in Game.update() callback, error. " + gameErr);
-            statusCallback({ error: true, message: gameErr });
-            return;
-        }
+    notifyData.data = {
+        game: local_getGameData(),
+        mapLocation: copyMapLocation(currentLocation)
+    };
 
-        console.log("in Game.update() callback, no error.");
+    // In a multiplayer game, we need to broadcast the status update.
+    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+    //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-        saveRealm(function (realmErr) {
-            console.log("in realm.update() callback");
-            if (gameErr) {
-                console.log("in realm.update() callback, error. " + realmErr);
-                statusCallback({ error: true, message: realmErr });
-                return;
-            }
-
-            console.log("in realm.update() callback, no error.");
-            notifyData.data = {
-                game: local_getGameData(),
-                mapLocation: copyMapLocation(currentLocation)
-            };
-
-            // In a multiplayer game, we need to broadcast the status update.
-            //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-            //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-            statusCallback({ error: false, responseData: notifyData });
-            return;
-        });
-    });
+    statusCallback({ error: false, responseData: notifyData });
+    return;
 }
 
 function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, statusCallback) {
@@ -712,39 +681,17 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
             data: {}
         };
 
-        // Warning: NEDB does not support transactions. The code below assumes both updates work.
-        saveGame(function (gameErr) {
-            console.log("in Game.update() callback");
-            if (gameErr) {
-                console.log("in Game.update() callback, error. " + gameErr);
-                statusCallback({ error: true, message: gameErr });
-                return;
-            }
+        notifyData.data = {
+            game: local_getGameData(),
+            mapLocation: copyMapLocation(currentLocation)
+        };
 
-            console.log("in Game.update() callback, no error.");
+        // In a multiplayer game, we need to broadcast the status update.
+        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+        //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-            saveRealm(function (realmErr) {
-                console.log("in realm.update() callback");
-                if (gameErr) {
-                    console.log("in realm.update() callback, error. " + realmErr);
-                    statusCallback({ error: true, message: realmErr });
-                    return;
-                }
-
-                console.log("in realm.update() callback, no error.");
-                notifyData.data = {
-                    game: local_getGameData(),
-                    mapLocation: copyMapLocation(currentLocation)
-                };
-
-                // In a multiplayer game, we need to broadcast the status update.
-                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-                //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-                statusCallback({ error: false, responseData: notifyData });
-                return;
-            });
-        });
+        statusCallback({ error: false, responseData: notifyData });
+        return;
     });
 }
 
@@ -902,39 +849,17 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
             data: {}
         };
 
-        // Warning: NEDB does not support transactions. The code below assumes both updates work.
-        saveGame(function (gameErr) {
-            console.log("in Game.update() callback");
-            if (gameErr) {
-                console.log("in Game.update() callback, error. " + gameErr);
-                statusCallback({ error: true, message: gameErr });
-                return;
-            }
+        notifyData.data = {
+            game: local_getGameData(),
+            mapLocation: copyMapLocation(currentLocation)
+        };
 
-            console.log("in Game.update() callback, no error.");
+        // In a multiplayer game, we need to broadcast the status update.
+        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+        //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-            saveRealm(function (realmErr) {
-                console.log("in realm.update() callback");
-                if (gameErr) {
-                    console.log("in realm.update() callback, error. " + realmErr);
-                    statusCallback({ error: true, message: realmErr });
-                    return;
-                }
-
-                console.log("in realm.update() callback, no error.");
-                notifyData.data = {
-                    game: local_getGameData(),
-                    mapLocation: copyMapLocation(currentLocation)
-                };
-
-                // In a multiplayer game, we need to broadcast the status update.
-                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-                //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-                statusCallback({ error: false, responseData: notifyData });
-                return;
-            });
-        });
+        statusCallback({ error: false, responseData: notifyData });
+        return;
     });
 }
 
@@ -1010,39 +935,17 @@ function handleDrop(command, playerName, statusCallback) {
         data: {}
     };
 
-    // Warning: NEDB does not support transactions. The code below assumes both updates work.
-    saveGame(function (gameErr) {
-        console.log("in Game.update() callback");
-        if (gameErr) {
-            console.log("in Game.update() callback, error. " + gameErr);
-            statusCallback({ error: true, message: gameErr });
-            return;
-        }
+    notifyData.data = {
+        game: local_getGameData(),
+        mapLocation: copyMapLocation(currentLocation)
+    };
 
-        console.log("in Game.update() callback, no error.");
+    // In a multiplayer game, we need to broadcast the status update.
+    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+    //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-        saveRealm(function (realmErr) {
-            console.log("in realm.update() callback");
-            if (gameErr) {
-                console.log("in realm.update() callback, error. " + realmErr);
-                statusCallback({ error: true, message: realmErr });
-                return;
-            }
-
-            console.log("in realm.update() callback, no error.");
-            notifyData.data = {
-                game: local_getGameData(),
-                mapLocation: copyMapLocation(currentLocation)
-            };
-
-            // In a multiplayer game, we need to broadcast the status update.
-            //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-            //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-            statusCallback({ error: false, responseData: notifyData });
-            return;
-        });
-    });
+    statusCallback({ error: false, responseData: notifyData });
+    return;
 }
 
 function handleGive(command, playerName, statusCallback) {
@@ -1177,39 +1080,17 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
             data: {}
         };
 
-        // Warning: NEDB does not support transactions. The code below assumes both updates work.
-        saveGame(function (gameErr) {
-            console.log("in Game.update() callback");
-            if (gameErr) {
-                console.log("in Game.update() callback, error. " + gameErr);
-                statusCallback({ error: true, message: gameErr });
-                return;
-            }
+        notifyData.data = {
+            game: local_getGameData(),
+            mapLocation: copyMapLocation(currentLocation)
+        };
 
-            console.log("in Game.update() callback, no error.");
+        // In a multiplayer game, we need to broadcast the status update.
+        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+        //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-            saveRealm(function (realmErr) {
-                console.log("in realm.update() callback");
-                if (gameErr) {
-                    console.log("in realm.update() callback, error. " + realmErr);
-                    statusCallback({ error: true, message: realmErr });
-                    return;
-                }
-
-                console.log("in realm.update() callback, no error.");
-                notifyData.data = {
-                    game: local_getGameData(),
-                    mapLocation: copyMapLocation(currentLocation)
-                };
-
-                // In a multiplayer game, we need to broadcast the status update.
-                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-                //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-                statusCallback({ error: false, responseData: notifyData });
-                return;
-            });
-        });
+        statusCallback({ error: false, responseData: notifyData });
+        return;
     });
 }
 
@@ -1251,36 +1132,24 @@ function handleUse(command, playerName, statusCallback) {
     playerInfo.player.using = [];
     playerInfo.player.using.push(item);
 
-    // Warning: NEDB does not support transactions. The code below assumes both updates work.
-    saveGame(function (gameErr) {
-        console.log("in Game.update() callback");
-        if (gameErr) {
-            console.log("in Game.update() callback, error. " + gameErr);
-            statusCallback({ error: true, message: gameErr });
-            return;
+    notifyData = {
+        player: playerName,
+        description: {
+            action: "use",
+            message: "You are using the " + item.type,
+            item: itemInfo.item
+        },
+        data: {
+            game: local_getGameData()
         }
+    };
 
-        console.log("in Game.update() callback, no error.");
+    // In a multiplayer game, we need to broadcast the status update.
+    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+    //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-        notifyData = {
-            player: playerName,
-            description: {
-                action: "use",
-                message: "You are using the " + item.type,
-                item: itemInfo.item
-            },
-            data: {
-                game: local_getGameData()
-            }
-        };
-
-        // In a multiplayer game, we need to broadcast the status update.
-        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-        //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-        statusCallback({ error: false, responseData: notifyData });
-        return;
-    });
+    statusCallback({ error: false, responseData: notifyData });
+    return;
 }
 
 function handleFight(command, playerName, statusCallback) {
@@ -1520,39 +1389,17 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
             data: {}
         };
 
-        // Warning: NEDB does not support transactions. The code below assumes both updates work.
-        saveGame(function (gameErr) {
-            console.log("in Game.update() callback");
-            if (gameErr) {
-                console.log("in Game.update() callback, error. " + gameErr);
-                statusCallback({ error: true, message: gameErr });
-                return;
-            }
+        notifyData.data = {
+            game: local_getGameData(),
+            mapLocation: copyMapLocation(currentLocation)
+        };
 
-            console.log("in Game.update() callback, no error.");
+        // In a multiplayer game, we need to broadcast the status update.
+        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+        //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-            saveRealm(function (realmErr) {
-                console.log("in realm.update() callback");
-                if (gameErr) {
-                    console.log("in realm.update() callback, error. " + realmErr);
-                    statusCallback({ error: true, message: realmErr });
-                    return;
-                }
-
-                console.log("in realm.update() callback, no error.");
-                notifyData.data = {
-                    game: local_getGameData(),
-                    mapLocation: copyMapLocation(currentLocation)
-                };
-
-                // In a multiplayer game, we need to broadcast the status update.
-                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-                //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-                statusCallback({ error: false, responseData: notifyData });
-                return;
-            });
-        });
+        statusCallback({ error: false, responseData: notifyData });
+        return;
     });
 }
 
@@ -1746,39 +1593,166 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
             data: {}
         };
 
-        // Warning: NEDB does not support transactions. The code below assumes both updates work.
-        saveGame(function (gameErr) {
-            console.log("in Game.update() callback");
-            if (gameErr) {
-                console.log("in Game.update() callback, error. " + gameErr);
-                statusCallback({ error: true, message: gameErr });
-                return;
-            }
+        notifyData.data = {
+            game: local_getGameData(),
+            mapLocation: copyMapLocation(currentLocation)
+        };
 
-            console.log("in Game.update() callback, no error.");
+        // In a multiplayer game, we need to broadcast the status update.
+        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+        //sails.io.sockets.emit(realmId + "-status", notifyData);
 
-            saveRealm(function (realmErr) {
-                console.log("in realm.update() callback");
+        statusCallback({ error: false, responseData: notifyData });
+        return;
+    });
+}
+
+function handleSave(command, statusCallback) {
+    var instanceName = command.replace(/save[\s+]/i, "");
+
+    console.log("SAVE: " + instanceName);
+    createGameInstance(instanceName, function(err) {
+        if (err) {
+            return;
+        }
+
+        // Tell dbWrapper to open dbs from the new directory.
+        var instancePath = path.join(g_gameInfo.gamePath, g_gameInfo.maxGameInstance.toString());
+        console.log("new path " + instancePath);
+        dbWrapper.openGameDB(function() {
+            // Warning: NEDB does not support transactions. The code below assumes both updates work.
+            saveGame(function (gameErr) {
+                console.log("in Game.update() callback");
                 if (gameErr) {
-                    console.log("in realm.update() callback, error. " + realmErr);
-                    statusCallback({ error: true, message: realmErr });
+                    console.log("in Game.update() callback, error. " + gameErr);
+                    statusCallback({ error: true, message: gameErr });
                     return;
                 }
 
-                console.log("in realm.update() callback, no error.");
-                notifyData.data = {
-                    game: local_getGameData(),
-                    mapLocation: copyMapLocation(currentLocation)
-                };
+                console.log("in Game.update() callback, no error.");
 
-                // In a multiplayer game, we need to broadcast the status update.
-                //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-                //sails.io.sockets.emit(realmId + "-status", notifyData);
+                saveRealm(function (realmErr) {
+                    console.log("in realm.update() callback");
+                    if (gameErr) {
+                        console.log("in realm.update() callback, error. " + realmErr);
+                        statusCallback({ error: true, message: realmErr });
+                        return;
+                    }
 
-                statusCallback({ error: false, responseData: notifyData });
-                return;
+                    console.log("in realm.update() callback, no error.");
+                    notifyData = {
+                        description: {
+                            action: "save",
+                            message: "saved successfully."
+                        },
+                        data: {
+                            game: local_getGameData(),
+                            realm: local_getCurrentRealmData()
+                        }
+                    };
+
+                    statusCallback({ error: false, responseData: notifyData });
+                    return;
+                });
             });
-        });
+        }, instancePath);
+    });
+}
+
+
+// Create a new game subdir, numbered as maxInstance + 1.
+// Create a metadata file containing the name, if specified.
+// Make this the live game.
+// The databases will be created as a separate step.
+function createGameInstance(instanceName, gameCallback) {
+    /*
+    g_gameInfo = {
+        'gamePath': gamePath,
+        'gameInstance': instance,
+        'maxGameInstance': maxInstance
+    };
+    */
+    g_gameInfo.maxGameInstance++;
+
+    const fs = require('fs');
+    var newInstancePath = path.join(g_gameInfo.gamePath, g_gameInfo.maxGameInstance.toString());
+    console.log("new path " + newInstancePath);
+
+    // There are several steps in the instance creation process, which must happen
+    // in sequence, despite some being asynchronous.
+    async.waterfall([
+        function (callback) {
+            fs.access(newInstancePath, fs.constants.F_OK, function (err) {
+                console.log(`${newInstancePath} ${err ? 'does not exist' : 'exists'}`);
+                if (err) {
+                    if (err.code === "ENOENT") {
+                        // Good, we want it to not exist.
+                        callback(null);
+                    } else {
+                        callback(err);
+                    }
+                } else {
+                    callback(`Game ${newInstancePath} already exists.`);
+                }
+            });
+        },
+        function (callback) {
+            fs.mkdir(newInstancePath, function (err) {
+                if (err) {
+                    alert("Error: " + JSON.stringify(err));
+                }
+
+                callback(err);
+            });
+        },
+        function (callback) {
+            function zeroPad(val) {
+                return (val < 10 ? "0" + val.toString() : val.toString());
+            }
+
+            var today = new Date();
+            var date = today.getFullYear() + '-' +
+                zeroPad(today.getMonth() + 1) + '-' +
+                zeroPad(today.getDate());
+            var time = zeroPad(today.getHours()) + ":" +
+                zeroPad(today.getMinutes()) + ":" +
+                zeroPad(today.getSeconds());
+            var dateTime = date + ' ' + time;
+
+            var manifestData = {
+                'name': instanceName,
+                'saveDate': dateTime,
+            };
+
+            writeInstanceManifest(newInstancePath, manifestData);
+            callback(null);
+        },
+        function (callback) {
+            var currentInstancePath = path.join(g_gameInfo.gamePath, g_gameInfo.gameInstance);
+            fs.copyFile(path.join(currentInstancePath, "game.db"),
+                        path.join(newInstancePath, "game.db"),
+                        function(err) {
+                if (err) {
+                    callback(err);
+                }
+
+                fs.copyFile(path.join(currentInstancePath, "questrealms.db"),
+                            path.join(newInstancePath, "questrealms.db"),
+                            function(err) {
+                    callback(err);
+                });
+            });
+        }
+    ],
+    function (err) {
+        // All done processing the games and realms, or aborted early with an error.
+        if (err) {
+            console.error("Failed to export game: " + err);
+            alert("Failed to export game: " + err);
+        }
+
+        console.log("all done.");
+        gameCallback(err);
     });
 }
 
@@ -1831,27 +1805,20 @@ function checkObjectives(game, playerName, callback) {
             var id = objective.id;
             g_currentRealmData.objectives[id] = handlerResp.data.objective;
 
-            saveRealm(function (err) {
-                if (err) {
-                    console.error("Failed to update the db.");
-                    return;
-                }
+            // TODO: this is potentially a lot of data to send back.
+            // Revisit this logic.
+            handlerResp.data['realm'] = g_currentRealmData;
 
-                // TODO: this is potentially a lot of data to send back.
-                // Revisit this logic.
-                handlerResp.data['realm'] = g_currentRealmData;
+            // In a multiplayer game we'd want to broadcast a status update:
+            /*
+            console.log("*** sending resp: " + JSON.stringify(handlerResp));
+            sails.io.sockets.emit(
+                updatedRealm[0].id + "-status",
+                handlerResp);
+            */
 
-                // In a multiplayer game we'd want to broadcast a status update:
-                /*
-                console.log("*** sending resp: " + JSON.stringify(handlerResp));
-                sails.io.sockets.emit(
-                   updatedRealm[0].id + "-status",
-                   handlerResp);
-                */
-
-                callback({ error: false, responseData: handlerResp });
-                return;
-            });
+            callback({ error: false, responseData: handlerResp });
+            return;
         });
     }
 }

@@ -13,6 +13,7 @@ var path = require('path');
 var pluginsPath = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 const gameEngine = require(path.join(__dirname, '../../assets/js/backend/gameEngine.js'));
 const async = require('async');
+var g_playerPrefs = {'mapDrawMode': mapDrawModeEnum.AUTO_VISITED};
 
 // Constants
 describeDetailEnum = {
@@ -130,6 +131,7 @@ class findPlayer {
 // Called when the realm editor is loaded.
 ipc.on('playGame-data', function (event, data) {
     $('#page_title').text("Play Game " + data.name);
+    g_maxGameInstance = parseInt(data.maxInstance);
 
     const app = electron.remote.app;
     var gamePath = path.join(app.getPath('userData'), "games", data.name);
@@ -144,34 +146,37 @@ ipc.on('playGame-data', function (event, data) {
             callback(null);
         },
         function(callback) {
-            gameEngine.initialize(gamePath, g_dependencyInfo, function (err) {
-                if (err) {
-                    alert("Failed to load game: " + err);
-                    callback(err);
-                    return;
-                }
+            gameEngine.initialize(
+                gamePath, data.instance, data.maxInstance,
+                g_dependencyInfo, function (err) {
+                    if (err) {
+                        alert("Failed to load game: " + err);
+                        callback(err);
+                        return;
+                    }
 
-                g_gameData = gameEngine.getGameData();
-                $('#page_title').text("Play Game " + g_gameData.name);
-                $('#playing_as').text("Playing as " + g_gameData.player.name);
-                switch (g_gameData.player.mapDrawMode) {
-                    case mapDrawModeEnum.AUTO_ALL:
-                        $('#drawChoice_autoAll').prop('checked', true);
-                        break;
-                    case mapDrawModeEnum.AUTO_VISITED:
-                        $('#drawChoice_autoVisited').prop('checked', true);
-                        break;
-                    case mapDrawModeEnum.MANUAL:
-                        $('#drawChoice_manual').prop('checked', true);
-                        break;
-                    default:
-                        $('#drawChoice_autoAll').prop('checked', true);
-                        console.error("Unexpected draw choice value. Assuming auto_all");
-                }
+                    g_gameData = gameEngine.getGameData();
+                    $('#page_title').text("Play Game " + g_gameData.name);
+                    $('#playing_as').text("Playing as " + g_gameData.player.name);
+                    switch (g_playerPrefs.mapDrawMode) {
+                        case mapDrawModeEnum.AUTO_ALL:
+                            $('#drawChoice_autoAll').prop('checked', true);
+                            break;
+                        case mapDrawModeEnum.AUTO_VISITED:
+                            $('#drawChoice_autoVisited').prop('checked', true);
+                            break;
+                        case mapDrawModeEnum.MANUAL:
+                            $('#drawChoice_manual').prop('checked', true);
+                            break;
+                        default:
+                            $('#drawChoice_autoAll').prop('checked', true);
+                            console.error("Unexpected draw choice value. Assuming auto_all");
+                    }
 
-                g_currentRealmData = gameEngine.getCurrentRealmData();
-                callback(null);
-            });
+                    g_currentRealmData = gameEngine.getCurrentRealmData();
+                    callback(null);
+                }
+            );
         },
         function(callback) {
             drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
@@ -218,25 +223,25 @@ ipc.on('playGame-data', function (event, data) {
 
     $('input[name=drawChoice]').on('change', function changeDrawMode(selectedOption) {
         console.log(selectedOption.target.value);
-        g_gameData.player.mapDrawMode = selectedOption.target.value;
 
-        var prefs = { 'mapDrawMode': selectedOption.target.value };
-        gameEngine.setPlayerPrefs(prefs, function (err) {
-            if (err) {
-                console.error(err);
-                return;
-            }
+        // TODO: persist this setting in prefs.json.
+        g_playerPrefs.mapDrawMode = selectedOption.target.value;
 
-            drawMapGrid(g_currentRealmData.width, g_currentRealmData.height, selectedOption.target.value);
+        drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
 
-            g_locationData.forEach(function (item) {
-                drawMapLocation(item);
-            });
-
-            var playerLocation = findPlayerLocation();
-            showPlayerLocation(playerLocation);
+        g_locationData.forEach(function (item) {
+            drawMapLocation(item);
         });
+
+        var playerLocation = findPlayerLocation();
+        showPlayerLocation(playerLocation);
     });
+
+    // Navigate back.
+    $(document).on('click', '#breadcrumb', function (e) {
+        ipc.send('frontpage');
+    });
+
 }); // ipc.on('playGame-data')
 
 //
@@ -248,7 +253,7 @@ ipc.on('playGame-data', function (event, data) {
 // TODO: maybe we only need to load the plugins for this realm,
 // but that would require examining the database.
 function loadDependencyData(gamePath) {
-    var manifest = readManifest(gamePath);
+    var manifest = readGameManifest(gamePath);
     if (0 === Object.keys(manifest).length) {
         console.error("Ignoring path " + gamePath + " - Failed to read manifest.json.");
         return;
@@ -573,7 +578,7 @@ function displayObjectives() {
 }
 
 
-function drawMapGrid(realmWidth, realmHeight, mapDrawMode) {
+function drawMapGrid(realmWidth, realmHeight) {
     var mapTable = $('#mapTable');
     var tableContents = '';
 
@@ -662,7 +667,7 @@ function shouldDrawMapLocation(locationData) {
     var player = g_gameData.player;
 
     // Default to always draw.
-    if (!player.hasOwnProperty("mapDrawMode") || player.mapDrawMode === mapDrawModeEnum.AUTO_ALL) {
+    if (g_playerPrefs.mapDrawMode === mapDrawModeEnum.AUTO_ALL) {
         return true;
     }
 
@@ -672,7 +677,7 @@ function shouldDrawMapLocation(locationData) {
     var visitedKey = locationData.attributes.x.toString() + "_" + locationData.attributes.y.toString();
     var playerVistitedLocation = (
         visitedKey in g_gameData.player.visited[g_gameData.player.location.realm]);
-    if ("autoVisited" == player.mapDrawMode && playerVistitedLocation) {
+    if ("autoVisited" == g_playerPrefs.mapDrawMode && playerVistitedLocation) {
         return true;
     }
 
@@ -836,16 +841,17 @@ function handleGenericHelp() {
     displayMessage("Commands:");
     displayMessage("   help : display list of commands.");
     displayMessage("   look [direction] : describe the adjacent location in the specified direction, or the current location " +
-        "if no direction specified.");
+        "if no direction is specified.");
     displayMessage("   move direction : move in the specified direction, if possible.");
     displayMessage("   take item [from character] : take the named item. e.g. \"take short sword\" from the specified character, " +
-        "or from the current location.");
+        "or from the current location if no character is specified.");
     displayMessage("   buy item from character : buy the named item from the specified character.    e.g. \"buy short sword from Giant\"." +
         " Try to take the item first and the character will name the price, if it is willing to sell the item.");
     displayMessage("   drop item : drop the named item. e.g. \"drop short sword\".");
     displayMessage("   inventory : list the items in your inventory.");
     displayMessage("   describe (...) : describe character or item, Use \"help describe\" for more details.");
     displayMessage("   status : show health and game progress.");
+    displayMessage("   save [name] : save the game, optionally giving this save a name.");
     displayMessage("");
 }
 

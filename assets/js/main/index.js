@@ -92,6 +92,11 @@ $(document).ready(function () {
         });
     });
 
+    $('#importGameButton').click(function () {
+        $('#importPanel #playerName').val('');
+        $('#importPanel').show();
+    });
+ 
     // Entering a value into the "player name" field on the "import game" form.
     // Only enable the "choose file" button if a name has been specified.
     $('#playerName').on('keyup paste', function () {
@@ -113,7 +118,7 @@ $(document).ready(function () {
                     }
 
                     // Configure the player and some other defaults when importing a game.
-                    // You can't send messages between renderers. You have to use main.js as a message gub.
+                    // You can't send messages between renderers. You have to use main.js as a message hub.
                     initializePlayer($('#playerName').val().trim(), gameName);
                     resetImportGameForm();
 
@@ -133,7 +138,9 @@ $(document).ready(function () {
 function initializePlayer(playerName, gameName) {
     const app = electron.remote.app;
     var gameBasedir = path.join(app.getPath('userData'), "games");
-    var dbPath = path.join(gameBasedir, gameName);
+    // The dbs will be in a 0/ subdirectory. This is the initial
+    // game version. Subsequent saves will go into 1/ etc.
+    var dbPath = path.join(gameBasedir, gameName, "0");
     var gameDbWrapper = require('../../assets/js/utils/dbWrapper');
 
     async.waterfall([
@@ -317,51 +324,96 @@ function displayAvailableGameDesigns() {
 }
 
 
-function displayAvailableGames() {
-    console.log(JSON.stringify(availableGames));
-
-    var header = "<table class='realmList'>";
-    header += "<tr><th class='realmListName'>Name</th>";
-    header += "<th class='realmListDescription'>Description</th>";
-    header += "<th>Play</th>";
-    header += "<th>Delete</th>";
+// Show all the saved versions of the specified game.
+// thisGame will be an entry like this:
+// { 'dir': "superGame",
+//   'manifest': manifest,
+//   'saves': [{ 'saveName': '0' }]]
+// }
+function displayGameRecords(gameId) {
+    var thisGame = availableGames[gameId];
+    console.log("displayGameRecords() thisGame: " + JSON.stringify(thisGame));
+    var gameHTML = "<div class='gameDetails' data-gameId='" + gameId + "'>" +
+        "<div style='float:left; margin-right:10px;'><strong>Name:</strong> " + thisGame.manifest.name + "</div>" +
+        "<div><input type='button' class='deleteGame' value='Delete Game' " +
+        "title='Delete all saved versions of this game.'/></div>" +
+        "<div style='margin-top: 10px'>" + thisGame.manifest.description + "</div>";
 
     var row = 0;
-    var body = "";
-    for (var i = 0; i < availableGames.length; i++) {
-        var thisGame = availableGames[i];
-        var rowClass = "realmListOddRow";
+    var rowClass = "realmListOddRow";
+    var instanceTable = "<div style='margin-top: 10px;'>";
+    instanceTable += "<table class='realmList'>";
+    instanceTable += "<th class='realmListDescription'>Description</th>";
+    instanceTable += "<th class='realmListSavedate'>Save date</th>";
+    instanceTable += "<th>Play</th>";
+    instanceTable += "<th>Delete</th>";
+
+    for (var saveNum = 0; saveNum < thisGame.saves.length; saveNum++) {
         if (0 == (++row % 2)) rowClass = "realmListEvenRow";
-        body += "<tr id='" + i + "' class='" + rowClass + "'>";
-        body += "<td class='gameName'>" + thisGame.manifest.name + "</td>";
-        body += "<td>" + thisGame.manifest.description + "</td>";
-        body += "<td><input type='button' class='playGame' value='Play'/></td>";
-        body += "<td><input type='button' class='deleteGame' value='Delete'/></td>";
-        body += "</tr>";
-    };
+        instanceTable += "<tr data-instance='" + thisGame.saves[saveNum].saveId + "' class='" + rowClass + "'>";
+        instanceTable += "<td>" + thisGame.saves[saveNum].saveName + "</td>";
+
+        if (thisGame.saves[saveNum].saveDate) {
+            instanceTable += "<td>" + thisGame.saves[saveNum].saveDate + "</td>";
+        } else {
+            instanceTable += "<td/>";
+        }
+
+        instanceTable += "<td><input type='button' class='playGameInstance' value='Play'/></td>";
+
+        // You can't delete the original version of the game.
+        if (saveNum === 0) {
+            instanceTable += "<td>&nbsp;</td>";
+        } else {
+            instanceTable += "<td><input type='button' class='deleteGameInstance' value='Delete' title='Delete just this saved version.'/></td>";
+        }
+
+        instanceTable += "</tr>";
+    }
+    instanceTable += "</table></div>";
+    gameHTML += instanceTable;
+    $('#gameList').append(gameHTML);
+}
+
+
+function displayAvailableGames() {
+    console.log(JSON.stringify(availableGames));
 
     $('#gameList').html("");
     $('.deleteGame').off();
     $('.playGame').off();
 
-    if (body.length > 0) {
-        $('#gameList').html(header + body);
-
-        $('.deleteGame').on('click', function () {
-            deleteGame($(this));
-        });
-
-        $('.playGame').on('click', function () {
-            console.log("playgame");
-            var gameName = $(this).closest('tr').find('.gameName').text();
-            // Build a URL to invoke the game player.
-            var args = {
-                url: 'file://' + __dirname + '/../playGame/playGame.html',
-                data: { name: gameName }
-            };
-            ipc.send('play-game', args);
-        });
+    if (availableGames.length === 0) {
+        return;
     }
+
+    for (var i = 0; i < availableGames.length; i++) {
+        displayGameRecords(i);
+    }
+
+    $('.deleteGame').on('click', function () {
+        deleteGame($(this));
+    });
+
+    $('.playGameInstance').on('click', function () {
+        console.log("playgame");
+        var gameName = availableGames[$(this).closest('.gameDetails').attr('data-gameId')].manifest.name;
+        var gameInstance = $(this).closest('tr').attr('data-instance');
+        var maxGameInstance = $(this).closest('tbody').find('tr:last').attr('data-instance');
+
+        // Build a URL to invoke the game player.
+        var args = {
+            url: 'file://' + __dirname + '/../playGame/playGame.html',
+            data: { 'name': gameName,
+                    'instance': gameInstance,
+                    'maxInstance': maxGameInstance }
+        };
+        ipc.send('play-game', args);
+    });
+
+    $('.deleteGameInstance').on('click', function () {
+        deleteGameInstance($(this));
+    });
 }
 
 
@@ -400,29 +452,57 @@ function loadAndDisplayAvailableGames(callback) {
     // from https://stackoverflow.com/questions/18112204/get-all-directories-within-directory-nodejs
     const { lstatSync, readdirSync } = require('fs');
     const path = require('path');
-    const isDirectory = source => lstatSync(path.resolve(gameBasedir, source)).isDirectory();
-    // is equivalent to
-    // const isDirectory = function(source) { return lstatSync(path.resolve(gameBasedir, source)).isDirectory() };
-    // I don't find the shorter syntax terribly helpful.
+    const getDirectories = function(basedir) {
+        var candidates = readdirSync(basedir);
+        var matches = [];
+        $.each(candidates, function (index, candidate) {
+            if (lstatSync(path.resolve(basedir, candidate)).isDirectory()) {
+                matches.push(candidate);
+            }
+        });
 
-    const getDirectories = source => readdirSync(source).filter(isDirectory);
-    var res = getDirectories(gameBasedir);
+        console.log("isDirectory() matches=" + JSON.stringify(matches));
+        return matches;
+    };
+
+    var games = getDirectories(gameBasedir);
     availableGames = [];
-    $.each(res, function (index, dirname) {
-        var gamePath = path.join(gameBasedir, dirname);
+    $.each(games, function (index, gameName) {
+        var gamePath = path.join(gameBasedir, gameName);
         console.log("Checking game at path:" + gamePath);
 
-        var manifest = readManifest(gamePath);
+        var manifest = readGameManifest(gamePath);
         if (0 === Object.keys(manifest).length) {
-            console.error("Ignoring path " + gamePath + " - Failed to read manifest.json.");
+            console.error("Ignoring path " + gamePath + " - Failed to read gameManifest.json.");
             return;
         }
 
-        availableGames.push({ 'dir': dirname, 'manifest': manifest });
+        // Now check saved versions.
+        var availableSaves = [];
+        var saveIds = getDirectories(gamePath);
+        $.each(saveIds, function (index, saveId) {
+            if (saveId == "modules") {
+                return;
+            }
+
+            console.log("Checking save Id:" + saveId);
+
+            var manifest = readInstanceManifest(path.join(gamePath, saveId));
+            if (0 === Object.keys(manifest).length) {
+                console.error("Ignoring path " + gamePath + " - Failed to read saveManifest.json.");
+                return;
+            }
+
+            availableSaves.push({ 'saveId': saveId,
+                                  'saveName': (manifest.name ? manifest.name : ""),
+                                  'saveDate': manifest.saveDate });
+        });
+
+        availableGames.push({ 'manifest': manifest, 'saves': availableSaves });
     });
 
-    // This need to wait until the manifests have been read.
-    // Ideally change readManifest() to be synchronous. 
+    // This needs to wait until the manifests have been read.
+    // Ideally change readXxxManifest() to be synchronous. 
     displayAvailableGames();
     callback();
 }
@@ -548,16 +628,50 @@ function deleteGameDesign(target) {
 }
 
 
-// The "Delete" button was pressed on a row in the "Games" table.
+// The "Delete" button was pressed in the title of the "Games" table.
+// This will delete the game and all saves.
 function deleteGame(target) {
     // Find the name and id of the game in question by navigating to the
     // relevent form elements. See the explanations of jQuery selectors
     // above for more details.
-    var name = $(target.closest('tr').find('td')[0]).text();
-    if (confirm("Are you sure you want to delete game " + name + "?")) {
-        var id = target.closest('tr').attr('id');
-        removeGameDirectory(id, function (err) {
+    var gameId = target.closest('.gameDetails').attr('data-gameId');
+    var name = availableGames[gameId].manifest.name;
+    if (confirm("Are you sure you want to delete game " + name + "?" +
+                "\nThis will delete all saved data for this game.")) {
+        const app = electron.remote.app;
+        var gameDir = path.join(app.getPath('userData'), "games", name);
+        removeGameDirectory(gameDir, function (err) {
             if (!err) {
+                availableGames.splice(gameId, 1);
+                displayAvailableGames();
+            }
+        });
+    }
+}
+
+
+// The "Delete" button was pressed on a row in the "Games" table.
+// This will delete just that save.
+function deleteGameInstance(target) {
+    // Find the name and id of the game in question by navigating to the
+    // relevent form elements. See the explanations of jQuery selectors
+    // above for more details.
+    var saveName = $(target.closest('tr').find('td')[0]).text();
+    if (confirm("Are you sure you want to save " + saveName + "?")) {
+        var gameId = target.closest('.gameDetails').attr('data-gameId');
+        var gameName = availableGames[gameId].manifest.name;
+        var saveId = target.closest('tr').attr('data-instance');
+        const app = electron.remote.app;
+        var saveDir = path.join(app.getPath('userData'), "games", gameName, saveId);
+        removeGameDirectory(saveDir, function (err) {
+            if (!err) {
+                for (var i = 0; i < availableGames[gameId].saves.length; i++) {
+                    if (availableGames[gameId].saves[i].saveId === saveId) {
+                        availableGames[gameId].saves.splice(i, 1);
+                        break;
+                    }
+                }
+
                 displayAvailableGames();
             }
         });
@@ -577,12 +691,8 @@ function cleanAndHideExportGamePanel() {
 
 
 // Remove the game from the filesystem.
-function removeGameDirectory(gameId, callback) {
-    const app = electron.remote.app;
-    var gameDir = app.getPath('userData') + "/games/" + availableGames[gameId].dir;
-    console.log("removeGameDirectory game name: " +
-        availableGames[gameId].manifest.name +
-        ", dir: " + gameDir);
+function removeGameDirectory(gameDir, callback) {
+    console.log("removeGameDirectory game dir: " + gameDir);
 
     removeDirectory(gameDir, function (err) {
         if (err) {
@@ -592,7 +702,6 @@ function removeGameDirectory(gameId, callback) {
             return;
         }
 
-        availableGames.splice(gameId, 1);
         callback();
     });
 }
@@ -712,25 +821,6 @@ function findRealmModules(newRealm, moduleRequirements) {
 }
 
 
-// Write a file that contains a list of all the
-// <module / filename / type> requirements of this game.
-// This is just a human-readable helpful guide - the system
-// won't use this file when importing a game, but will instead
-// generate the manifest at import time to be sure it is in sync
-// what the actual requirements from the database.
-function writeGameManifest(tmpdir, manifestData) {
-    var fs = require('fs');
-
-    try {
-        fs.appendFileSync(tmpdir + '/manifest.json', JSON.stringify(manifestData));
-        console.log('manifest.json created.');
-    } catch (err) {
-        /* Handle the error */
-        console.error("Failed to create manifest.json: " + err);
-    }
-}
-
-
 // Export the specified directory to a zipfile names gameName.zip
 // Uses archiver: https://www.npmjs.com/package/archiver
 function createZipFile(tmpDir, gameName, callback) {
@@ -785,36 +875,6 @@ function createZipFile(tmpDir, gameName, callback) {
 }
 
 
-// The game designer questrealms.db is not normalized. mapLocation attributes such as image and description
-// are repeated when they should really be loaded from the plugin attributes. The game play code does this
-// lookup, so strip these attributes out when exporting a game.
-// TODO: update the realm editor to behave the same way, then this function can be removed.
-function stripRealmData(realmData) {
-    return realmData;
-    
-    // Make a copy to avoid altering the original data.
-    var strippedData = JSON.parse(JSON.stringify(realmData));
-
-    $.each(strippedData.mapLocations, function(thisLocation) {
-        delete thisLocation.image;
-
-        // TODO: For now we're only stripping verbose repeated info such as description.
-        // We could really strip everything except the module, filename, and type since
-        // all other standard attributes can be looked up from the module data.
-        // TODO: Only store these values if they have been edited. Rely on runtime lookup
-        // for all standard values. In this case, there will be no need for stripping
-        // description etc. as the editor will only store them if the values have been edited.
-        $.each(thisLocation.items, function(thisItem) {
-            delete thisItem.description;
-        });
-
-        $.each(thisLocation.characters, function(thisCharacter) {
-            delete thisCharacter.description;
-        });
-    });
-}
-
-
 function exportGame(gameBasedir, callback) {
     // Create a temporary working directory.
     var fs = require('fs');
@@ -822,6 +882,7 @@ function exportGame(gameBasedir, callback) {
     // Export the game and the realms from the master db.
     var exportFileName = $('#exportGameName').val();
     var gameDir = path.join(gameBasedir, exportFileName);
+    var dbDir = path.join(gameDir, "0");
     var gameId = $('#exportGameId').val().trim();
 
     var db_collections = dbWrapper.getDBs();
@@ -872,8 +933,26 @@ function exportGame(gameBasedir, callback) {
                 });
             },
             function (callback) {
+                // The dbs will be in a 0/ subdirectory. This is the initial
+                // game version. Subsequent saves will go into 1/ etc.
+                fs.mkdir(dbDir, function (err) {
+                    if (err) {
+                        alert("Error: " + JSON.stringify(err));
+                        callback(err);
+                    }
+
+                    var manifestData = {
+                        'name': 'Start from the beginning.'
+                    };
+        
+                    writeInstanceManifest(dbDir, manifestData);
+                    callback(null);
+                });
+            },
+            function (callback) {
                 // Export the game db entry.
-                var gameDB = new Datastore({ filename: gameDir + '/game.db', autoload: true });
+                var gameDB = new Datastore(
+                    { filename: path.join(dbDir, '/game.db'), autoload: true });
 
                 gameDB.insert(gameData[0], function (err, newGame) {
                     if (err) {
@@ -902,9 +981,9 @@ function exportGame(gameBasedir, callback) {
                                 callback(err);
                             }
 
-                            var realmDB = new Datastore({ filename: gameDir + '/questrealms.db', autoload: true });
-                            var strippedRealmData = stripRealmData(realmData[0]);
-                            realmDB.insert(strippedRealmData, function (err, newRealm) {
+                            var realmDB = new Datastore(
+                                { filename: path.join(dbDir, '/questrealms.db'), autoload: true });
+                            realmDB.insert(realmData[0], function (err, newRealm) {
                                 if (err) {
                                     alert("Error: " + JSON.stringify(err));
                                     callback(err);
@@ -956,18 +1035,18 @@ function exportGame(gameBasedir, callback) {
                 });
             }
         ],
-            function (err) {
-                // All done processing the games and realms, or aborted early with an error.
-                if (err) {
-                    console.error("Failed to export game: " + err);
-                    alert("Failed to export game: " + err);
-                    return;
-                }
+        function (err) {
+            // All done processing the games and realms, or aborted early with an error.
+            if (err) {
+                console.error("Failed to export game: " + err);
+                alert("Failed to export game: " + err);
+                return;
+            }
 
-                console.log("all done.");
-                cleanAndHideExportGamePanel();
-                alert("Exported game to " + gameDir);
-            });
+            console.log("all done.");
+            cleanAndHideExportGamePanel();
+            alert("Exported game to " + gameDir);
+        });
     });
 }
 
@@ -1044,7 +1123,7 @@ function importGame(filename, callback) {
 
         var errMsg = "";
         // Read the game name from manifest.json
-        var manifest = readManifest(tmpDir);
+        var manifest = readGameManifest(tmpDir);
         if (0 === Object.keys(manifest).length) {
             errMsg = "Failed to read manifest.json.";
         } else {
