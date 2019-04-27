@@ -194,6 +194,33 @@ ipc.on('playGame-data', function (event, data) {
     });
 
     // Handle game commands
+    var prevCommands = [];
+
+    // Remember the last 10 commands, and select with up and down arrows.
+    var selectedCommand = null;
+    $('#inputArea').keydown(function (event) {
+        if ((event.keyCode !== 38 && event.keyCode !== 40) ||
+            (prevCommands.length === 0)) {
+            return;
+        }
+
+        if (event.keyCode === 38) {
+            // Up arrow.
+            if (selectedCommand === null) {
+                selectedCommand = prevCommands.length - 1;
+            } else if (selectedCommand > 0) {
+                selectedCommand--;
+            }
+        } else if (event.keyCode === 40 &&
+                   (selectedCommand < prevCommands.length - 1)) {
+            // Down arrow.
+            selectedCommand++;
+        }
+
+        $('#inputArea').val(prevCommands[selectedCommand]);
+    });
+
+    // A command has been chosen by pressing enter.
     $('#inputArea').keypress(function (event) {
         if (event.keyCode == 13) {
             var commandTextBox = $('#inputArea');
@@ -201,6 +228,13 @@ ipc.on('playGame-data', function (event, data) {
             if (0 === commandText.length) {
                 return;
             }
+
+            // Rememeber this command, up to a limit of 10.
+            if (prevCommands.length === 10) {
+                prevCommands.splice(0, 1);
+            }
+            prevCommands.push(commandText);
+            selectedCommand = null;
 
             var playerLocation = findPlayerLocation();
             if (!playerLocation) {
