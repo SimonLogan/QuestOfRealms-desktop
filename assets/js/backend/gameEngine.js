@@ -1219,7 +1219,7 @@ function handleCharacterDefeat(character, currentLocation) {
     character.inventory = [];
 }
 
-function handlePlayerDefeat(player, currentLocation) {
+function handlePlayerDeath(player, currentLocation) {
     // You will drop your inventory.
     for (var i = 0; i < player.inventory.length; i++) {
         currentLocation.items.push(player.inventory[i]);
@@ -1322,8 +1322,9 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
 
         // In "fight" your opponent can die.
         // In "fight for" they can be totally defeated but will not die.
+        // The player can die in either case.
         var characterDied = false;
-        var playerTotallyDefeated = false;
+        var playerDied = false;
         var playerWon = false;
 
         // The victor is the combatant that does the biggest %age damage to the opponent.
@@ -1345,10 +1346,12 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
             message = template(format, { character_type: characterInfo.character.type });
             playerWon = true;
         } else if (characterHealth > 0 && playerHealth === 0) {
-            message = "You fought valiantly, but you were totally defeated.";
-            playerTotallyDefeated = true;
+            message = "You fought valiantly, but you died.";
+            playerDied = true;
         } else if (characterHealth === 0 && playerHealth === 0) {
-            message = "You fought valiantly, but the ${character_type} died and you were totally defeated.";
+            message = "You fought valiantly, but you both died.";
+            characterDied = true;
+            playerDied = true;
         } else {
             // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
             // was equal, judge based on remaining strength.
@@ -1376,8 +1379,8 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
             currentLocation.characters.splice(characterInfo.characterIndex, 1);
         }
 
-        if (playerTotallyDefeated) {
-            handlePlayerDefeat(playerInfo.player, currentLocation);
+        if (playerDied) {
+            handlePlayerDeath(playerInfo.player, currentLocation);
         }
 
         notifyData = {
@@ -1518,8 +1521,9 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
 
         // In "fight" your opponent can die.
         // In "fight for" they can be totally defeated but will not die.
+        // The player can die in either case.
         var characterTotallyDefeated = false;
-        var playerTotallyDefeated = false;
+        var playerDied = false;
         var playerWon = false;
 
         // The victor is the combatant that does the biggest %age damage to the opponent.
@@ -1541,10 +1545,12 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
             message = template(format, { character_type: characterInfo.character.type });
             playerWon = true;
         } else if (characterHealth > 0 && playerHealth === 0) {
-            message = "You fought valiantly, but you were totally defeated.";
+            message = "You fought valiantly, but you died.";
             playerDied = true;
         } else if (characterHealth === 0 && playerHealth === 0) {
-            message = "You fought valiantly, but you were both totally defeated.";
+            message = "You fought valiantly. The ${character_type} was totally defeated, but you died.";
+            characterTotallyDefeated = true;
+            playerDied = true;
         } else {
             // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
             // was equal, judge based on remaining strength.
@@ -1568,20 +1574,20 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
         characterInfo.character.health = characterHealth;
         
         // Fight worked, so update the target.
-        if (characterTotallyDefeated) {
-            handleCharacterDefeat(characterInfo.character, currentLocation);
-        }
-
-        if (playerTotallyDefeated) {
-            handlePlayerDefeat(playerInfo.player, currentLocation);
-        }
-
         // Record who we took the object from so we can check for
         // "acquire from" objectives.
         if (playerWon) {
             foundInventoryItem.source = { reason: "take from", from: targetName };
             g_gameData.player.inventory.push(foundInventoryItem);
             characterInfo.character.inventory.splice(foundIndex, 1);
+        }
+
+        if (characterTotallyDefeated) {
+            handleCharacterDefeat(characterInfo.character, currentLocation);
+        }
+
+        if (playerDied) {
+            handlePlayerDeath(playerInfo.player, currentLocation);
         }
 
         notifyData = {

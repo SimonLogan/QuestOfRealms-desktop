@@ -332,7 +332,7 @@ function processMessage(thisMessage) {
     console.log("processing message: " + JSON.stringify(thisMessage));
 
     if (thisMessage.error) {
-        displayMessage(thisMessage.message);
+        displayMessageBlock(thisMessage.message);
         return;
     }
 
@@ -753,7 +753,6 @@ function displayMessageBlock(message) {
 
 // Display a message a briefly highlight it in the message table.
 function displayMessage(message) {
-
     displayMessageImpl(escapeHtml(message));
     setTimeout(function () { $('.messageRow.newMessage').removeClass('newMessage').addClass('oldMessage'); }, 1000);
 }
@@ -763,7 +762,7 @@ function displayMessageImpl(message) {
         var msgFragment = wordbreak(message);
         displayMessageImpl(msgFragment);
         message = message.substring(msgFragment.length);
-        while (message.length) {
+        while (message.trim().length) {
             var msgFragment = wordbreak(message);
             displayMessageImpl(msgFragment);
             message = message.substring(msgFragment.length);
@@ -849,16 +848,31 @@ function handleCommand(playerLocation, commandText, callback) {
     if (tokens[0] === "help") {
         handleHelp(tokens);
         return;
-    } else if (tokens[0] === "look") {
-        handleLook(playerLocation, tokens);
-        return;
-    } else if (tokens[0] === "inventory") {
-        handleInventory(playerLocation, tokens);
-        return;
-    } else if (tokens[0] === "status") {
+    }
+    
+    if (tokens[0] === "status") {
         handleStatus(playerLocation, tokens);
         return;
-    } else if (tokens[0] === "describe") {
+    }
+
+    // You can't do any of the following if you are dead.
+
+    if (g_gameData.player.health === 0) {
+        displayMessage("You are mighty but even you cannot act from beyond the grave.");
+        return;
+    }
+
+    if (tokens[0] === "look") {
+        handleLook(playerLocation, tokens);
+        return;
+    }
+    
+    if (tokens[0] === "inventory") {
+        handleInventory(playerLocation, tokens);
+        return;
+    }
+    
+    if (tokens[0] === "describe") {
         handleDescribe(playerLocation, tokens);
         return;
     }
@@ -953,20 +967,20 @@ function handleLook(playerLocation, tokens) {
         }
 
         // Does the requested location exist? First get the current player location.
-        var originalX = parseInt(playerLocation.x);
-        var originalY = parseInt(playerLocation.y);
+        var originalX = parseInt(playerLocation.attributes.x);
+        var originalY = parseInt(playerLocation.attributes.y);
         var newX = originalX + deltaX;
         var newY = originalY + deltaY;
         console.log("searching for location [" + newX + ", " + newY + "].");
 
-        if (!locationExists(newY - 1, newX - 1)) {
+        var checkLocation = findLocation(newX.toString(), newY.toString());
+        if (!checkLocation) {
             var errorMessage = "That direction is beyond the edge of the world.";
             displayMessageBlock(errorMessage);
             return false;
         }
 
-        var newLocation = mapLocationData[newY - 1][newX - 1];
-        displayMessageBlock(describeLocation(newLocation, describeDetailEnum.TERRAIN_ONLY));
+        displayMessageBlock(describeLocation(checkLocation, describeDetailEnum.TERRAIN_ONLY));
         return true;
     }
 }
@@ -1141,6 +1155,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
         }
     }
 
+    displayMessage("");
     return true;
 }
 
@@ -1187,6 +1202,7 @@ function describeLocationItem(playerLocation, itemName, itemNumber) {
         displayMessage("Damage: " + moduleData.damage);
     }
 
+    displayMessage("");
     return true;
 }
 
@@ -1209,7 +1225,7 @@ function describeItem(item) {
     return message;
 }
 
-function locationExists(y, x) {
+function locationExists(x, y) {
     return (findLocation(x, y) !== undefined);
 }
 
@@ -1240,6 +1256,11 @@ function handleStatus(playerLocation, tokens) {
     var playerInfo = findPlayer.findPlayerByName(g_gameData, g_gameData.player.name);
     if (null === playerInfo) {
         console.log("in handleUse.find() invalid player.");
+        return;
+    }
+
+    if (playerInfo.player.health === 0) {
+        displayMessageBlock("You are dead.");
         return;
     }
 

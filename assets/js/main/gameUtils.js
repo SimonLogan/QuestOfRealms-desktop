@@ -70,5 +70,9 @@ function readInstanceManifest(manifestDirectory) {
 // This is because some properties aren't stored in the db if they
 // have default values.
 function readProperty(objectProperty, defaultProperty) {
-    return objectProperty ? objectProperty: defaultProperty;
+    if (objectProperty === undefined) {
+        return defaultProperty;
+    }
+
+    return objectProperty;
 }
