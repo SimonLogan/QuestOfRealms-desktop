@@ -114,9 +114,17 @@ module.exports = {
             var playerHealth = playerInfo.player.health;
             var characterHealth = character.health;
 
+            var playerDamage = playerInfo.player.damage;
+            if (playerInfo.player.using.length > 0 &&
+                playerInfo.player.using[0].hasOwnProperty('damage')) {
+                playerDamage = Math.max(parseInt(
+                    playerInfo.player.using[0].damage),
+                    playerInfo.player.damage);
+            }
+
             // Deal the damage
             playerHealth = Math.max(playerHealth - character.damage, 0);
-            characterHealth = Math.max(characterHealth - playerInfo.player.damage, 0);
+            characterHealth = Math.max(characterHealth - playerDamage, 0);
 
             var resp = {
                 player: playerName,
