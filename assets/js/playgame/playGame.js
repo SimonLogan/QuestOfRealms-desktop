@@ -1019,8 +1019,10 @@ function handleDescribe(playerLocation, tokens) {
 
     // We don't know whether it's an item or character, so try both.
     if (!describeLocationCharacter(playerLocation, objectName, objectNumber)) {
-        if (!describeLocationItem(playerLocation, objectName, objectNumber)) {
-            displayMessageBlock("There is no " + objectName + ".");
+        if (!describeInventoryItem(objectName, objectNumber)) {
+            if (!describeLocationItem(playerLocation, objectName, objectNumber)) {
+                displayMessageBlock("There is no " + objectName + ".");
+            }
         }
     }
 }
@@ -1159,27 +1161,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
     return true;
 }
 
-function describeLocationItem(playerLocation, itemName, itemNumber) {
-    var matchedIndex = null;
-    for (var i = 0; i < playerLocation.attributes.items.length; i++) {
-        if (playerLocation.attributes.items[i].type === itemName) {
-            // Count down the matches. If we reached 0 then we've
-            // matched the specified number of characters.
-            itemNumber--;
-            if (itemNumber > 0) {
-                continue;
-            }
-
-            matchedIndex = i;
-            break;
-        }
-    }
-
-    if (matchedIndex === null) {
-        return false;
-    }
-
-    var thisItem = playerLocation.attributes.items[matchedIndex];
+function describeItem(thisItem) {
     var message = "A " + thisItem.type;
     if (thisItem.name) {
         message += " called \"" + thisItem.name + "\"";
@@ -1203,35 +1185,57 @@ function describeLocationItem(playerLocation, itemName, itemNumber) {
     }
 
     displayMessage("");
+}
+
+function describeLocationItem(playerLocation, itemName, itemNumber) {
+    var matchedIndex = null;
+    for (var i = 0; i < playerLocation.attributes.items.length; i++) {
+        if (playerLocation.attributes.items[i].type === itemName) {
+            // Count down the matches. If we reached 0 then we've
+            // matched the specified number of characters.
+            itemNumber--;
+            if (itemNumber > 0) {
+                continue;
+            }
+
+            matchedIndex = i;
+            break;
+        }
+    }
+
+    if (matchedIndex === null) {
+        return false;
+    }
+
+    describeItem(playerLocation.attributes.items[matchedIndex]);
     return true;
 }
 
-// TODO: improve this to share the implementation between
-// describeLocationCharacter() and describeLocationItem().
-function describeItem(item) {
-    var message = "A " + item.type;
-    if (item.name) {
-        message += " called \"" + item.name + "\"";
+function describeInventoryItem(itemName, itemNumber) {
+    var matchedIndex = null;
+    for (var i = 0; i < g_gameData.player.inventory.length; i++) {
+        if (g_gameData.player.inventory[i].type === itemName) {
+            // Count down the matches. If we reached 0 then we've
+            // matched the specified number of characters.
+            itemNumber--;
+            if (itemNumber > 0) {
+                continue;
+            }
+
+            matchedIndex = i;
+            break;
+        }
     }
 
-    if (item.description) {
-        message += ". " + item.description + ".";
+    if (matchedIndex === null) {
+        return false;
     }
 
-    if (item.damage) {
-        message += ". Damage: " + item.damage;
-    }
-
-    return message;
+    describeItem(g_gameData.player.inventory[matchedIndex]);
+    return true;
 }
 
-function locationExists(x, y) {
-    return (findLocation(x, y) !== undefined);
-}
-
-function handleInventory(playerLocation, tokens) {
-    // For now the assumption is that you are playing as g_gameData.players[0].
-    // This will not be true when we support multi-player mode.
+function handleInventory() {
     var inventory = g_gameData.player.inventory;
     if (undefined !== inventory && 0 != inventory.length) {
         var message = "You have ";
@@ -1249,7 +1253,7 @@ function handleInventory(playerLocation, tokens) {
     }
 }
 
-function handleStatus(playerLocation, tokens) {
+function handleStatus() {
     // For now the assumption is that you are playing as g_gameData.players[0].
     // This will not be true when we support multi-player mode.
 
