@@ -21,6 +21,11 @@ describeDetailEnum = {
     TERRAIN_AND_CONTENTS: 1
 };
 
+// The size and position of the map view portal.
+const MAP_VIEW_SIZE = 8;
+var MAP_OFFSET_X = 0;
+var MAP_OFFSET_Y = 0;
+
 // The game data. This will be retrieved initially and then kept updated
 // via callbacks from the game engine. The "g_" prefix is to prevent accidental
 // assignment in a function.
@@ -179,7 +184,10 @@ ipc.on('playGame-data', function (event, data) {
             );
         },
         function(callback) {
-            drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
+            MAP_OFFSET_X = get_map_x_offset(g_gameData.player.location.x);
+            MAP_OFFSET_Y = get_map_y_offset(g_gameData.player.location.y);
+            drawMapGrid();
+
             mView = new LocationsView({ collection: g_locationData });
             if (g_currentRealmData.hasOwnProperty('mapLocations')) {
                 g_locationData.reset(g_currentRealmData.mapLocations);
@@ -261,7 +269,7 @@ ipc.on('playGame-data', function (event, data) {
         // TODO: persist this setting in prefs.json.
         g_playerPrefs.mapDrawMode = selectedOption.target.value;
 
-        drawMapGrid(g_currentRealmData.width, g_currentRealmData.height);
+        drawMapGrid();
 
         g_locationData.forEach(function (item) {
             drawMapLocation(item);
@@ -366,6 +374,33 @@ function processMessage(thisMessage) {
     console.log("======== finished processMessage() ========");
 }
 
+function get_map_x_offset(player_x) {
+    if (parseInt(g_currentRealmData.width) > MAP_VIEW_SIZE &&
+        parseInt(player_x) > (MAP_OFFSET_X + MAP_VIEW_SIZE)) {
+            return (parseInt(player_x) - MAP_VIEW_SIZE);
+    }
+	
+	return MAP_OFFSET_X;
+}
+
+function get_map_y_offset(player_y) {
+    if (parseInt(g_currentRealmData.height) > MAP_VIEW_SIZE &&
+        parseInt(player_y) > (MAP_OFFSET_Y + MAP_VIEW_SIZE)) {
+            return (parseInt(player_y) - MAP_VIEW_SIZE);
+    }
+	
+	return MAP_OFFSET_Y;
+}
+
+function location_in_viewport(xStr, yStr) {
+    var x = parseInt(xStr);
+    var y = parseInt(yStr);
+    var viewport_width = Math.min(parseInt(g_currentRealmData.width), MAP_VIEW_SIZE);
+    var viewport_height = Math.min(parseInt(g_currentRealmData.height), MAP_VIEW_SIZE);
+    return ((x > MAP_OFFSET_X && x <= MAP_OFFSET_X + viewport_width) &&
+            (y > MAP_OFFSET_Y && y <= MAP_OFFSET_Y + viewport_height));
+}
+
 function processMoveNotification(message) {
     var responseData = message.responseData;
     g_gameData = responseData.data.game;
@@ -381,12 +416,39 @@ function processMoveNotification(message) {
             responseData.description.from.x.toString(),
             responseData.description.from.y.toString());
 
-        // Draw the old map location without the player.
-        drawMapLocation(oldLocation);
+        // If the move would take the player outside the current view portal, then
+        // we need to redraw the map grid, otherwise just update the old and
+        // new locations.
+        var redraw_required = false;
+        var new_x_offset = get_map_x_offset(newLocation.attributes.x);
+        if (new_x_offset !== MAP_OFFSET_X) {
+            MAP_OFFSET_X = new_x_offset;
+            redraw_required = true;
+        }
 
-        // Show the player in the new location.
-        drawMapLocation(newLocation);
-        showPlayerLocation(newLocation);
+        var new_y_offset = get_map_y_offset(newLocation.attributes.y);
+        if (new_y_offset !== MAP_OFFSET_Y) {
+            MAP_OFFSET_Y = new_y_offset;
+            redraw_required = true;
+        }
+
+        if (redraw_required) {
+            drawMapGrid();
+
+            g_locationData.forEach(function (item) {
+                drawMapLocation(item);
+            });
+    
+            var playerLocation = findPlayerLocation();
+            showPlayerLocation(playerLocation);
+        } else {
+            // Draw the old map location without the player.
+            drawMapLocation(oldLocation);
+
+            // Show the player in the new location.
+            drawMapLocation(newLocation);
+            showPlayerLocation(newLocation);
+        }
     }
 }
 
@@ -612,26 +674,25 @@ function displayObjectives() {
 }
 
 
-function drawMapGrid(realmWidth, realmHeight) {
+function drawMapGrid() {
     var mapTable = $('#mapTable');
     var tableContents = '';
 
     /* Draw the empty grid with axis labels.
-
        Being an html table, it has to be drawn from the top left to
        bottom right, but we want to label the cells with the origin
        at the bottom left.
     */
 
-    // Allow an extra cell at the top and bottom of the table for the cell labels.
-    realmWidth = parseInt(realmWidth);
-    realmHeight = parseInt(realmHeight);
+    var realmWidth = Math.min(parseInt(g_currentRealmData.width), MAP_VIEW_SIZE);
+    var realmHeight = Math.min(parseInt(g_currentRealmData.height), MAP_VIEW_SIZE);
 
+    // Allow an extra cell at the top and bottom of the table for the cell labels.
     for (var yCounter = realmHeight + 1; yCounter >= 0; yCounter--) {
         if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<tr>';
         } else {
-            tableContents += '<tr id="row_' + yCounter + '">';
+            tableContents += '<tr id="row_' + (MAP_OFFSET_Y + yCounter) + '">';
         }
 
         // Allow an extra cell at the start of the row for the cell labels.
@@ -639,7 +700,8 @@ function drawMapGrid(realmWidth, realmHeight) {
         if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
-            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
+            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' +
+                (MAP_OFFSET_Y + yCounter) + '</div>';
         }
         tableContents += '</td>';
 
@@ -647,12 +709,13 @@ function drawMapGrid(realmWidth, realmHeight) {
         for (var xCounter = 1; xCounter <= realmWidth; xCounter++) {
             // Draw the column labels in the top and bottom rows.
             if ((yCounter === 0) || (yCounter === realmHeight + 1)) {
-                tableContents += '<td style="border-style: none"><div style="width:50px; height:50px; line-height:50px; text-align:center;">' + xCounter + '</div></td>';
+                tableContents += '<td style="border-style: none"><div style="width:50px; height:50px; line-height:50px; text-align:center;">' +
+                    (MAP_OFFSET_X + xCounter) + '</div></td>';
             } else {
                 // Draw the regular map cells.
-                tableContents += '<td id="cell_' + xCounter + "_" + yCounter + '"> ' +
+                tableContents += '<td id="cell_' + (MAP_OFFSET_X + xCounter) + "_" + (MAP_OFFSET_Y + yCounter) + '"> ' +
                     '<div class="droppable" style="width:50px; height:50px;" ' +
-                    'data-x="' + xCounter + '" data-y="' + yCounter + '" data-env=""></div>' +
+                    'data-x="' + (MAP_OFFSET_X + xCounter) + '" data-y="' + (MAP_OFFSET_Y + yCounter) + '" data-env=""></div>' +
                     '</td>';
             }
         }
@@ -662,7 +725,7 @@ function drawMapGrid(realmWidth, realmHeight) {
         if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
-            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + yCounter + '</div>';
+            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + (MAP_OFFSET_Y + yCounter) + '</div>';
         }
         tableContents += '</td>';
 
@@ -698,20 +761,20 @@ function drawMapLocation(locationData) {
 
 // Decide whether to show a maplocation depending on thr mapdraw mode.
 function shouldDrawMapLocation(locationData) {
-    var player = g_gameData.player;
-
-    // Default to always draw.
-    if (g_playerPrefs.mapDrawMode === mapDrawModeEnum.AUTO_ALL) {
-        return true;
+    // Only draw locations inside the viewport.
+    if (!location_in_viewport(locationData.attributes.x, locationData.attributes.y)) {
+        return false;
     }
 
     // The list of locations the player has visited is a dictionary for
     // quick searching when drawing the map. Using a list
     // will scale badly when drawing the whole map.
+    var player = g_gameData.player;
     var visitedKey = locationData.attributes.x.toString() + "_" + locationData.attributes.y.toString();
     var playerVistitedLocation = (
-        visitedKey in g_gameData.player.visited[g_gameData.player.location.realm]);
-    if ("autoVisited" == g_playerPrefs.mapDrawMode && playerVistitedLocation) {
+        visitedKey in player.visited[player.location.realm]);
+    if (("autoVisited" == g_playerPrefs.mapDrawMode && playerVistitedLocation) ||
+        (g_playerPrefs.mapDrawMode === mapDrawModeEnum.AUTO_ALL)) {
         return true;
     }
 
