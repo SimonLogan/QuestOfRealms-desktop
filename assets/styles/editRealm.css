@@ -6,8 +6,71 @@
 
 #workPanel {
     float: left;
+    margin: 10px;
 }
 
+#toolsPanelLeft, #objectivesPanel {
+    float:left;
+    margin-right:5px;
+}
+
+#propertiesPanel, #palettePanel, #objectivesPanel1 {
+    clear:both;
+}
+
+#itemPropertiesPanel, #characterPropertiesPanel,
+#characterInventoryPanel, inventoryItemPropertiesPanel {
+    border-top:1px solid gray;
+}
+
+#paletteEnvList, #paletteItemList, #paletteCharactersList {
+    margin-bottom: 5px;
+}
+
+#paletteEnvPropertiesPanel, #paletteItemPropertiesPanel,
+#paletteCharactersPropertiesPanel {
+    border-top:1px solid gray;
+    padding-top: 5px;
+}
+
+#objectiveChoicePanel, #objectiveListPanel {
+    padding: 5px;
+}
+
+#propertiesInnerPanel {
+    width:330px;
+    min-height:250px;
+    font-family:arial, sans-serif;
+    font-size: 12px;
+}
+
+#paletteInnerPanel {
+    width:330px;
+    min-height: 250px;
+    font-family: arial, sans-serif;
+    font-size: 12px;
+}
+
+#objectivesPanel2 {
+    width:300px;
+    min-height: 250px;
+    font-family: arial, sans-serif;
+    font-size: 12px;
+}
+
+.elementList {
+    height: 55px;
+}
+
+.editControlContainer {
+    margin-top:10px;
+    border-top: 1px solid gray;
+}
+
+.editControl {
+    margin-top: 10px;
+}
+    
 th.detailsHeading {
     text-align: right;
     vertical-align: top;
@@ -29,10 +92,23 @@ form dd {
 #mapTable, #mapTable th, #mapTable td {
     border: 1px solid black;
     border-collapse: collapse;
+    border-spacing:1px;
+}
+
+#objectiveList {
+    border: 1px;
+}
+
+#objectiveListHeadingRow {
+    background-color: lightgray;
+}
+
+#propertiesPanelTitle, #palettePanelTitle, #objectivesPanelTitle {
+   margin-top: 20px;
+   font-weight: bold;
 }
 
 /* jquery dialog overrrides */
 .ui-dialog-titlebar {
    font-size: 12px;
 }
-

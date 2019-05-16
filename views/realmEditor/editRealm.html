@@ -24,10 +24,10 @@
     <script type="text/javascript" src="../../assets/js/backend/pluginManager.js"></script>
 
     <div id="workArea">
-        <div id="toolsPanelLeft" style="float:left; margin-right:5px;">
-            <div id="propertiesPanel" style="clear:both;">
-                <div id="propertiesPanelTitle" style="margin-top: 20px; font-weight: bold">Location properties</div>
-                <div id="propertiesInnerPanel" style="width:330px; min-height: 250px;font-family: arial, sans-serif; font-size: 12px;">
+        <div id="toolsPanelLeft">
+            <div id="propertiesPanel">
+                <div id="propertiesPanelTitle">Location properties</div>
+                <div id="propertiesInnerPanel">
                     <ul>
                         <li><a href="#properties-overview">Overview</a></li>
                         <li><a href="#properties-items">Items</a></li>
@@ -54,36 +54,36 @@
                         </div>
                     </div>
                     <div id="properties-items">
-                        <div id="itemList" style="height: 55px" class="elementList">
+                        <div id="itemList" class="elementList">
                             <!-- Items will be dynamically populated. -->
                         </div>
-                        <div id="itemPropertiesPanel" style="border-top:1px solid gray">
+                        <div id="itemPropertiesPanel">
                             <div>
                                 <table>
                                     <tr>
                                         <th class="detailsHeading">Name:</th><td><input type="text" id="itemName" class="itemProperty" disabled /></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Type:</th><td><label id="itemType" value="" class="itemProperty" /></td>
+                                        <th class="detailsHeading">Type:</th><td><label id="itemType" value="" class="itemProperty"></label></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Description:</th><td><label id="itemDescription" value="" class="itemProperty" /></td>
+                                        <th class="detailsHeading">Description:</th><td><label id="itemDescription" value="" class="itemProperty"></label></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Damage:</th><td><label id="itemDamage" value="" class="itemProperty" /></td>
+                                        <th class="detailsHeading">Damage:</th><td><label id="itemDamage" value="" class="itemProperty"></label></td>
                                     </tr>
                                 </table>
                             </div>
-                            <div style="margin-top:10px; border-top: 1px solid gray;">
-                                <input type="image" id="editItemProperties" src="../../assets/images/pencil43-disabled.png" style="margin-top: 10px;" disabled/>
+                            <div class="editControlContainer">
+                                <input type="image" class="editControl" id="editItemProperties" src="../../assets/images/pencil43-disabled.png" disabled/>
                             </div>
                         </div>
                     </div>
                     <div id="properties-characters">
-                        <div id="characterList" style="height: 55px" class="elementList">
+                        <div id="characterList" class="elementList">
                             <!-- Items will be dynamically populated. -->
                         </div>
-                        <div id="characterPropertiesPanel" style="border-top:1px solid gray">
+                        <div id="characterPropertiesPanel">
                             <div>
                                 <table>
                                     <tr>
@@ -110,34 +110,34 @@
                                 </table>
                             </div>
                         </div>
-                        <div style="margin-top:10px; border-top: 1px solid gray;">
-                            <input type="image" id="editCharacterProperties" src="../../assets/images/pencil43-disabled.png" style="margin-top: 10px;" disabled/>
+                        <div class="editControlContainer">
+                            <input type="image" class="editControl" id="editCharacterProperties" src="../../assets/images/pencil43-disabled.png" disabled/>
                         </div>
 
-                        <div id="characterInventoryPanel" style="border-top:1px solid gray">
+                        <div id="characterInventoryPanel">
                             <div><b>Character Inventory</b></div>
-                            <div id="inventoryItemList" style="height: 55px" class="droppable elementList">
+                            <div id="inventoryItemList" class="droppable elementList">
                                 <!-- Items will be dynamically populated. -->
                             </div>
-                            <div id="inventoryItemPropertiesPanel" style="border-top:1px solid gray">
+                            <div id="inventoryItemPropertiesPanel">
                                 <div>
                                     <table>
                                         <tr>
                                             <th class="detailsHeading">Name:</th><td><input type="text" id="inventoryItemName" class="itemProperty" disabled /></td>
                                         </tr>
                                         <tr>
-                                            <th class="detailsHeading">Type:</th><td><label id="inventoryItemType" value="" class="itemProperty" /></td>
+                                            <th class="detailsHeading">Type:</th><td><label id="inventoryItemType" value="" class="itemProperty"></label></td>
                                         </tr>
                                         <tr>
-                                            <th class="detailsHeading">Description:</th><td><label id="inventoryItemDescription" value="" class="itemProperty" /></td>
+                                            <th class="detailsHeading">Description:</th><td><label id="inventoryItemDescription" value="" class="itemProperty"></label></td>
                                         </tr>
                                         <tr>
-                                            <th class="detailsHeading">Damage:</th><td><label id="inventoryItemDamage" value="" class="itemProperty" /></td>
+                                            <th class="detailsHeading">Damage:</th><td><label id="inventoryItemDamage" value="" class="itemProperty"></label></td>
                                         </tr>
                                     </table>
                                 </div>
-                                <div style="margin-top:10px; border-top: 1px solid gray;">
-                                    <input type="image" id="editInventoryItemProperties" src="../../assets/images/pencil43-disabled.png" style="margin-top: 10px;" disabled/>
+                                <div class="editControlContainer">
+                                    <input type="image" id="editInventoryItemProperties" class="editControl" src="../../assets/images/pencil43-disabled.png" disabled/>
                                 </div>
                             </div>
                         </div>
@@ -145,75 +145,75 @@
                 </div>
             </div>
 
-            <div id="palettePanel" style="clear:both;">
-                <div id="palettePanelTitle" style="font-weight: bold">Palette</div>
-                <div id="paletteInnerPanel" style="width:330px; min-height: 250px; font-family: arial, sans-serif; font-size: 12px;">
+            <div id="palettePanel">
+                <div id="palettePanelTitle">Palette</div>
+                <div id="paletteInnerPanel">
                     <ul>
                         <li><a href="#palette-environment">Environment</a></li>
                         <li><a href="#palette-items">Items</a></li>
                         <li><a href="#palette-characters">Characters</a></li>
                     </ul>
                     <div id="palette-environment">
-                        <div id="paletteEnvList" style="margin-bottom: 5px;">
+                        <div id="paletteEnvList">
                             <!-- Items will be dynamically populated. -->
                         </div>
-                        <div id="paletteEnvPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
+                        <div id="paletteEnvPropertiesPanel">
                             <div>
                                 <table>
                                     <tr>
-                                        <th class="detailsHeading">Type:</th><td><label id="paletteEnvType" value="" /></td></td>
+                                        <th class="detailsHeading">Type:</th><td><label id="paletteEnvType" value=""></label></td></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Description:</th><td><label id="paletteEnvDescription" value="" /></td>
+                                        <th class="detailsHeading">Description:</th><td><label id="paletteEnvDescription" value=""></label></td>
                                     </tr>
                                 </table>
                             </div>
                         </div>
                     </div>
                     <div id="palette-items">
-                        <div id="paletteItemList" style="margin-bottom: 5px;">
+                        <div id="paletteItemList">
                             <!-- Items will be dynamically populated. -->
                         </div>
-                        <div id="paletteItemPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
+                        <div id="paletteItemPropertiesPanel">
                             <div>
                                 <table>
                                     <tr>
-                                        <th class="detailsHeading">Type:</th><td><label id="paletteItemType" value="" /></td></td>
+                                        <th class="detailsHeading">Type:</th><td><label id="paletteItemType" value=""></label></td></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Description:</th><td><label id="paletteItemDescription" value="" /></td>
+                                        <th class="detailsHeading">Description:</th><td><label id="paletteItemDescription" value=""></label></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Damage:</th><td><label id="paletteItemDamage" value="" /></td>
+                                        <th class="detailsHeading">Damage:</th><td><label id="paletteItemDamage" value=""></label></td>
                                     </tr>
                                 </table>
                             </div>
                         </div>
                     </div>
                     <div id="palette-characters">
-                        <div id="paletteCharactersList" style="margin-bottom: 5px;">
+                        <div id="paletteCharactersList">
                             <!-- Items will be dynamically populated. -->
                         </div>
-                        <div id="paletteCharactersPropertiesPanel" style="border-top:1px solid gray; padding-top: 5px;">
+                        <div id="paletteCharactersPropertiesPanel">
                             <div>
                                 <table>
                                     <tr>
-                                        <th class="detailsHeading">Type:</th><td><label id="paletteCharacterType" value="" /></td></td>
+                                        <th class="detailsHeading">Type:</th><td><label id="paletteCharacterType" value=""></label></td></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Description:</th><td><label id="paletteCharacterDescription" value="" /></td>
+                                        <th class="detailsHeading">Description:</th><td><label id="paletteCharacterDescription" value=""></label></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Additional info:</th><td><label id="paletteCharacterAddInfo" value="" /></td>
+                                        <th class="detailsHeading">Additional info:</th><td><label id="paletteCharacterAddInfo" value=""></label></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Health:</th><td><label id="paletteCharacterHealth" value="" /></td>
+                                        <th class="detailsHeading">Health:</th><td><label id="paletteCharacterHealth" value=""></label></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Damage:</th><td><label id="paletteCharacterDamage" value="" /></td>
+                                        <th class="detailsHeading">Damage:</th><td><label id="paletteCharacterDamage" value=""></label></td>
                                     </tr>
                                     <tr>
-                                        <th class="detailsHeading">Drops:</th><td><label id="paletteCharacterDrops" value="" /></td>
+                                        <th class="detailsHeading">Drops:</th><td><label id="paletteCharacterDrops" value=""></label></td>
                                     </tr>
                                 </table>
                             </div>
@@ -222,16 +222,16 @@
                 </div>
             </div>
 
-            <div id="objectivesPanel" style="float:left; margin-right:5px;">
-                <div id="objectivesPanel1" style="clear:both;">
-                    <div id="objectivesPanelTitle" style="margin-top: 20px; font-weight: bold">Objectives</div>
-                    <div id="objectivesPanel2" style="width:300px; min-height: 250px; font-family: arial, sans-serif; font-size: 12px;" class="ui-widget-content ui-corner-all">
-                        <div id="objectiveChoicePanel" style="padding: 5px;">
+            <div id="objectivesPanel">
+                <div id="objectivesPanel1">
+                    <div id="objectivesPanelTitle">Objectives</div>
+                    <div id="objectivesPanel2" class="ui-widget-content ui-corner-all">
+                        <div id="objectiveChoicePanel">
                             <input type="button" id="addObjective" value="Add Objective">
                         </div>
-                        <div id="objectiveListPanel" style="padding: 5px;">
-                            <table id="objectiveList" style="border: 1px;">
-                                <tr style="background-color: lightgray">
+                        <div id="objectiveListPanel">
+                            <table id="objectiveList">
+                                <tr id="objectiveListHeadingRow">
                                     <th>Objective</th>
                                     <th>Details</th>
                                 </tr>
@@ -242,11 +242,11 @@
             </div>
         </div>
 
-        <div id="workPanel" style="margin: 10px;">
+        <div id="workPanel">
             <div id="mapPanel">
                 <div>
-                    <div id = "mapContainer">
-                        <table id="mapTable" style="border-spacing:1px; border-collapse:collapse">
+                    <div id="mapContainer">
+                        <table id="mapTable">
                         </table>
                     </div>
                 </div>
