@@ -57,3 +57,21 @@ input {
     padding:20px;
     text-decoration:underline;
 }
+
+#itemDescription, #characterDescription {
+    width: 320px;
+    height: 80px;
+}
+
+#characterAddInfo {
+    width: 320px;
+    height: 120px;
+}
+
+#objectiveForm {
+    height: 195px;
+}
+
+#objectiveChoicePanel {
+    padding: 5px;
+}
