@@ -1,0 +1,26 @@
+table.realmList {
+    border: 1px solid #888888;
+    border-spacing: 0px;
+ }
+ 
+ table.realmList th, table.realmList td {
+    border: 1px solid #888888;
+    border-spacing: 0px;
+    padding: 2px;
+ }
+ 
+ th.realmListName {
+    width: 100px;
+ }
+ 
+ th.realmListDescription {
+    width: 200px;
+ }
+ 
+ tr.realmListOddRow {
+    background-color: #f0f0f0;
+ }
+ 
+ tr.realmListEvenRow {
+    background-color: #dddddd;
+ }

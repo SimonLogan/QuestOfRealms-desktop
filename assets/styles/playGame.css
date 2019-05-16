@@ -12,6 +12,12 @@
 
 #inputPanel {
     margin-top: 5px;
+    border: 1px solid gray;
+}
+
+#mapTable {
+    border-spacing:1px;
+    border-collapse:collapse;
 }
 
 #messageTable {
@@ -58,4 +64,13 @@
     position:absolute;
     margin-left: -3em;
     margin-top: 1.5em;
+}
+
+#drawChoicePanel {
+    margin-top:10px;
+}
+
+input[type="submit"] {
+    position:absolute;
+    top:-1000px;
 }
