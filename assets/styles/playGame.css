@@ -74,3 +74,19 @@ input[type="submit"] {
     position:absolute;
     top:-1000px;
 }
+
+#mapTable td.mapLabelCell {
+    border-style: none;
+}
+
+.mapLabel {
+    width:50px;
+    height:50px;
+    line-height:50px;
+    text-align:center;
+}
+
+.mapCell {
+    width:50px;
+    height:50px;
+}

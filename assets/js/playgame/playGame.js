@@ -696,11 +696,11 @@ function drawMapGrid() {
         }
 
         // Allow an extra cell at the start of the row for the cell labels.
-        tableContents += '<td style="border-style: none">';
+        tableContents += '<td class="mapLabelCell">';
         if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
-            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' +
+            tableContents += '<div class="mapLabel">' +
                 (MAP_OFFSET_Y + yCounter) + '</div>';
         }
         tableContents += '</td>';
@@ -709,23 +709,23 @@ function drawMapGrid() {
         for (var xCounter = 1; xCounter <= realmWidth; xCounter++) {
             // Draw the column labels in the top and bottom rows.
             if ((yCounter === 0) || (yCounter === realmHeight + 1)) {
-                tableContents += '<td style="border-style: none"><div style="width:50px; height:50px; line-height:50px; text-align:center;">' +
+                tableContents += '<td class="mapLabelCell"><div class="mapLabel">' +
                     (MAP_OFFSET_X + xCounter) + '</div></td>';
             } else {
                 // Draw the regular map cells.
                 tableContents += '<td id="cell_' + (MAP_OFFSET_X + xCounter) + "_" + (MAP_OFFSET_Y + yCounter) + '"> ' +
-                    '<div class="droppable" style="width:50px; height:50px;" ' +
+                    '<div class="droppable mapCell" ' +
                     'data-x="' + (MAP_OFFSET_X + xCounter) + '" data-y="' + (MAP_OFFSET_Y + yCounter) + '" data-env=""></div>' +
                     '</td>';
             }
         }
 
         // Allow an extra cell at the end of the row for the cell labels.
-        tableContents += '<td style="border-style: none">';
+        tableContents += '<td class="mapLabelCell">';
         if ((yCounter === realmHeight + 1) || (yCounter === 0)) {
             tableContents += '<div>&nbsp;</div>';
         } else {
-            tableContents += '<div style="width:50px; height:50px; line-height:50px; text-align:center;">' + (MAP_OFFSET_Y + yCounter) + '</div>';
+            tableContents += '<div class="mapLabel">' + (MAP_OFFSET_Y + yCounter) + '</div>';
         }
         tableContents += '</td>';
 

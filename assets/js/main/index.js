@@ -334,14 +334,14 @@ function displayGameRecords(gameId) {
     var thisGame = availableGames[gameId];
     console.log("displayGameRecords() thisGame: " + JSON.stringify(thisGame));
     var gameHTML = "<div class='gameDetails' data-gameId='" + gameId + "'>" +
-        "<div style='float:left; margin-right:10px;'><strong>Name:</strong> " + thisGame.manifest.name + "</div>" +
+        "<div id='gameNameContainer'><strong>Name:</strong> " + thisGame.manifest.name + "</div>" +
         "<div><input type='button' class='deleteGame' value='Delete Game' " +
         "title='Delete all saved versions of this game.'/></div>" +
-        "<div style='margin-top: 10px'>" + thisGame.manifest.description + "</div>";
+        "<div id='gameDescriptionContainer'>" + thisGame.manifest.description + "</div>";
 
     var row = 0;
     var rowClass = "realmListOddRow";
-    var instanceTable = "<div style='margin-top: 10px;'>";
+    var instanceTable = "<div id='instanceTable'>";
     instanceTable += "<table class='realmList'>";
     instanceTable += "<th class='realmListDescription'>Description</th>";
     instanceTable += "<th class='realmListSavedate'>Save date</th>";

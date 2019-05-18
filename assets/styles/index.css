@@ -16,10 +16,27 @@ label.inputLabel {
     margin-top: 20px;
 }
 
+#gameDesignsTitle {
+    margin-bottom: 10px;
+}
+
 .gameDetails {
     margin-bottom: 20px;
 }
 
 #pageTitle {
+    margin-top: 10px;
+}
+
+#gameNameContainer {
+    float:left;
+    margin-right:10px;
+}
+
+#gameDescriptionContainer {
+    margin-top: 10px;
+}
+
+#instanceTable {
     margin-top: 10px;
 }
