@@ -785,7 +785,14 @@ function showPlayerLocation(location) {
     if (shouldDrawMapLocation(location)) {
         var target = $('#mapTable td[id="cell_' + location.attributes.x + '_' + location.attributes.y + '"]').find('div');
         var html = target.html();
-        html += '<img id="simon" src="../../assets/images/player-icon.png" class="playerIcon">';
+
+        if (g_gameData.player.health === 0) {
+            // The player is dead.
+            html += '<img id="simon" src="../../assets/images/player-icon.png" class="deadPlayerIcon">';
+        } else {
+            html += '<img id="simon" src="../../assets/images/player-icon.png" class="playerIcon">';
+        }
+
         target.html(html);
     }
 }
@@ -1216,7 +1223,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
         for (var j = 0; j < thisCharacter.inventory.length; j++) {
             // TODO: improve this to share the implementation with
             // describeLocationItem().
-            displayMessage("  " + describeItem(thisCharacter.inventory[j]));
+            describeItem(thisCharacter.inventory[j], {"indent": true});
         }
     }
 
@@ -1224,30 +1231,33 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
     return true;
 }
 
-function describeItem(thisItem) {
+function describeItem(thisItem, options) {
+    var indent = "";
+    if (options && options.hasOwnProperty("indent") && options.indent) {
+        indent = "   ";
+    }
+
     var message = "A " + thisItem.type;
     if (thisItem.name) {
         message += " called \"" + thisItem.name + "\"";
     }
-    displayMessage(message);
+    displayMessage(indent + message);
 
     // In all cases below, character-specific values are optional in the db.
     // If nothing found, use the default value (from the module data) instead.
     var moduleData = g_dependencyInfo[thisItem.module][thisItem.filename][thisItem.type];
 
     if (thisItem.description) {
-        displayMessage(thisItem.description);
+        displayMessage(indent + thisItem.description);
     } else {
-        displayMessage(moduleData.description);
+        displayMessage(indent + moduleData.description);
     }
 
     if (thisItem.damage) {
-        displayMessage("Damage: " + thisItem.damage);
-    } else {
-        displayMessage("Damage: " + moduleData.damage);
+        displayMessage(indent + "Damage: " + thisItem.damage);
+    } else if (moduleData.damage) {
+        displayMessage(indent + "Damage: " + moduleData.damage);
     }
-
-    displayMessage("");
 }
 
 function describeLocationItem(playerLocation, itemName, itemNumber) {
@@ -1271,6 +1281,7 @@ function describeLocationItem(playerLocation, itemName, itemNumber) {
     }
 
     describeItem(playerLocation.attributes.items[matchedIndex]);
+    displayMessage("");
     return true;
 }
 
@@ -1295,6 +1306,7 @@ function describeInventoryItem(itemName, itemNumber) {
     }
 
     describeItem(g_gameData.player.inventory[matchedIndex]);
+
     return true;
 }
 
