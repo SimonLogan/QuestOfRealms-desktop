@@ -303,10 +303,6 @@ function local_getCurrentRealmData() {
     return JSON.parse(JSON.stringify(g_currentRealmData));
 }
 
-function copyMapLocation(location) {
-    return JSON.parse(JSON.stringify(location));
-}
-
 function saveGame(callback) {
     console.log(Date.now() + ' saveGame');
 
@@ -384,6 +380,13 @@ function findHandler(object, action, findOptions) {
 	return handlerFunc;
 }
 
+// Javascript passes objects by reference. We don't want plugins to be
+// able to modify game data, so provide the ability to make a copy
+// of an object.
+function copyData(data) {
+    return JSON.parse(JSON.stringify(data));
+}
+
 function handleMove(command, playerName, statusCallback) {
     var direction = command.replace(/move[\s+]/i, "");
     console.log("MOVE: " + direction);
@@ -438,7 +441,7 @@ function handleMove(command, playerName, statusCallback) {
     var originalY = parseInt(g_gameData.player.location.y);
     var newX = originalX + deltaX;
     var newY = originalY + deltaY;
-    console.log("in handleMove.find() searching for location [" + newX + ", " + newY + "].");
+
     var newLocation = findLocation(newX.toString(), newY.toString());
     if (!newLocation) {
         var errorMessage = "Don't be daft, you'll fall off the end of the world!";
@@ -446,8 +449,6 @@ function handleMove(command, playerName, statusCallback) {
         statusCallback({ error: true, message: errorMessage });
         return;
     }
-
-    console.log("in handleMove.find() callback " + JSON.stringify(newLocation));
 
     // TODO: store the coordinates as int instead of string.
     var notifyData = {};
@@ -497,14 +498,9 @@ function handleMove(command, playerName, statusCallback) {
         data: {}
     };
 
-    console.log("in Game.update() callback, no error.");
     notifyData.data = { game: local_getGameData() };
-
-    // In a multiplayer game, we need to broadcast the status update.
-    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-    //sails.io.sockets.emit(realmId + "-status", notifyData);
-
     statusCallback({ error: false, responseData: notifyData });
+
     return;
 }
 
@@ -535,7 +531,6 @@ function handleTake(command, playerName, statusCallback) {
 
     var currentX = g_gameData.player.location.x;
     var currentY = g_gameData.player.location.y;
-    console.log("in handleTake.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -543,8 +538,6 @@ function handleTake(command, playerName, statusCallback) {
         statusCallback({ error: true, message: errorMessage });
         return;
     }
-
-    console.log("in handleTake.find() callback " + JSON.stringify(currentLocation));
 
     if (!targetName) {
         handleTakeFromLocation(objectName, currentLocation, playerName, statusCallback);
@@ -554,8 +547,6 @@ function handleTake(command, playerName, statusCallback) {
 }
 
 function handleTakeFromLocation(objectName, currentLocation, playerName, statusCallback) {
-    console.log("In handleTakeFromLocation()");
-
     // Find the requested item in the current mapLocation.
     var itemInfo = findItem.findItemByType(currentLocation.items, objectName);
     if (itemInfo === null) {
@@ -584,20 +575,15 @@ function handleTakeFromLocation(objectName, currentLocation, playerName, statusC
 
     notifyData.data = {
         game: local_getGameData(),
-        mapLocation: copyMapLocation(currentLocation)
+        mapLocation: copyData(currentLocation)
     };
 
-    // In a multiplayer game, we need to broadcast the status update.
-    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-    //sails.io.sockets.emit(realmId + "-status", notifyData);
-
     statusCallback({ error: false, responseData: notifyData });
+
     return;
 }
 
 function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, statusCallback) {
-    console.log("In handleTakeFromNPC()");
-
     // Find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
@@ -607,8 +593,6 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
         return;
     }
 
-    console.log("Found targetName: " + JSON.stringify(targetName));
-
     if (characterInfo.character.inventory === undefined) {
         var errorMessage = "The " + targetName + " has no " + objectName + ".";
         console.log(errorMessage);
@@ -616,14 +600,12 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
         return;
     }
 
-    console.log("Checking inventory");
     var foundIndex = -1;
     var foundInventoryItem = null;
     for (var j = 0; j < characterInfo.character.inventory.length; j++) {
         if (characterInfo.character.inventory[j].type === objectName) {
             foundIndex = j;
             foundInventoryItem = characterInfo.character.inventory[foundIndex];
-            console.log("Found item in inventory");
         }
     }
 
@@ -634,64 +616,60 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
         return;
     }
 
-    console.log("Found objectName: " + JSON.stringify(foundInventoryItem));
-    console.log("characterIndex: " + characterInfo.characterIndex);
-
     // We found the item. See if we can take it.
     var handlerFunc = findHandler(characterInfo.character, "take from");
-    if (handlerFunc === undefined) {
+    if (!handlerFunc) {
         statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
         return;
     }
 
-    console.log("calling take from()");
-    handlerFunc(characterInfo.character, foundInventoryItem, g_gameData, playerName, function (handlerResp) {
-        console.log("handlerResp: " + handlerResp);
-        if (!handlerResp) {
-            console.log("1 Take from failed - null handlerResp");
-            statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
+    handlerFunc(
+        copyData(characterInfo.character),
+        copyData(foundInventoryItem),
+        copyData(g_gameData),
+        copyData(playerName),
+        function (handlerResp) {
+            if (!handlerResp) {
+                console.log("1 Take from failed - null handlerResp");
+                statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
+                return;
+            }
+
+            if (!handlerResp.description.success) {
+                console.log("2 Take from failed: " + handlerResp.description.message);
+                statusCallback({ error: true, message: handlerResp.description.message });
+                return;
+            }
+
+            // Take worked, so update the player and target.
+            // Record who we took the object from so we can check for
+            // "acquire from" objectives.
+            foundInventoryItem.source = { reason: "take from", from: targetName };
+            characterInfo.character.inventory.splice(foundIndex, 1);
+
+            if (g_gameData.player.inventory === undefined) {
+                g_gameData.player.inventory = [];
+            }
+            g_gameData.player.inventory.push(foundInventoryItem);
+
+            notifyData = {
+                player: playerName,
+                description: {
+                    action: "take",
+                    message: "You have taken a " + objectName + " from the " + targetName,
+                    item: itemInfo.item
+                },
+                data: {}
+            };
+
+            notifyData.data = {
+                game: local_getGameData(),
+                mapLocation: copyData(currentLocation)
+            };
+
+            statusCallback({ error: false, responseData: notifyData });
+
             return;
-        }
-
-        console.log("Valid handlerResp " + JSON.stringify(handlerResp));
-        if (!handlerResp.description.success) {
-            console.log("2 Take from failed: " + handlerResp.description.message);
-            statusCallback({ error: true, message: handlerResp.description.message });
-            return;
-        }
-
-        // Take worked, so update the player and target.
-        // Record who we took the object from so we can check for
-        // "acquire from" objectives.
-        foundInventoryItem.source = { reason: "take from", from: targetName };
-        characterInfo.character.inventory.splice(foundIndex, 1);
-
-        if (g_gameData.player.inventory === undefined) {
-            g_gameData.player.inventory = [];
-        }
-        g_gameData.player.inventory.push(foundInventoryItem);
-
-        notifyData = {
-            player: playerName,
-            description: {
-                action: "take",
-                message: "You have taken a " + objectName + " from the " + targetName,
-                item: itemInfo.item
-            },
-            data: {}
-        };
-
-        notifyData.data = {
-            game: local_getGameData(),
-            mapLocation: copyMapLocation(currentLocation)
-        };
-
-        // In a multiplayer game, we need to broadcast the status update.
-        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-        //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-        statusCallback({ error: false, responseData: notifyData });
-        return;
     });
 }
 
@@ -724,7 +702,6 @@ function handleBuy(command, playerName, statusCallback) {
 
     var currentX = g_gameData.player.location.x;
     var currentY = g_gameData.player.location.y;
-    console.log("in handleBuy.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -733,8 +710,6 @@ function handleBuy(command, playerName, statusCallback) {
         return;
     }
 
-    console.log("in handleBuy.find() callback " + JSON.stringify(currentLocation));
-
     if (!currentLocation) {
         var errorMessage = "Current location not found";
         console.log("Current location not found");
@@ -742,12 +717,10 @@ function handleBuy(command, playerName, statusCallback) {
         return;
     }
 
-    handleBuyFromNPC(objectName, targetName, currentLocation, playerName, playerInfo.playerIndex, statusCallback);
+    handleBuyFromNPC(objectName, targetName, currentLocation, playerName, statusCallback);
 }
 
-function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, playerIndex, statusCallback) {
-    console.log("In handleBuyFromNPC()");
-
+function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, statusCallback) {
     // Find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
@@ -757,8 +730,6 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
         return;
     }
 
-    console.log("Found targetName: " + JSON.stringify(targetName));
-
     if (characterInfo.character.inventory === undefined) {
         var errorMessage = "The " + targetName + " has no " + objectName + ".";
         console.log(errorMessage);
@@ -766,22 +737,18 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
         return;
     }
 
-    console.log("Checking inventory");
     var foundIndex = -1;
     var foundInventoryItem = null;
     for (var j = 0; j < characterInfo.character.inventory.length; j++) {
-        console.log("Checking inventory item " + j.toString());
         if (characterInfo.character.inventory[j].type === objectName) {
             // Assume the buy will be successful. If not, we will
             // discard this edit.
             foundIndex = j;
             foundInventoryItem = characterInfo.character.inventory[foundIndex];
-            console.log("Found item in inventory");
             break;
         }
     }
 
-    console.log("After checking inventory");
     if (foundIndex === -1) {
         var errorMessage = "The " + targetName + " has no " + objectName + ".";
         console.log(errorMessage);
@@ -789,77 +756,73 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, p
         return;
     }
 
-    console.log("Found objectName: " + JSON.stringify(foundInventoryItem));
-    console.log("characterIndex: " + characterInfo.characterIndex);
-
     // We found the item. See if we can buy it.
     var handlerFunc = findHandler(characterInfo.character, "buy from");
-    if (handlerFunc === undefined) {
+    if (!handlerFunc) {
         statusCallback({ error: true, message: "The " + targetName + " won't sell you the " + objectName });
         return;
     }
 
-    console.log("calling buy from()");
     // TODO: pass copies of characterInfo, object, and gameData
-    handlerFunc(characterInfo.character, foundInventoryItem, g_gameData, playerName, function (handlerResp) {
-        console.log("handlerResp: " + handlerResp);
-        if (!handlerResp) {
-            console.log("1 Buy from failed - null handlerResp");
-            statusCallback({ error: true, message: "The " + targetName + " won't sell you the " + objectName });
-            return;
-        }
+    handlerFunc(
+        copyData(characterInfo.character),
+        copyData(foundInventoryItem),
+        copyData(g_gameData),
+        copyData(playerName),
+        function (handlerResp) {
+            if (!handlerResp) {
+                console.log("1 Buy from failed - null handlerResp");
+                statusCallback({ error: true, message: "The " + targetName + " won't sell you the " + objectName });
+                return;
+            }
 
-        console.log("Valid handlerResp " + JSON.stringify(handlerResp));
-        if (!handlerResp.description.success) {
-            console.log("2 Buy from failed: " + handlerResp.description.message);
-            statusCallback({ error: true, message: handlerResp.description.message });
-            return;
-        }
+            if (!handlerResp.description.success) {
+                console.log("2 Buy from failed: " + handlerResp.description.message);
+                statusCallback({ error: true, message: handlerResp.description.message });
+                return;
+            }
 
-        // Buy worked, so update the player and target.
-        // Record who we bought the object from so we can check for
-        // "acquire from" objectives.
-        foundInventoryItem.source = { reason: "buy from", from: targetName };
-        characterInfo.character.inventory.splice(foundIndex, 1);
+            // Buy worked, so update the player and target.
+            // Record who we bought the object from so we can check for
+            // "acquire from" objectives.
+            foundInventoryItem.source = { reason: "buy from", from: targetName };
+            characterInfo.character.inventory.splice(foundIndex, 1);
 
-        if (g_gameData.player.inventory === undefined) {
-            g_gameData.player.inventory = [];
-        }
-        g_gameData.player.inventory.push(foundInventoryItem);
+            if (g_gameData.player.inventory === undefined) {
+                g_gameData.player.inventory = [];
+            }
+            g_gameData.player.inventory.push(foundInventoryItem);
 
-        //  Now pay!
-        if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {
-            for (var i = 0; i < g_gameData.player.inventory.length; i++) {
-                if (g_gameData.player.inventory[i].type === handlerResp.data.payment.type) {
-                    // could use characterInfo.character instead of currentLocation.characters[characterInfo.characterIndex]
-                    currentLocation.characters[characterInfo.characterIndex].inventory.push(g_gameData.player.inventory[i]);
-                    g_gameData.player.inventory.splice(i, 1);
-                    break;
+            //  Now pay!
+            if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {
+                for (var i = 0; i < g_gameData.player.inventory.length; i++) {
+                    if (g_gameData.player.inventory[i].type === handlerResp.data.payment.type) {
+                        // could use characterInfo.character instead of currentLocation.characters[characterInfo.characterIndex]
+                        currentLocation.characters[characterInfo.characterIndex].inventory.push(g_gameData.player.inventory[i]);
+                        g_gameData.player.inventory.splice(i, 1);
+                        break;
+                    }
                 }
             }
-        }
 
-        notifyData = {
-            player: playerName,
-            description: {
-                action: "buy",
-                message: "You have bought a " + objectName + " from the " + targetName,
-                item: itemInfo.item
-            },
-            data: {}
-        };
+            notifyData = {
+                player: playerName,
+                description: {
+                    action: "buy",
+                    message: "You have bought a " + objectName + " from the " + targetName,
+                    item: itemInfo.item
+                },
+                data: {}
+            };
 
-        notifyData.data = {
-            game: local_getGameData(),
-            mapLocation: copyMapLocation(currentLocation)
-        };
+            notifyData.data = {
+                game: local_getGameData(),
+                mapLocation: copyData(currentLocation)
+            };
 
-        // In a multiplayer game, we need to broadcast the status update.
-        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-        //sails.io.sockets.emit(realmId + "-status", notifyData);
+            statusCallback({ error: false, responseData: notifyData });
 
-        statusCallback({ error: false, responseData: notifyData });
-        return;
+            return;
     });
 }
 
@@ -880,7 +843,6 @@ function handleDrop(command, playerName, statusCallback) {
 
     var currentX = g_gameData.player.location.x;
     var currentY = g_gameData.player.location.y;
-    console.log("in handleDrop.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -888,8 +850,6 @@ function handleDrop(command, playerName, statusCallback) {
         statusCallback({ error: true, message: errorMessage });
         return;
     }
-
-    console.log("in handleDrop.find() callback " + JSON.stringify(currentLocation));
 
     // Find the requested item in the inventory.
     var foundIndex = -1;
@@ -937,12 +897,8 @@ function handleDrop(command, playerName, statusCallback) {
 
     notifyData.data = {
         game: local_getGameData(),
-        mapLocation: copyMapLocation(currentLocation)
+        mapLocation: copyData(currentLocation)
     };
-
-    // In a multiplayer game, we need to broadcast the status update.
-    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-    //sails.io.sockets.emit(realmId + "-status", notifyData);
 
     statusCallback({ error: false, responseData: notifyData });
     return;
@@ -953,7 +909,6 @@ function handleGive(command, playerName, statusCallback) {
     var commandArgs = command.split("to");
     var objectName = commandArgs[0].trim();
 
-    console.log("GIVE: " + objectName);
     if (commandArgs.length != 2) {
         console.log("in handleGive() command not in the format \"give object to recipient\".");
         statusCallback({ error: true, message: "invalid command" });
@@ -975,7 +930,6 @@ function handleGive(command, playerName, statusCallback) {
 
     var currentX = g_gameData.player.location.x;
     var currentY = g_gameData.player.location.y;
-    console.log("in handleGive.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -984,14 +938,10 @@ function handleGive(command, playerName, statusCallback) {
         return;
     }
 
-    console.log("in handleGive.find() callback " + JSON.stringify(currentLocation));
-
     handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, statusCallback);
 }
 
 function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, statusCallback) {
-    console.log("In handleGiveToNPC()");
-
     // Find the requested item in the specified target's inventory.
     if (playerInfo.player.inventory === undefined) {
         var errorMessage = "You do not have an " + objectName;
@@ -1020,8 +970,6 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
         return;
     }
 
-    console.log("Found object: " + JSON.stringify(foundInventoryItem));
-
     // Found the item, now find the recipient.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
@@ -1031,66 +979,67 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
         return;
     }
 
-    console.log("Found recipient: " + JSON.stringify(targetName));
     var handlerFunc = findHandler(characterInfo.character, "give");
     if (!handlerFunc) {
         statusCallback({ error: true, message: "You can't give an " + objectName + " to the " + targetName });
         return;
     }
 
-    console.log("calling give()");
-    handlerFunc(targetName, foundInventoryItem, g_gameData, playerInfo.player.name, function (handlerResp) {
-        console.log("handlerResp: " + handlerResp);
-        if (!handlerResp) {
-            console.log("Give failed - null handlerResp");
-            statusCallback({ error: true, message: "Failed to give an " + objectName + " to the " + targetName });
+    handlerFunc(
+        targetName,
+        copyData(foundInventoryItem),
+        copyData(g_gameData),
+        copyData(playerInfo.player.name),
+        function (handlerResp) {
+            if (!handlerResp) {
+                console.log("Give failed - null handlerResp");
+                statusCallback({ error: true, message: "Failed to give an " + objectName + " to the " + targetName });
+                return;
+            }
+
+            if (!handlerResp.description.success) {
+                console.log("Give failed: " + handlerResp.description.message);
+                statusCallback({ error: true, message: handlerResp.description.message });
+                return;
+            }
+
+            var usingItemInfo = findItem.findItemByType(playerInfo.player.using, objectName);
+            if (usingItemInfo) {
+                // You are using that item. Not any more...
+                playerInfo.player.using.splice(usingItemInfo.itemIndex, 1);
+            }
+
+            // Give worked, so update the recipient.
+            // Record who gave the object so we can check for "give" objectives.
+            foundInventoryItem.source = { reason: "give", from: playerInfo.player.name };
+            playerInfo.player.inventory.splice(foundItemIndex, 1);
+
+            if (characterInfo.character.inventory === undefined) {
+                characterInfo.character.inventory = [];
+            }
+            characterInfo.character.inventory.push(foundInventoryItem);
+
+            notifyData = {
+                player: playerInfo.player.name,
+                description: {
+                    action: "give",
+                    message: "You have given a " + objectName + " to the " + targetName,
+                    item: itemInfo.item
+                },
+                data: {}
+            };
+
+            notifyData.data = {
+                game: local_getGameData(),
+                mapLocation: copyData(currentLocation)
+            };
+
+            // In a multiplayer game, we need to broadcast the status update.
+            //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
+            //sails.io.sockets.emit(realmId + "-status", notifyData);
+
+            statusCallback({ error: false, responseData: notifyData });
             return;
-        }
-
-        console.log("Valid handlerResp " + JSON.stringify(handlerResp));
-        if (!handlerResp.description.success) {
-            console.log("Give failed: " + handlerResp.description.message);
-            statusCallback({ error: true, message: handlerResp.description.message });
-            return;
-        }
-
-        var usingItemInfo = findItem.findItemByType(playerInfo.player.using, objectName);
-        if (usingItemInfo) {
-            // You are using that item. Not any more...
-            playerInfo.player.using.splice(usingItemInfo.itemIndex, 1);
-        }
-
-        // Give worked, so update the recipient.
-        // Record who gave the object so we can check for "give" objectives.
-        foundInventoryItem.source = { reason: "give", from: playerInfo.player.name };
-        playerInfo.player.inventory.splice(foundItemIndex, 1);
-
-        if (characterInfo.character.inventory === undefined) {
-            characterInfo.character.inventory = [];
-        }
-        characterInfo.character.inventory.push(foundInventoryItem);
-
-        notifyData = {
-            player: playerInfo.player.name,
-            description: {
-                action: "give",
-                message: "You have given a " + objectName + " to the " + targetName,
-                item: itemInfo.item
-            },
-            data: {}
-        };
-
-        notifyData.data = {
-            game: local_getGameData(),
-            mapLocation: copyMapLocation(currentLocation)
-        };
-
-        // In a multiplayer game, we need to broadcast the status update.
-        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-        //sails.io.sockets.emit(realmId + "-status", notifyData);
-
-        statusCallback({ error: false, responseData: notifyData });
-        return;
     });
 }
 
@@ -1144,11 +1093,8 @@ function handleUse(command, playerName, statusCallback) {
         }
     };
 
-    // In a multiplayer game, we need to broadcast the status update.
-    //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-    //sails.io.sockets.emit(realmId + "-status", notifyData);
-
     statusCallback({ error: false, responseData: notifyData });
+
     return;
 }
 
@@ -1179,7 +1125,6 @@ function handleFight(command, playerName, statusCallback) {
 
     var currentX = g_gameData.player.location.x;
     var currentY = g_gameData.player.location.y;
-    console.log("in handleFight.find() searching for location [" + currentX + ", " + currentY + "].");
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -1230,8 +1175,6 @@ function handlePlayerDeath(player, currentLocation) {
 
 // Fight with no particular objective in mind.
 function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback) {
-    console.log("In handleFightNPC()");
-
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
         var errorMessage = "There is no " + targetName + ".";
@@ -1240,11 +1183,8 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
         return;
     }
 
-    console.log("Found targetName: " + JSON.stringify(targetName));
-
     var path = require('path');
     var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
-    console.log("gameDir: " + gameDir);
 
     // Perform the default fight operation and call the optional handler to modify the
     // NPC's behaviour.
@@ -1253,8 +1193,6 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
         statusCallback({ error: true, message: "There is no handler for \"fight\" available" });
         return;
     }
-
-    console.log("calling fight()");
 
     // For string template substitution.
     var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
@@ -1296,120 +1234,114 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
 
     var characterOrigHealth = characterInfo.character.health;
     var playerOrigHealth = playerInfo.player.health;
-    handlerFunc(characterInfo.character, g_gameData, playerInfo, function (handlerResp) {
-        console.log("handlerResp: " + handlerResp);
-        if (!handlerResp) {
-            console.log("1 fight - null handlerResp");
-            statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
-            return;
-        }
-
-        console.log("Valid handlerResp " + JSON.stringify(handlerResp));
-        if (!handlerResp.description.success) {
-            console.log("2 fight failed: " + handlerResp.description.message);
-            statusCallback({ error: true, message: handlerResp.description.message });
-            return;
-        }
-
-        // Don't update the game if there was no response from the handler.
-        if (!handlerResp.hasOwnProperty('data')) {
-            console.log("*** 1 sending resp: " + JSON.stringify(handlerResp));
-            handlerResp.data = { game: game, location: currentLocation };
-            //sails.io.sockets.emit(game.id + "-status", handlerResp);
-            statusCallback({ error: false, data: handlerResp });
-            return;
-        }
-
-        // In "fight" your opponent can die.
-        // In "fight for" they can be totally defeated but will not die.
-        // The player can die in either case.
-        var characterDied = false;
-        var playerDied = false;
-        var playerWon = false;
-
-        // The victor is the combatant that does the biggest %age damage to the opponent.
-        var playerHealth = handlerResp.data.playerHealth;
-        var characterHealth = handlerResp.data.characterHealth;
-        var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
-        var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
-
-        console.log(
-            "After fight. player.health: " + playerHealth +
-            ", character.health: " + characterHealth +
-            ", player dealt damage: " + playerDamageDealt + "% " +
-            ", character dealt damage: " + characterDamageDealt + "%");
-
-        message = "You fought valiantly.";
-        if (characterHealth === 0 && playerHealth > 0) {
-            format = "You fought valiantly. The ${character_type} died.";
-            characterDied = true;
-            message = template(format, { character_type: characterInfo.character.type });
-            playerWon = true;
-        } else if (characterHealth > 0 && playerHealth === 0) {
-            message = "You fought valiantly, but you died.";
-            playerDied = true;
-        } else if (characterHealth === 0 && playerHealth === 0) {
-            message = "You fought valiantly, but you both died.";
-            characterDied = true;
-            playerDied = true;
-        } else {
-            // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
-            // was equal, judge based on remaining strength.
-            if ((playerDamageDealt > characterDamageDealt) ||
-                ((playerDamageDealt === characterDamageDealt) &&
-                 (playerHealth > characterHealth))) {
-                message = "You fought valiantly and were victorious.";
-                playerWon = true;
-            } else if ((characterDamageDealt > playerDamageDealt) ||
-                       ((playerDamageDealt === characterDamageDealt) &&
-                        (characterHealth > playerHealth))) {
-                format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
-                message = template(format, { character_type: characterInfo.character.type });
-            } else {
-                // Evenly matched so far, declare a draw.
-                message = "You both fought valiantly, but are evently matched.";
+    handlerFunc(
+        copyData(characterInfo.character),
+        copyData(g_gameData),
+        copyData(playerInfo),
+        function (handlerResp) {
+            if (!handlerResp) {
+                console.log("1 fight - null handlerResp");
+                statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
+                return;
             }
-        }
 
-        g_gameData.player.health = playerHealth;
-        characterInfo.character.health = characterHealth;
+            if (!handlerResp.description.success) {
+                console.log("2 fight failed: " + handlerResp.description.message);
+                statusCallback({ error: true, message: handlerResp.description.message });
+                return;
+            }
 
-        if (characterDied) {
-            handleCharacterDeath(characterInfo.character, currentLocation);
-            currentLocation.characters.splice(characterInfo.characterIndex, 1);
-        }
+            // Don't update the game if there was no response from the handler.
+            if (!handlerResp.hasOwnProperty('data')) {
+                handlerResp.data = { game: game, location: currentLocation };
+                statusCallback({ error: false, data: handlerResp });
+                return;
+            }
 
-        if (playerDied) {
-            handlePlayerDeath(playerInfo.player, currentLocation);
-        }
+            // In "fight" your opponent can die.
+            // In "fight for" they can be totally defeated but will not die.
+            // The player can die in either case.
+            var characterDied = false;
+            var playerDied = false;
+            var playerWon = false;
 
-        notifyData = {
-            player: playerInfo.player.name,
-            description: {
-                action: "fight",
-                message: message
-            },
-            data: {}
-        };
+            // The victor is the combatant that does the biggest %age damage to the opponent.
+            var playerHealth = handlerResp.data.playerHealth;
+            var characterHealth = handlerResp.data.characterHealth;
+            var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+            var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
 
-        notifyData.data = {
-            game: local_getGameData(),
-            mapLocation: copyMapLocation(currentLocation)
-        };
+            console.log(
+                "After fight. player.health: " + playerHealth +
+                ", character.health: " + characterHealth +
+                ", player dealt damage: " + playerDamageDealt + "% " +
+                ", character dealt damage: " + characterDamageDealt + "%");
 
-        // In a multiplayer game, we need to broadcast the status update.
-        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-        //sails.io.sockets.emit(realmId + "-status", notifyData);
+            message = "You fought valiantly.";
+            if (characterHealth === 0 && playerHealth > 0) {
+                format = "You fought valiantly. The ${character_type} died.";
+                characterDied = true;
+                message = template(format, { character_type: characterInfo.character.type });
+                playerWon = true;
+            } else if (characterHealth > 0 && playerHealth === 0) {
+                message = "You fought valiantly, but you died.";
+                playerDied = true;
+            } else if (characterHealth === 0 && playerHealth === 0) {
+                message = "You fought valiantly, but you both died.";
+                characterDied = true;
+                playerDied = true;
+            } else {
+                // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
+                // was equal, judge based on remaining strength.
+                if ((playerDamageDealt > characterDamageDealt) ||
+                    ((playerDamageDealt === characterDamageDealt) &&
+                    (playerHealth > characterHealth))) {
+                    message = "You fought valiantly and were victorious.";
+                    playerWon = true;
+                } else if ((characterDamageDealt > playerDamageDealt) ||
+                        ((playerDamageDealt === characterDamageDealt) &&
+                            (characterHealth > playerHealth))) {
+                    format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
+                    message = template(format, { character_type: characterInfo.character.type });
+                } else {
+                    // Evenly matched so far, declare a draw.
+                    message = "You both fought valiantly, but are evently matched.";
+                }
+            }
 
-        statusCallback({ error: false, responseData: notifyData });
-        return;
+            g_gameData.player.health = playerHealth;
+            characterInfo.character.health = characterHealth;
+
+            if (characterDied) {
+                handleCharacterDeath(characterInfo.character, currentLocation);
+                currentLocation.characters.splice(characterInfo.characterIndex, 1);
+            }
+
+            if (playerDied) {
+                handlePlayerDeath(playerInfo.player, currentLocation);
+            }
+
+            notifyData = {
+                player: playerInfo.player.name,
+                description: {
+                    action: "fight",
+                    message: message
+                },
+                data: {}
+            };
+
+            notifyData.data = {
+                game: local_getGameData(),
+                mapLocation: copyData(currentLocation)
+            };
+
+            statusCallback({ error: false, responseData: notifyData });
+            return;
     });
 }
 
 // Fight until you beat the NPC and take the object
 function handleFightNPCforItem(targetName, objectName, currentLocation, playerInfo, statusCallback) {
-    console.log("In handleFightNPCforItem()");
-
     // If fighting for an object, find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
@@ -1419,8 +1351,6 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
         return;
     }
 
-    console.log("Found targetName: " + JSON.stringify(targetName));
-
     if (characterInfo.character.inventory === undefined) {
         var errorMessage = "The " + targetName + " has no " + objectName + ".";
         console.log(errorMessage);
@@ -1428,14 +1358,12 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
         return;
     }
 
-    console.log("Checking inventory");
     var foundIndex = -1;
     var foundInventoryItem = null;
     for (var j = 0; j < characterInfo.character.inventory.length; j++) {
         if (characterInfo.character.inventory[j].type === objectName) {
             foundIndex = j;
             foundInventoryItem = characterInfo.character.inventory[foundIndex];
-            console.log("Found item in inventory");
         }
     }
 
@@ -1453,8 +1381,6 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
         return;
     }
 
-    console.log("calling fight for()");
-
     // For string template substitution.
     var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
 
@@ -1495,121 +1421,120 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
 
     var characterOrigHealth = characterInfo.character.health;
     var playerOrigHealth = playerInfo.player.health;
-    handlerFunc(characterInfo.character, foundInventoryItem, g_gameData, playerInfo, function (handlerResp) {
-        console.log("handlerResp: " + handlerResp);
-        if (!handlerResp) {
-            console.log("1 fight for - null handlerResp");
-            statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
-            return;
-        }
-
-        console.log("Valid handlerResp " + JSON.stringify(handlerResp));
-        if (!handlerResp.description.success) {
-            console.log("2 fight for failed: " + handlerResp.description.message);
-            statusCallback({ error: true, message: handlerResp.description.message });
-            return;
-        }
-
-        // Don't update the game if there was no response from the handler.
-        if (!handlerResp.hasOwnProperty('data')) {
-            console.log("*** 1 sending resp: " + JSON.stringify(handlerResp));
-            handlerResp.data = { game: game, location: currentLocation };
-            //sails.io.sockets.emit(game.id + "-status", handlerResp);
-            statusCallback({ error: false, data: handlerResp });
-            return;
-        }
-
-        // In "fight" your opponent can die.
-        // In "fight for" they can be totally defeated but will not die.
-        // The player can die in either case.
-        var characterTotallyDefeated = false;
-        var playerDied = false;
-        var playerWon = false;
-
-        // The victor is the combatant that does the biggest %age damage to the opponent.
-        var playerHealth = handlerResp.data.playerHealth;
-        var characterHealth = handlerResp.data.characterHealth;
-        var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
-        var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
-
-        console.log(
-            "After fight. player.health: " + playerHealth +
-            ", character.health: " + characterHealth +
-            ", player dealt damage: " + playerDamageDealt + "% " +
-            ", character dealt damage: " + characterDamageDealt + "%");
-
-        message = "You fought valiantly.";
-        if (characterHealth === 0 && playerHealth > 0) {
-            format = "You fought valiantly. The ${character_type} was totally defeated.";
-            characterTotallyDefeated = true;
-            message = template(format, { character_type: characterInfo.character.type });
-            playerWon = true;
-        } else if (characterHealth > 0 && playerHealth === 0) {
-            message = "You fought valiantly, but you died.";
-            playerDied = true;
-        } else if (characterHealth === 0 && playerHealth === 0) {
-            message = "You fought valiantly. The ${character_type} was totally defeated, but you died.";
-            characterTotallyDefeated = true;
-            playerDied = true;
-        } else {
-            // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
-            // was equal, judge based on remaining strength.
-            if ((playerDamageDealt > characterDamageDealt) ||
-                ((playerDamageDealt === characterDamageDealt) &&
-                 (playerHealth > characterHealth))) {
-                message = "You fought valiantly and were victorious.";
-                playerWon = true;
-            } else if ((characterDamageDealt > playerDamageDealt) ||
-                       ((playerDamageDealt === characterDamageDealt) &&
-                        (characterHealth > playerHealth))) {
-                format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
-                message = template(format, { character_type: characterInfo.character.type });
-            } else {
-                // Evenly matched so far, declare a draw.
-                message = "You both fought valiantly, but are evently matched.";
+    handlerFunc(
+        copyData(characterInfo.character),
+        copyData(foundInventoryItem),
+        copyData(g_gameData),
+        copyData(playerInfo),
+        function (handlerResp) {
+            console.log("handlerResp: " + handlerResp);
+            if (!handlerResp) {
+                console.log("1 fight for - null handlerResp");
+                statusCallback({ error: true, message: "The " + targetName + " won't give you the " + objectName });
+                return;
             }
-        }
 
-        g_gameData.player.health = playerHealth;
-        characterInfo.character.health = characterHealth;
-        
-        // Fight worked, so update the target.
-        // Record who we took the object from so we can check for
-        // "acquire from" objectives.
-        if (playerWon) {
-            foundInventoryItem.source = { reason: "take from", from: targetName };
-            g_gameData.player.inventory.push(foundInventoryItem);
-            characterInfo.character.inventory.splice(foundIndex, 1);
-        }
+            if (!handlerResp.description.success) {
+                console.log("2 fight for failed: " + handlerResp.description.message);
+                statusCallback({ error: true, message: handlerResp.description.message });
+                return;
+            }
 
-        if (characterTotallyDefeated) {
-            handleCharacterDefeat(characterInfo.character, currentLocation);
-        }
+            // Don't update the game if there was no response from the handler.
+            if (!handlerResp.hasOwnProperty('data')) {
+                handlerResp.data = { game: game, location: currentLocation };
+                statusCallback({ error: false, data: handlerResp });
+                return;
+            }
 
-        if (playerDied) {
-            handlePlayerDeath(playerInfo.player, currentLocation);
-        }
+            // In "fight" your opponent can die.
+            // In "fight for" they can be totally defeated but will not die.
+            // The player can die in either case.
+            var characterTotallyDefeated = false;
+            var playerDied = false;
+            var playerWon = false;
 
-        notifyData = {
-            player: playerInfo.player.name,
-            description: {
-                action: "fight",
-                message: message
-            },
-            data: {}
-        };
+            // The victor is the combatant that does the biggest %age damage to the opponent.
+            var playerHealth = handlerResp.data.playerHealth;
+            var characterHealth = handlerResp.data.characterHealth;
+            var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+            var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
 
-        notifyData.data = {
-            game: local_getGameData(),
-            mapLocation: copyMapLocation(currentLocation)
-        };
+            console.log(
+                "After fight. player.health: " + playerHealth +
+                ", character.health: " + characterHealth +
+                ", player dealt damage: " + playerDamageDealt + "% " +
+                ", character dealt damage: " + characterDamageDealt + "%");
 
-        // In a multiplayer game, we need to broadcast the status update.
-        //console.log("sending socket messages for subject '" + currentRealmData._id + "-status'");
-        //sails.io.sockets.emit(realmId + "-status", notifyData);
+            message = "You fought valiantly.";
+            if (characterHealth === 0 && playerHealth > 0) {
+                format = "You fought valiantly. The ${character_type} was totally defeated.";
+                characterTotallyDefeated = true;
+                message = template(format, { character_type: characterInfo.character.type });
+                playerWon = true;
+            } else if (characterHealth > 0 && playerHealth === 0) {
+                message = "You fought valiantly, but you died.";
+                playerDied = true;
+            } else if (characterHealth === 0 && playerHealth === 0) {
+                message = "You fought valiantly. The ${character_type} was totally defeated, but you died.";
+                characterTotallyDefeated = true;
+                playerDied = true;
+            } else {
+                // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
+                // was equal, judge based on remaining strength.
+                if ((playerDamageDealt > characterDamageDealt) ||
+                    ((playerDamageDealt === characterDamageDealt) &&
+                    (playerHealth > characterHealth))) {
+                    message = "You fought valiantly and were victorious.";
+                    playerWon = true;
+                } else if ((characterDamageDealt > playerDamageDealt) ||
+                        ((playerDamageDealt === characterDamageDealt) &&
+                            (characterHealth > playerHealth))) {
+                    format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
+                    message = template(format, { character_type: characterInfo.character.type });
+                } else {
+                    // Evenly matched so far, declare a draw.
+                    message = "You both fought valiantly, but are evently matched.";
+                }
+            }
 
-        statusCallback({ error: false, responseData: notifyData });
-        return;
+            g_gameData.player.health = playerHealth;
+            characterInfo.character.health = characterHealth;
+            
+            // Fight worked, so update the target.
+            // Record who we took the object from so we can check for
+            // "acquire from" objectives.
+            if (playerWon) {
+                foundInventoryItem.source = { reason: "take from", from: targetName };
+                g_gameData.player.inventory.push(foundInventoryItem);
+                characterInfo.character.inventory.splice(foundIndex, 1);
+            }
+
+            if (characterTotallyDefeated) {
+                handleCharacterDefeat(characterInfo.character, currentLocation);
+            }
+
+            if (playerDied) {
+                handlePlayerDeath(playerInfo.player, currentLocation);
+            }
+
+            notifyData = {
+                player: playerInfo.player.name,
+                description: {
+                    action: "fight",
+                    message: message
+                },
+                data: {}
+            };
+
+            notifyData.data = {
+                game: local_getGameData(),
+                mapLocation: copyData(currentLocation)
+            };
+
+            statusCallback({ error: false, responseData: notifyData });
+
+            return;
     });
 }
 
@@ -1628,24 +1553,19 @@ function handleSave(command, statusCallback) {
         dbWrapper.openGameDB(function() {
             // Warning: NEDB does not support transactions. The code below assumes both updates work.
             saveGame(function (gameErr) {
-                console.log("in Game.update() callback");
                 if (gameErr) {
                     console.log("in Game.update() callback, error. " + gameErr);
                     statusCallback({ error: true, message: gameErr });
                     return;
                 }
 
-                console.log("in Game.update() callback, no error.");
-
                 saveRealm(function (realmErr) {
-                    console.log("in realm.update() callback");
                     if (gameErr) {
                         console.log("in realm.update() callback, error. " + realmErr);
                         statusCallback({ error: true, message: realmErr });
                         return;
                     }
 
-                    console.log("in realm.update() callback, no error.");
                     notifyData = {
                         description: {
                             action: "save",

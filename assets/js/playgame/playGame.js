@@ -406,7 +406,6 @@ function processMoveNotification(message) {
     g_gameData = responseData.data.game;
 
     if (responseData.player === g_gameData.player.name) {
-        console.log(responseData.description.message);
         var newLocation = findLocation(
             responseData.description.to.x.toString(),
             responseData.description.to.y.toString());
@@ -458,7 +457,6 @@ function processTakeNotification(message) {
     var locationData = responseData.data.mapLocation;
 
     if (responseData.player === g_gameData.player.name) {
-        console.log(responseData.description.message);
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -490,7 +488,6 @@ function processBuyNotification(message) {
     var locationData = responseData.data.mapLocation;
 
     if (responseData.player === g_gameData.player.name) {
-        console.log(responseData.description.message);
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -522,7 +519,6 @@ function processDropNotification(message) {
     var locationData = responseData.data.mapLocation;
 
     if (responseData.player === g_gameData.player.name) {
-        console.log(responseData.description.message);
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -551,10 +547,31 @@ function processDropNotification(message) {
 function processGiveNotification(message) {
     var responseData = message.responseData;
     g_gameData = responseData.data.game;
+    var locationData = responseData.data.mapLocation;
 
     if (responseData.player === g_gameData.player.name) {
-        console.log(responseData.description.message);
         displayMessageBlock(responseData.description.message);
+
+        var mapLocation = findLocation(
+            locationData.x.toString(),
+            locationData.y.toString());
+
+        if (!mapLocation) {
+            alert("Unable to find the updated location");
+            return;
+        }
+
+        // Update the corresponding model in the maplocation collection.
+        // The view will automatically render the new data.
+        mapLocation.set(locationData);
+
+        // Show the player if we updated the current location.
+        // The g_locationData update will not show the player location
+        // as that is not part of the collection.
+        if (locationData.x == g_gameData.player.location.x &&
+            locationData.y == g_gameData.player.location.y) {
+            showPlayerLocation(mapLocation);
+        }
     }
 }
 
@@ -563,7 +580,6 @@ function processUseNotification(message) {
     g_gameData = responseData.data.game;
 
     if (responseData.player === g_gameData.player.name) {
-        console.log(responseData.description.message);
         displayMessageBlock(responseData.description.message);
     }
 }
@@ -574,7 +590,6 @@ function processFightNotification(message) {
     var locationData = responseData.data.mapLocation;
 
     if (responseData.player === g_gameData.player.name) {
-        console.log(responseData.description.message);
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -608,8 +623,6 @@ function processObjectiveCompletedNotification(message) {
     if (responseData.player === g_gameData.player.name) {
         var status = "You have completed an objective: " +
             buildObjectiveDescription(objective) + ".";
-
-        console.log(status);
         displayMessage(status);
 
         for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
