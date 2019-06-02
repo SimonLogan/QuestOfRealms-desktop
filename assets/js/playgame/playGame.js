@@ -77,10 +77,7 @@ var LocationsView = Backbone.View.extend({
         });
 
         buildMessageArea();
-        var player = g_gameData.player;
-        $('#playing_as').text("Playing as " + player.name);
-        var playerLocation = findLocation(player.location.x, player.location.y);
-        displayMessageBlock(describeMyLocation(playerLocation));
+        $('#playing_as').text("Playing as " + g_gameData.player.name);
     },
     add: function (location) {
         if (location != undefined) {
@@ -193,7 +190,11 @@ ipc.on('playGame-data', function (event, data) {
                 g_locationData.reset(g_currentRealmData.mapLocations);
             }
 
-            displayObjectives();
+            displayInstructions();
+
+            var playerLocation = findLocation(g_gameData.player.location.x, g_gameData.player.location.y);
+            displayMessageBlock(describeMyLocation(playerLocation));
+
             callback(null);
         }
     ],
@@ -636,7 +637,12 @@ function processObjectiveCompletedNotification(message) {
             }
         }
 
-        displayMessageBlock("All objectives are complete.");
+        if (g_currentRealmData.hasOwnProperty("completionMessage") &&
+            g_currentRealmData.completionMessage.length > 0) {
+            displayMessageBlock(g_currentRealmData.completionMessage);
+        } else {
+            displayMessageBlock("All objectives are complete. Nice.");
+        }
     }
 }
 
@@ -656,36 +662,14 @@ function buildObjectiveDescription(objective) {
     return desc;
 }
 
-function displayObjectiveDetails(item) {
-    var description = "";
-
-    $.each(item.params, function (thisParam) {
-        description += item.params[thisParam].name + ":" + item.params[thisParam].value + ", ";
-    });
-
-    description = description.substr(0, description.lastIndexOf(", "));
-    return description;
-}
-
-function displayObjectives() {
-    console.log(Date.now() + ' displayObjectives');
-    var target = $('#objectiveList').html("");
-    var html = "";
-
-    var i = 0;
-    if (g_currentRealmData.hasOwnProperty('objectives')) {
-        g_currentRealmData.objectives.forEach(function (item) {
-            html += "<tr data-id='" + (i++) + "'>";
-            html += "<td class='objectiveName' data-value='" + item.type + "'>" + item.type + "</td>";
-            html += "<td class='objectiveDetails'>" + displayObjectiveDetails(item) + "</td>";
-            html += "<td><input class='deleteObjective' type='image' src='../../assets/images/wastebasket.png' alt='Delete' width='14' height='14'></td>";
-            html += "</tr>";
-        });
+function displayInstructions() {
+    if (g_currentRealmData.hasOwnProperty("startMessage") &&
+    g_currentRealmData.startMessage.length > 0) {
+        displayMessageBlock(g_currentRealmData.startMessage);
     }
 
-    target.append(html);
+    displayMessage("Type \"help\" to see available commands.");
 }
-
 
 function drawMapGrid() {
     var mapTable = $('#mapTable');
@@ -852,16 +836,8 @@ function displayMessageImpl(message) {
         }
     } else {
         var table = $('#messageTable');
-        var topRow = table.find('tr:first');
-        var bottomRowTextField = table.find('tr:last input');
-
-        if (0 === bottomRowTextField.val().length) {
-            bottomRowTextField.val(">\t" + message);
-            bottomRowTextField.addClass('messageRow newMessage');
-        } else {
-            topRow.remove();
-            table.append("<tr><td><input class='messageRow newMessage' size='80' readonly value='>\t" + message + "'/></td></tr>");
-        }
+        table.find('tr:first').remove();
+        table.append("<tr><td><input class='messageRow newMessage' size='80' readonly value='>\t" + message + "'/></td></tr>");
     }
 }
 

@@ -4,18 +4,18 @@
     height: 50px;
 }
 
-#workPanel {
-    float: left;
-    margin: 10px;
+#mapContainer {
+    margin-left: 10px;
 }
 
-#toolsPanelLeft, #objectivesPanel {
-    float:left;
-    margin-right:5px;
+.toolPanel {
+    margin-right: 5px;
+    max-width: 500px;
 }
 
-#propertiesPanel, #palettePanel, #objectivesPanel1 {
-    clear:both;
+.outerPanel {
+    display: inline-block;
+    vertical-align: top;
 }
 
 #itemPropertiesPanel, #characterPropertiesPanel,
@@ -37,14 +37,12 @@
     padding: 5px;
 }
 
-#propertiesInnerPanel {
-    width:330px;
-    min-height:250px;
+#toolsInnerPanel {
     font-family:arial, sans-serif;
     font-size: 12px;
 }
 
-#paletteInnerPanel {
+#propertiesInnerPanel, #paletteInnerPanel {
     width:330px;
     min-height: 250px;
     font-family: arial, sans-serif;
@@ -73,7 +71,13 @@
     
 th.detailsHeading {
     text-align: right;
-    vertical-align: top;
+}
+
+.detailsHeading {
+    font-family: arial, sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    margin-top: 5px;
 }
 
 form dt {
@@ -103,7 +107,7 @@ form dd {
     background-color: lightgray;
 }
 
-#propertiesPanelTitle, #palettePanelTitle, #objectivesPanelTitle {
+.panelTitle {
    margin-top: 20px;
    font-weight: bold;
 }

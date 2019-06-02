@@ -162,6 +162,14 @@ ipc.on('editRealm-data', function (event, data) {
                         locationData.reset(realmData.mapLocations);
                     }
 
+                    if (realmData.hasOwnProperty('startMessage')) {
+                        $('#realmStartMessage').val(realmData.startMessage);
+                    }
+
+                    if (realmData.hasOwnProperty('completionMessage')) {
+                        $('#realmCompletionMessage').val(realmData.completionMessage);
+                    }
+
                     callback(null);
                 } else {
                     // Currently not used.
@@ -172,6 +180,7 @@ ipc.on('editRealm-data', function (event, data) {
     ],
     function (err, results) {
         // Create the tabbed panels
+        $("#toolsContainer").tabs();
         $("#paletteInnerPanel").tabs();
         $("#propertiesInnerPanel").tabs();
         displayObjectives();
@@ -661,6 +670,13 @@ ipc.on('editRealm-data', function (event, data) {
         newCharacter.drops = $('#characterDrops').text();
         thisCell[0].attributes.characters[selectedCharacter.attr('data-index')] = newCharacter;
         locationData.sync();
+    });
+
+    $(document).on('change', '.realmProperty', function () {
+        console.log("realmProperty change");
+        realmData.startMessage = $('#realmStartMessage').val().trim();
+        realmData.completionMessage = $('#realmCompletionMessage').val().trim();
+        saveRealm();
     });
 });
 
@@ -1781,6 +1797,6 @@ function saveRealm(callback) {
     db_collections.questrealms.update({ _id: realmId }, realmData, {}, function (err, numReplaced) {
         console.log("saveRealm err:" + err);
         console.log("saveRealm numReplaced:" + numReplaced);
-        callback(null);
+        if (callback) callback(null);
     });
 }
