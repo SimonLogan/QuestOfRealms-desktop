@@ -29,11 +29,6 @@ module.exports = {
       use: "buy",
       image: "coin.png",
       description: "coin."
-    },
-    "food": {
-      use: "food",
-      image: "apple.png",
-      description: "food."
     }
   }
 };

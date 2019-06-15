@@ -495,12 +495,10 @@ function handleMove(command, playerName, statusCallback) {
             from: { x: originalX, y: originalY },
             to: { x: newX, y: newY }
         },
-        data: {}
+        data: { game: local_getGameData() }
     };
 
-    notifyData.data = { game: local_getGameData() };
     statusCallback({ error: false, responseData: notifyData });
-
     return;
 }
 
@@ -570,16 +568,13 @@ function handleTakeFromLocation(objectName, currentLocation, playerName, statusC
             message: "You have taken a " + itemInfo.item.type,
             item: itemInfo.item
         },
-        data: {}
-    };
-
-    notifyData.data = {
-        game: local_getGameData(),
-        mapLocation: copyData(currentLocation)
+        data: {
+            game: local_getGameData(),
+            mapLocation: copyData(currentLocation)
+        }
     };
 
     statusCallback({ error: false, responseData: notifyData });
-
     return;
 }
 
@@ -659,16 +654,13 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
                     message: "You have taken a " + objectName + " from the " + targetName,
                     item: itemInfo.item
                 },
-                data: {}
-            };
-
-            notifyData.data = {
-                game: local_getGameData(),
-                mapLocation: copyData(currentLocation)
+                data: {
+                    game: local_getGameData(),
+                    mapLocation: copyData(currentLocation)
+                }
             };
 
             statusCallback({ error: false, responseData: notifyData });
-
             return;
     });
 }
@@ -812,16 +804,13 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, s
                     message: "You have bought a " + objectName + " from the " + targetName,
                     item: itemInfo.item
                 },
-                data: {}
-            };
-
-            notifyData.data = {
-                game: local_getGameData(),
-                mapLocation: copyData(currentLocation)
+                data: {
+                    game: local_getGameData(),
+                    mapLocation: copyData(currentLocation)
+                }
             };
 
             statusCallback({ error: false, responseData: notifyData });
-
             return;
     });
 }
@@ -892,12 +881,10 @@ function handleDrop(command, playerName, statusCallback) {
             message: "You have dropped a " + item.type,
             item: item,
         },
-        data: {}
-    };
-
-    notifyData.data = {
-        game: local_getGameData(),
-        mapLocation: copyData(currentLocation)
+        data: {
+            game: local_getGameData(),
+            mapLocation: copyData(currentLocation)
+        }
     };
 
     statusCallback({ error: false, responseData: notifyData });
@@ -1026,12 +1013,10 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
                     message: "You have given a " + objectName + " to the " + targetName,
                     item: itemInfo.item
                 },
-                data: {}
-            };
-
-            notifyData.data = {
-                game: local_getGameData(),
-                mapLocation: copyData(currentLocation)
+                data: {
+                    game: local_getGameData(),
+                    mapLocation: copyData(currentLocation)
+                }
             };
 
             // In a multiplayer game, we need to broadcast the status update.
@@ -1061,13 +1046,15 @@ function handleUse(command, playerName, statusCallback) {
 
     // Find the requested item in the inventory.
     var item = null;
+    var foundItemIndex = -1;
     for (var i = 0; i < playerInfo.player.inventory.length; i++) {
         // TODO: handle ambiguous object descriptions (e.g. "use sword" when there are two swords).
         if (playerInfo.player.inventory[i].type !== objectName) {
             continue;
         }
 
-        item = playerInfo.player.inventory[i];
+        item = copyData(playerInfo.player.inventory[i]);
+        foundItemIndex = i;
         break;
     }
 
@@ -1078,24 +1065,83 @@ function handleUse(command, playerName, statusCallback) {
         return;
     }
 
-    playerInfo.player.using = [];
-    playerInfo.player.using.push(item);
+    var moduleData = g_dependencyInfo[item.module][item.filename][item.type];
+    item.damage = readProperty(item.damage, moduleData.damage);
 
-    notifyData = {
-        player: playerName,
-        description: {
-            action: "use",
-            message: "You are using the " + item.type,
-            item: itemInfo.item
-        },
-        data: {
-            game: local_getGameData()
-        }
-    };
+    // Call the optional handler, or use the default one (inline below) if no custom handler is available.
+    var handlerFunc = findHandler(item, "use");
+    if (!handlerFunc) {
+        // Not an error - just perform the default action - mark the item as
+        // being used. It will replace the item you are currently using.
+        playerInfo.player.using = [];
+        playerInfo.player.using.push(item);
+        playerInfo.player.damage = Math.max(playerInfo.player.damage, item.damage);
+    
+        notifyData = {
+            player: playerName,
+            description: {
+                action: "use",
+                message: "You are using the " + item.type,
+                item: itemInfo.item
+            },
+            data: {
+                game: local_getGameData()
+            }
+        };
+    
+        statusCallback({ error: false, responseData: notifyData });
+        return;
+    } else {
+        handlerFunc(
+            copyData(item),
+            copyData(playerInfo.player),
+            function (handlerResp) {
+                if (!handlerResp) {
+                    console.log("1 use - null handlerResp");
+                    statusCallback({ error: true, message: "You cannot use the " + objectName });
+                    return;
+                }
+    
+                if (!handlerResp.description.success) {
+                    console.log("2 use failed: " + handlerResp.description.message);
+                    statusCallback({ error: true, message: handlerResp.description.message });
+                    return;
+                }
+    
+                // Don't update the game if there was no response from the handler.
+                if (!handlerResp.hasOwnProperty('data')) {
+                    handlerResp.data = { game: game, mapLocation: currentLocation };
+                    statusCallback({ error: false, data: handlerResp });
+                    return;
+                }
 
-    statusCallback({ error: false, responseData: notifyData });
+                // The handler may have updated the playerInfo. Use it if found.
+                if (handlerResp.data.hasOwnProperty("player")) {
+                    g_gameData.player = handlerResp.data.player;
+                }
 
-    return;
+                var moduleData = g_dependencyInfo[item.module][item.filename][item.type];
+                var consumable = readProperty(item.consumable, moduleData.consumable);
+                if (consumable) {
+                    // The item has been used up. Remove it from the inventory.
+                    g_gameData.player.inventory.splice(foundItemIndex, 1);
+                }
+
+                notifyData = {
+                    player: g_gameData.player.name,
+                    description: {
+                        action: "use",
+                        message: handlerResp.description.message
+                    },
+                    data: {
+                        game: local_getGameData()
+                    }
+                };
+
+                statusCallback({ error: false, responseData: notifyData });
+                return;
+        });
+    }
 }
 
 function handleFight(command, playerName, statusCallback) {
@@ -1183,9 +1229,6 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
         return;
     }
 
-    var path = require('path');
-    var gameDir = path.join(app.getPath('userData'), "games", g_gameData.name);
-
     // Perform the default fight operation and call the optional handler to modify the
     // NPC's behaviour.
     var handlerFunc = findHandler(characterInfo.character, "fight", {'useDefault': true});
@@ -1253,7 +1296,7 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
 
             // Don't update the game if there was no response from the handler.
             if (!handlerResp.hasOwnProperty('data')) {
-                handlerResp.data = { game: game, location: currentLocation };
+                handlerResp.data = { game: game, mapLocation: currentLocation };
                 statusCallback({ error: false, data: handlerResp });
                 return;
             }
@@ -1442,7 +1485,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
 
             // Don't update the game if there was no response from the handler.
             if (!handlerResp.hasOwnProperty('data')) {
-                handlerResp.data = { game: game, location: currentLocation };
+                handlerResp.data = { game: game, mapLocation: currentLocation };
                 statusCallback({ error: false, data: handlerResp });
                 return;
             }
@@ -1524,16 +1567,13 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
                     action: "fight",
                     message: message
                 },
-                data: {}
-            };
-
-            notifyData.data = {
-                game: local_getGameData(),
-                mapLocation: copyData(currentLocation)
+                data: {
+                    game: local_getGameData(),
+                    mapLocation: copyData(currentLocation)
+                }
             };
 
             statusCallback({ error: false, responseData: notifyData });
-
             return;
     });
 }
