@@ -17,7 +17,7 @@ module.exports = {
       }
    },
    handlers: {
-      "give": function (giant, object, game, playerName, callback) {
+      "give": function (giant, object, game, player, callback) {
          /*
           * The handler doesn't need to update the game. It just needs to
           * return description.success=true/false to indicate whether the
@@ -29,7 +29,7 @@ module.exports = {
          console.log("*** ");
 
          var resp = {
-            player: playerName,
+            playerName: player.name,
             description: {
                action: "give",
                success: true,
@@ -40,7 +40,7 @@ module.exports = {
          console.log("in give() callback value");
          callback(resp);
       },
-      "take from": function (giant, object, game, playerName, callback) {
+      "take from": function (giant, object, game, player, callback) {
          /*
           * The handler doesn't need to update the game. It just needs to
           * return description.success=true/false to indicate whether you
@@ -52,7 +52,7 @@ module.exports = {
          console.log("*** ");
 
          var resp = {
-            player: playerName,
+            playerName: player.name,
             description: {
                action: "take from",
                success: false,
@@ -64,7 +64,7 @@ module.exports = {
          console.log("in take from() callback value");
          callback(resp);
       },
-      "buy from": function (giant, object, game, playerName, callback) {
+      "buy from": function (giant, object, game, player, callback) {
          /*
           * The handler doesn't need to update the game. It just needs to
           * return description.success=true/false to indicate whether you
@@ -77,7 +77,6 @@ module.exports = {
 
          // Check whether the player can pay.
          // Giants sell all items for 1 coin.
-         var player = game.player;
          var payment = null;
          if (player.inventory !== undefined) {
             for (var i = 0; i < player.inventory.length; i++) {
@@ -91,7 +90,7 @@ module.exports = {
          var resp = null;
          if (payment) {
             resp = {
-               player: playerName,
+               playerName: player.name,
                description: {
                   action: "buy from",
                   success: true,
@@ -103,7 +102,7 @@ module.exports = {
             };
          } else {
             resp = {
-               player: playerName,
+               playerName: player.name,
                description: {
                   action: "buy from",
                   success: false,
@@ -116,6 +115,4 @@ module.exports = {
          callback(resp);
       }
    }
-
 };
-

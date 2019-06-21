@@ -17,7 +17,7 @@ module.exports = {
       }
    },
    handlers: {
-      "take from": function (gryphon, object, game, playerName, callback) {
+      "take from": function (gryphon, object, game, player, callback) {
          /*
           * The handler doesn't need to update the game. It just needs to
           * return description.success=true/false to indicate whether you
@@ -29,7 +29,7 @@ module.exports = {
          console.log("*** ");
 
          resp = {
-            player: playerName,
+            playerName: player.name,
             description: {
                action: "take from",
                success: false,
@@ -41,6 +41,4 @@ module.exports = {
          callback(resp);
       }
    }
-
 };
-

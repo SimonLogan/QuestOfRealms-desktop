@@ -92,7 +92,7 @@ module.exports = {
     // No attributes provided by this module.
 
     handlers: {
-        "fight": function(character, game, playerInfo, callback) {
+        "fight": function(character, game, player, callback) {
             /*
              * The handler doesn't need to update the game. It just needs to
              * return description and data to indicate the result of the fight:
@@ -111,15 +111,15 @@ module.exports = {
 
             console.log("Default fight handler");
 
-            var playerHealth = playerInfo.player.health;
+            var playerHealth = player.health;
             var characterHealth = character.health;
 
-            var playerDamage = playerInfo.player.damage;
-            if (playerInfo.player.using.length > 0 &&
-                playerInfo.player.using[0].hasOwnProperty('damage')) {
+            var playerDamage = player.damage;
+            if (player.using.length > 0 &&
+                player.using[0].hasOwnProperty('damage')) {
                 playerDamage = Math.max(parseInt(
-                    playerInfo.player.using[0].damage),
-                    playerInfo.player.damage);
+                    player.using[0].damage),
+                    player.damage);
             }
 
             // Deal the damage
@@ -127,7 +127,7 @@ module.exports = {
             characterHealth = Math.max(characterHealth - playerDamage, 0);
 
             var resp = {
-                player: playerName,  // Looks undefined - investigate.
+                playerName: player.name,  // Looks undefined - investigate.
                 description: {
                     action: "fight",
                     success: true
@@ -140,21 +140,21 @@ module.exports = {
 
             callback(resp);
         },
-        "fight for": function(character, object, game, playerInfo, callback) {
+        "fight for": function(character, object, game, player, callback) {
             // By default "fight for" behaves just like fight, except the game
             // will take the object from the character if you win.
 
             console.log("Default fight for handler");
 
-            var playerHealth = playerInfo.player.health;
+            var playerHealth = player.health;
             var characterHealth = character.health;
 
-            var playerDamage = playerInfo.player.damage;
-            if (playerInfo.player.using.length > 0 &&
-                playerInfo.player.using[0].hasOwnProperty('damage')) {
+            var playerDamage = player.damage;
+            if (player.using.length > 0 &&
+                player.using[0].hasOwnProperty('damage')) {
                 playerDamage = Math.max(parseInt(
-                    playerInfo.player.using[0].damage),
-                    playerInfo.player.damage);
+                    player.using[0].damage),
+                    player.damage);
             }
 
             // Deal the damage
@@ -162,7 +162,7 @@ module.exports = {
             characterHealth = Math.max(characterHealth - playerDamage, 0);
 
             var resp = {
-                player: playerName,
+                playerName: player.name,
                 description: {
                     action: "fight",
                     success: true

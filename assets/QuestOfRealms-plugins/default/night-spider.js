@@ -17,7 +17,7 @@ module.exports = {
       }
    },
    handlers: {
-      "give": function (nightSpider, object, game, playerName, callback) {
+      "give": function (nightSpider, object, game, player, callback) {
          /*
           * The handler doesn't need to update the game. It just needs to
           * return description.success=true/false to indicate whether the
@@ -31,7 +31,7 @@ module.exports = {
          // The night spider only wants food.
          if (object.type !== "food") {
             resp = {
-               player: playerName,
+               playerName: player.name,
                description: {
                   action: "give",
                   success: false,
@@ -46,7 +46,7 @@ module.exports = {
          }
 
          resp = {
-            player: playerName,
+            playerName: player.name,
             description: {
                action: "give",
                success: true,
@@ -59,6 +59,4 @@ module.exports = {
          callback(resp);
       }
    }
-
 };
-

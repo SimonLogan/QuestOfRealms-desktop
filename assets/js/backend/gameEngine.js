@@ -141,8 +141,6 @@ module.exports = {
         // returned in either case, for example completing an action and
         // completing a goal as a result of the action.
 
-        var playerName = g_gameData.player.name;
-
         // Split the comandline into whitespace-separated tokens. Remove the first and use
         // this as the command verb. The others are the args.
         var tokens = command.split(" ");
@@ -151,85 +149,85 @@ module.exports = {
             // Pass the raw command to the handlers as they may need to split it
             // in command-specific ways.
             case "move":
-                handleMove(command, playerName, function (handlerResult) {
+                handleMove(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleMove result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
                 break;
             case "take":
-                handleTake(command, playerName, function (handlerResult) {
+                handleTake(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleTake result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
                 break;
             case "buy":
-                handleBuy(command, playerName, function (handlerResult) {
+                handleBuy(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleBuy result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
                 break;
             case "drop":
-                handleDrop(command, playerName, function (handlerResult) {
+                handleDrop(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleDrop result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
                 break;
             case "give":
-                handleGive(command, playerName, function (handlerResult) {
+                handleGive(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleGive result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
                 break;
             case "use":
-                handleUse(command, playerName, function (handlerResult) {
+                handleUse(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleUse result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
                     
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
                 break;
             case "fight":
-                handleFight(command, playerName, function (handlerResult) {
+                handleFight(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleFight result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
@@ -241,13 +239,13 @@ module.exports = {
                 });
                 break;
             default:
-                handleCommand(command, playerName, function (handlerResult) {
+                handleCommand(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleCommand result = " + handlerResult);
                     callback(handlerResult);
 
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
-                            checkObjectives(handlerResult.responseData.data.game, playerName, callback);
+                            checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
                 });
@@ -387,7 +385,7 @@ function copyData(data) {
     return JSON.parse(JSON.stringify(data));
 }
 
-function handleMove(command, playerName, statusCallback) {
+function handleMove(command, player, statusCallback) {
     var direction = command.replace(/move[\s+]/i, "");
     console.log("MOVE: " + direction);
 
@@ -430,15 +428,8 @@ function handleMove(command, playerName, statusCallback) {
     }
 
     // Does the requested location exist? First get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
-    if (null === playerInfo) {
-        console.log("in handleMove.find() invalid player.");
-        statusCallback({ error: true, message: "Invalid player" });
-        return;
-    }
-
-    var originalX = parseInt(g_gameData.player.location.x);
-    var originalY = parseInt(g_gameData.player.location.y);
+    var originalX = parseInt(player.location.x);
+    var originalY = parseInt(player.location.y);
     var newX = originalX + deltaX;
     var newY = originalY + deltaY;
 
@@ -465,7 +456,7 @@ function handleMove(command, playerName, statusCallback) {
                         " You died.");
         game.players[playerInfo.playerIndex].health = 0;
         notifyData = {
-            player: playerName,
+            playerName: player.name,
             description: {
                 action: "death",
                 details: "You did not have enough health to move into that location."
@@ -475,20 +466,20 @@ function handleMove(command, playerName, statusCallback) {
     } else {
         game.players[playerInfo.playerIndex].health -= healthCost;
     */
-    g_gameData.player.location.x = newX.toString();
-    g_gameData.player.location.y = newY.toString();
+    player.location.x = newX.toString();
+    player.location.y = newY.toString();
 
     // Update the list of locations the player has visited.
     // This is a dictionary for quick searching. Using a list
     // will scale badly when drawing the whole map on the UI.
     var visitedKey = newX.toString() + "_" + newY.toString();
-    var playerVistitedLocation = (visitedKey in g_gameData.player.visited[g_currentRealmData._id]);
+    var playerVistitedLocation = (visitedKey in player.visited[g_currentRealmData._id]);
     if (!playerVistitedLocation) {
-        g_gameData.player.visited[g_currentRealmData._id][visitedKey] = true;
+        player.visited[g_currentRealmData._id][visitedKey] = true;
     }
 
     notifyData = {
-        player: playerName,
+        playerName: player.name,
         description: {
             action: "move",
             message: "You have moved to location [" + newX + "," + newY + "].",
@@ -502,7 +493,7 @@ function handleMove(command, playerName, statusCallback) {
     return;
 }
 
-function handleTake(command, playerName, statusCallback) {
+function handleTake(command, player, statusCallback) {
     command = command.replace(/take[\s+]/i, "");
     var commandArgs = command.split("from");
     var objectName = commandArgs[0].trim();
@@ -520,15 +511,8 @@ function handleTake(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
-    if (null === playerInfo) {
-        console.log("in handleTake.find() invalid player.");
-        statusCallback({ error: true, message: "Invalid player" });
-        return;
-    }
-
-    var currentX = g_gameData.player.location.x;
-    var currentY = g_gameData.player.location.y;
+    var currentX = player.location.x;
+    var currentY = player.location.y;
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -538,13 +522,13 @@ function handleTake(command, playerName, statusCallback) {
     }
 
     if (!targetName) {
-        handleTakeFromLocation(objectName, currentLocation, playerName, statusCallback);
+        handleTakeFromLocation(objectName, currentLocation, player, statusCallback);
     } else {
-        handleTakeFromNPC(objectName, targetName, currentLocation, playerName, statusCallback);
+        handleTakeFromNPC(objectName, targetName, currentLocation, player, statusCallback);
     }
 }
 
-function handleTakeFromLocation(objectName, currentLocation, playerName, statusCallback) {
+function handleTakeFromLocation(objectName, currentLocation, player, statusCallback) {
     // Find the requested item in the current mapLocation.
     var itemInfo = findItem.findItemByType(currentLocation.items, objectName);
     if (itemInfo === null) {
@@ -554,15 +538,15 @@ function handleTakeFromLocation(objectName, currentLocation, playerName, statusC
         return;
     }
 
-    if (undefined === g_gameData.player.inventory) {
-        g_gameData.player.inventory = [];
+    if (undefined === player.inventory) {
+        player.inventory = [];
     }
 
-    g_gameData.player.inventory.push(itemInfo.item);
+    player.inventory.push(itemInfo.item);
     currentLocation.items.splice(itemInfo.itemIndex, 1);
 
     notifyData = {
-        player: playerName,
+        playerName: player.name,
         description: {
             action: "take",
             message: "You have taken a " + itemInfo.item.type,
@@ -578,7 +562,7 @@ function handleTakeFromLocation(objectName, currentLocation, playerName, statusC
     return;
 }
 
-function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, statusCallback) {
+function handleTakeFromNPC(objectName, targetName, currentLocation, player, statusCallback) {
     // Find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
@@ -622,7 +606,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
         copyData(characterInfo.character),
         copyData(foundInventoryItem),
         copyData(g_gameData),
-        copyData(playerName),
+        copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
                 console.log("1 Take from failed - null handlerResp");
@@ -642,13 +626,13 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
             foundInventoryItem.source = { reason: "take from", from: targetName };
             characterInfo.character.inventory.splice(foundIndex, 1);
 
-            if (g_gameData.player.inventory === undefined) {
-                g_gameData.player.inventory = [];
+            if (player.inventory === undefined) {
+                player.inventory = [];
             }
-            g_gameData.player.inventory.push(foundInventoryItem);
+            player.inventory.push(foundInventoryItem);
 
             notifyData = {
-                player: playerName,
+                playerName: player.name,
                 description: {
                     action: "take",
                     message: "You have taken a " + objectName + " from the " + targetName,
@@ -665,7 +649,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, playerName, 
     });
 }
 
-function handleBuy(command, playerName, statusCallback) {
+function handleBuy(command, player, statusCallback) {
     command = command.replace(/buy[\s+]/i, "");
     var commandArgs = command.split("from");
     var objectName = commandArgs[0].trim();
@@ -685,15 +669,8 @@ function handleBuy(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
-    if (null === playerInfo) {
-        console.log("in handleBuy.find() invalid player.");
-        statusCallback({ error: true, message: "Invalid player" });
-        return;
-    }
-
-    var currentX = g_gameData.player.location.x;
-    var currentY = g_gameData.player.location.y;
+    var currentX = player.location.x;
+    var currentY = player.location.y;
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -709,10 +686,10 @@ function handleBuy(command, playerName, statusCallback) {
         return;
     }
 
-    handleBuyFromNPC(objectName, targetName, currentLocation, playerName, statusCallback);
+    handleBuyFromNPC(objectName, targetName, currentLocation, player, statusCallback);
 }
 
-function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, statusCallback) {
+function handleBuyFromNPC(objectName, targetName, currentLocation, player, statusCallback) {
     // Find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
@@ -760,7 +737,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, s
         copyData(characterInfo.character),
         copyData(foundInventoryItem),
         copyData(g_gameData),
-        copyData(playerName),
+        copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
                 console.log("1 Buy from failed - null handlerResp");
@@ -780,25 +757,24 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, s
             foundInventoryItem.source = { reason: "buy from", from: targetName };
             characterInfo.character.inventory.splice(foundIndex, 1);
 
-            if (g_gameData.player.inventory === undefined) {
-                g_gameData.player.inventory = [];
+            if (player.inventory === undefined) {
+                player.inventory = [];
             }
-            g_gameData.player.inventory.push(foundInventoryItem);
+            player.inventory.push(foundInventoryItem);
 
             //  Now pay!
             if (handlerResp.data && handlerResp.data.payment && handlerResp.data.payment.type) {
-                for (var i = 0; i < g_gameData.player.inventory.length; i++) {
-                    if (g_gameData.player.inventory[i].type === handlerResp.data.payment.type) {
-                        // could use characterInfo.character instead of currentLocation.characters[characterInfo.characterIndex]
-                        currentLocation.characters[characterInfo.characterIndex].inventory.push(g_gameData.player.inventory[i]);
-                        g_gameData.player.inventory.splice(i, 1);
+                for (var i = 0; i < player.inventory.length; i++) {
+                    if (player.inventory[i].type === handlerResp.data.payment.type) {
+                        characterInfo.character.inventory.push(player.inventory[i]);
+                        player.inventory.splice(i, 1);
                         break;
                     }
                 }
             }
 
             notifyData = {
-                player: playerName,
+                playerName: player.name,
                 description: {
                     action: "buy",
                     message: "You have bought a " + objectName + " from the " + targetName,
@@ -815,7 +791,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, playerName, s
     });
 }
 
-function handleDrop(command, playerName, statusCallback) {
+function handleDrop(command, player, statusCallback) {
     var target = command.replace(/drop[\s+]/i, "");
 
     // TODO: for now target is the item type (i.e. "sword", not "the sword of destiny").
@@ -823,15 +799,8 @@ function handleDrop(command, playerName, statusCallback) {
     console.log("DROP: " + target);
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
-    if (null === playerInfo) {
-        console.log("in handleDrop.find() invalid player.");
-        statusCallback({ error: true, message: "Invalid player" });
-        return;
-    }
-
-    var currentX = g_gameData.player.location.x;
-    var currentY = g_gameData.player.location.y;
+    var currentX = player.location.x;
+    var currentY = player.location.y;
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -842,9 +811,9 @@ function handleDrop(command, playerName, statusCallback) {
 
     // Find the requested item in the inventory.
     var foundIndex = -1;
-    for (var i = 0; i < playerInfo.player.inventory.length; i++) {
+    for (var i = 0; i < player.inventory.length; i++) {
         // TODO: handle ambiguous object descriptions (e.g. "drop sword" when there are two swords).
-        if (playerInfo.player.inventory[i].type !== target) {
+        if (player.inventory[i].type !== target) {
             continue;
         }
 
@@ -860,22 +829,20 @@ function handleDrop(command, playerName, statusCallback) {
     }
 
     found = true;
-    var item = playerInfo.player.inventory[i];
+    var item = player.inventory[i];
     if (undefined === currentLocation.items) {
         currentLocation.items = [];
     }
 
     currentLocation.items.push(item);
-    playerInfo.player.inventory.splice(i, 1);
+    player.inventory.splice(i, 1);
 
-    if (playerInfo.player.using && _.isEqual(playerInfo.player.using, item)) {
-        playerInfo.player.using = [];
+    if (player.using && _.isEqual(player.using, item)) {
+        player.using = [];
     }
 
-    g_gameData.player = playerInfo.player;
-
     notifyData = {
-        player: playerName,
+        playerName: player.name,
         description: {
             action: "drop",
             message: "You have dropped a " + item.type,
@@ -891,7 +858,7 @@ function handleDrop(command, playerName, statusCallback) {
     return;
 }
 
-function handleGive(command, playerName, statusCallback) {
+function handleGive(command, player, statusCallback) {
     command = command.replace(/give[\s+]/i, "");
     var commandArgs = command.split("to");
     var objectName = commandArgs[0].trim();
@@ -908,15 +875,8 @@ function handleGive(command, playerName, statusCallback) {
     console.log("GIVE: " + objectName + " to " + targetName);
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
-    if (null === playerInfo) {
-        console.log("in handleGive.find() invalid player.");
-        statusCallback({ error: true, message: "Invalid player" });
-        return;
-    }
-
-    var currentX = g_gameData.player.location.x;
-    var currentY = g_gameData.player.location.y;
+    var currentX = player.location.x;
+    var currentY = player.location.y;
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -925,12 +885,12 @@ function handleGive(command, playerName, statusCallback) {
         return;
     }
 
-    handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, statusCallback);
+    handleGiveToNPC(objectName, targetName, currentLocation, player, statusCallback);
 }
 
-function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, statusCallback) {
+function handleGiveToNPC(objectName, targetName, currentLocation, player, statusCallback) {
     // Find the requested item in the specified target's inventory.
-    if (playerInfo.player.inventory === undefined) {
+    if (player.inventory === undefined) {
         var errorMessage = "You do not have an " + objectName;
         console.log(errorMessage);
         statusCallback({ error: true, message: errorMessage });
@@ -939,13 +899,13 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
 
     var foundInventoryItem = null;
     var foundItemIndex = -1;
-    for (var i = 0; i < playerInfo.player.inventory.length; i++) {
+    for (var i = 0; i < player.inventory.length; i++) {
         // TODO: handle ambiguous object descriptions (e.g. "give sword..." when there are two swords).
-        if (playerInfo.player.inventory[i].type === objectName) {
+        if (player.inventory[i].type === objectName) {
             // Update the player inventory now. If the give operation fails we
             // won't save this change.
             foundItemIndex = i;
-            foundInventoryItem = playerInfo.player.inventory[foundItemIndex];
+            foundInventoryItem = player.inventory[foundItemIndex];
             break;
         }
     }
@@ -976,7 +936,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
         targetName,
         copyData(foundInventoryItem),
         copyData(g_gameData),
-        copyData(playerInfo.player.name),
+        copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
                 console.log("Give failed - null handlerResp");
@@ -990,16 +950,16 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
                 return;
             }
 
-            var usingItemInfo = findItem.findItemByType(playerInfo.player.using, objectName);
+            var usingItemInfo = findItem.findItemByType(player.using, objectName);
             if (usingItemInfo) {
                 // You are using that item. Not any more...
-                playerInfo.player.using.splice(usingItemInfo.itemIndex, 1);
+                player.using.splice(usingItemInfo.itemIndex, 1);
             }
 
             // Give worked, so update the recipient.
             // Record who gave the object so we can check for "give" objectives.
-            foundInventoryItem.source = { reason: "give", from: playerInfo.player.name };
-            playerInfo.player.inventory.splice(foundItemIndex, 1);
+            foundInventoryItem.source = { reason: "give", from: player.name };
+            player.inventory.splice(foundItemIndex, 1);
 
             if (characterInfo.character.inventory === undefined) {
                 characterInfo.character.inventory = [];
@@ -1007,7 +967,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
             characterInfo.character.inventory.push(foundInventoryItem);
 
             notifyData = {
-                player: playerInfo.player.name,
+                playerName: player.name,
                 description: {
                     action: "give",
                     message: "You have given a " + objectName + " to the " + targetName,
@@ -1028,7 +988,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, playerInfo, st
     });
 }
 
-function handleUse(command, playerName, statusCallback) {
+function handleUse(command, player, statusCallback) {
     commandArgs = command.replace(/use[\s+]/i, "");
 
     console.log("Use: " + JSON.stringify(commandArgs));
@@ -1037,23 +997,16 @@ function handleUse(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
     var objectName = commandArgs.trim();
 
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
-    if (null === playerInfo) {
-        console.log("in handleUse.find() invalid player.");
-        statusCallback({ error: true, message: "Invalid player" });
-        return;
-    }
-
     // Find the requested item in the inventory.
     var item = null;
     var foundItemIndex = -1;
-    for (var i = 0; i < playerInfo.player.inventory.length; i++) {
+    for (var i = 0; i < player.inventory.length; i++) {
         // TODO: handle ambiguous object descriptions (e.g. "use sword" when there are two swords).
-        if (playerInfo.player.inventory[i].type !== objectName) {
+        if (player.inventory[i].type !== objectName) {
             continue;
         }
 
-        item = copyData(playerInfo.player.inventory[i]);
+        item = copyData(player.inventory[i]);
         foundItemIndex = i;
         break;
     }
@@ -1073,12 +1026,12 @@ function handleUse(command, playerName, statusCallback) {
     if (!handlerFunc) {
         // Not an error - just perform the default action - mark the item as
         // being used. It will replace the item you are currently using.
-        playerInfo.player.using = [];
-        playerInfo.player.using.push(item);
-        playerInfo.player.damage = Math.max(playerInfo.player.damage, item.damage);
+        player.using = [];
+        player.using.push(item);
+        player.damage = Math.max(player.damage, item.damage);
     
         notifyData = {
-            player: playerName,
+            playerName: player.name,
             description: {
                 action: "use",
                 message: "You are using the " + item.type,
@@ -1094,7 +1047,7 @@ function handleUse(command, playerName, statusCallback) {
     } else {
         handlerFunc(
             copyData(item),
-            copyData(playerInfo.player),
+            copyData(player),
             function (handlerResp) {
                 if (!handlerResp) {
                     console.log("1 use - null handlerResp");
@@ -1115,20 +1068,26 @@ function handleUse(command, playerName, statusCallback) {
                     return;
                 }
 
-                // The handler may have updated the playerInfo. Use it if found.
+                // The handler may have updated the player. Use it if found.
                 if (handlerResp.data.hasOwnProperty("player")) {
-                    g_gameData.player = handlerResp.data.player;
+                    player = handlerResp.data.player;
                 }
 
                 var moduleData = g_dependencyInfo[item.module][item.filename][item.type];
                 var consumable = readProperty(item.consumable, moduleData.consumable);
                 if (consumable) {
                     // The item has been used up. Remove it from the inventory.
-                    g_gameData.player.inventory.splice(foundItemIndex, 1);
+                    player.inventory.splice(foundItemIndex, 1);
                 }
 
+                // We need to do this here because we reassigned player to point to
+                // handlerResp.data.player at line 1075. Since player no longer points
+                // to g_gameData.player we need to assign the updated object to update
+                // the game.
+                g_gameData.player = player;
+
                 notifyData = {
-                    player: g_gameData.player.name,
+                    playerName: player.name,
                     description: {
                         action: "use",
                         message: handlerResp.description.message
@@ -1144,7 +1103,7 @@ function handleUse(command, playerName, statusCallback) {
     }
 }
 
-function handleFight(command, playerName, statusCallback) {
+function handleFight(command, player, statusCallback) {
     command = command.replace(/fight[\s+]/i, "");
     var commandArgs = command.split("for");
     var targetName = commandArgs[0].trim();
@@ -1162,15 +1121,8 @@ function handleFight(command, playerName, statusCallback) {
     // This means it must be specific: "short sword" rather than "sword".
 
     // Get the current player location.
-    var playerInfo = findPlayer.findPlayerByName(g_gameData, playerName);
-    if (null === playerInfo) {
-        console.log("in handleFight.find() invalid player.");
-        statusCallback({ error: true, message: "Invalid player" });
-        return;
-    }
-
-    var currentX = g_gameData.player.location.x;
-    var currentY = g_gameData.player.location.y;
+    var currentX = player.location.x;
+    var currentY = player.location.y;
     var currentLocation = findLocation(currentX, currentY);
     if (!currentLocation) {
         var errorMessage = "Current location not found";
@@ -1180,9 +1132,9 @@ function handleFight(command, playerName, statusCallback) {
     }
 
     if (objectName === null) {
-        handleFightNPC(targetName, currentLocation, playerInfo, statusCallback);
+        handleFightNPC(targetName, currentLocation, player, statusCallback);
     } else {
-        handleFightNPCforItem(targetName, objectName, currentLocation, playerInfo, statusCallback);
+        handleFightNPCforItem(targetName, objectName, currentLocation, player, statusCallback);
     }
 }
 
@@ -1220,7 +1172,7 @@ function handlePlayerDeath(player, currentLocation) {
 }
 
 // Fight with no particular objective in mind.
-function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback) {
+function handleFightNPC(targetName, currentLocation, player, statusCallback) {
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
         var errorMessage = "There is no " + targetName + ".";
@@ -1252,17 +1204,17 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
     characterInfo.character.damage = readProperty(characterInfo.character.damage, moduleData.damage);
 
     console.log(
-        "Before fight. player.health: " + playerInfo.player.health +
-        ", player.damage: " + playerInfo.player.damage +
+        "Before fight. player.health: " + player.health +
+        ", player.damage: " + player.damage +
         ", character.health: " + characterInfo.character.health +
         ", character damage: " + characterInfo.character.damage);
 
     // The player can't fight if health is 0.
-    if (playerInfo.player.health === 0) {
+    if (player.health === 0) {
         var format = "You are too weak to fight. The ${character_type} was victorious.";
         var message = template(format, { character_type: characterInfo.character.type });
         var notifyData = {
-            player: playerInfo.player.name,
+            playerName: player.name,
             description: {
                 action: "fight",
                 success: true,
@@ -1276,11 +1228,11 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
     }
 
     var characterOrigHealth = characterInfo.character.health;
-    var playerOrigHealth = playerInfo.player.health;
+    var playerOrigHealth = player.health;
     handlerFunc(
         copyData(characterInfo.character),
         copyData(g_gameData),
-        copyData(playerInfo),
+        copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
                 console.log("1 fight - null handlerResp");
@@ -1311,7 +1263,7 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
             // The victor is the combatant that does the biggest %age damage to the opponent.
             var playerHealth = handlerResp.data.playerHealth;
             var characterHealth = handlerResp.data.characterHealth;
-            var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+            var playerDamageDealt = Math.round((player.damage / characterOrigHealth) * 100);
             var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
 
             console.log(
@@ -1352,7 +1304,7 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
                 }
             }
 
-            g_gameData.player.health = playerHealth;
+            player.health = playerHealth;
             characterInfo.character.health = characterHealth;
 
             if (characterDied) {
@@ -1361,11 +1313,11 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
             }
 
             if (playerDied) {
-                handlePlayerDeath(playerInfo.player, currentLocation);
+                handlePlayerDeath(player, currentLocation);
             }
 
             notifyData = {
-                player: playerInfo.player.name,
+                playerName: player.name,
                 description: {
                     action: "fight",
                     message: message
@@ -1384,7 +1336,7 @@ function handleFightNPC(targetName, currentLocation, playerInfo, statusCallback)
 }
 
 // Fight until you beat the NPC and take the object
-function handleFightNPCforItem(targetName, objectName, currentLocation, playerInfo, statusCallback) {
+function handleFightNPCforItem(targetName, objectName, currentLocation, player, statusCallback) {
     // If fighting for an object, find the requested item in the specified target's inventory.
     var characterInfo = findCharacter.findLocationCharacterByType(currentLocation, targetName);
     if (null === characterInfo) {
@@ -1439,17 +1391,17 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
     characterInfo.character.damage = readProperty(characterInfo.character.damage, moduleData.damage);
 
     console.log(
-        "Before fight. player.health: " + playerInfo.player.health +
-        ", player.damage: " + playerInfo.player.damage +
+        "Before fight. player.health: " + player.health +
+        ", player.damage: " + player.damage +
         ", character.health: " + characterInfo.character.health +
         ", character damage: " + characterInfo.character.damage);
 
     // The player can't fight if health is 0.
-    if (playerInfo.player.health === 0) {
+    if (player.health === 0) {
         var format = "You are too weak to fight. The ${character_type} was victorious.";
         var message = template(format, { character_type: characterInfo.character.type });
         var notifyData = {
-            player: playerInfo.player.name,
+            playerName: player.name,
             description: {
                 action: "fight",
                 success: true,
@@ -1463,12 +1415,12 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
     }
 
     var characterOrigHealth = characterInfo.character.health;
-    var playerOrigHealth = playerInfo.player.health;
+    var playerOrigHealth = player.health;
     handlerFunc(
         copyData(characterInfo.character),
         copyData(foundInventoryItem),
         copyData(g_gameData),
-        copyData(playerInfo),
+        copyData(player),
         function (handlerResp) {
             console.log("handlerResp: " + handlerResp);
             if (!handlerResp) {
@@ -1500,7 +1452,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
             // The victor is the combatant that does the biggest %age damage to the opponent.
             var playerHealth = handlerResp.data.playerHealth;
             var characterHealth = handlerResp.data.characterHealth;
-            var playerDamageDealt = Math.round((playerInfo.player.damage / characterOrigHealth) * 100);
+            var playerDamageDealt = Math.round((player.damage / characterOrigHealth) * 100);
             var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
 
             console.log(
@@ -1541,7 +1493,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
                 }
             }
 
-            g_gameData.player.health = playerHealth;
+            player.health = playerHealth;
             characterInfo.character.health = characterHealth;
             
             // Fight worked, so update the target.
@@ -1549,7 +1501,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
             // "acquire from" objectives.
             if (playerWon) {
                 foundInventoryItem.source = { reason: "take from", from: targetName };
-                g_gameData.player.inventory.push(foundInventoryItem);
+                player.inventory.push(foundInventoryItem);
                 characterInfo.character.inventory.splice(foundIndex, 1);
             }
 
@@ -1558,11 +1510,11 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, playerIn
             }
 
             if (playerDied) {
-                handlePlayerDeath(playerInfo.player, currentLocation);
+                handlePlayerDeath(player, currentLocation);
             }
 
             notifyData = {
-                player: playerInfo.player.name,
+                playerName: player.name,
                 description: {
                     action: "fight",
                     message: message
@@ -1722,18 +1674,12 @@ function createGameInstance(instanceName, gameCallback) {
     });
 }
 
-function checkObjectives(game, playerName, callback) {
+function checkObjectives(game, player, callback) {
     console.log("checkObjectives.");
 
-    var playerInfo = findPlayer.findPlayerByName(game, playerName);
-    if (null === playerInfo) {
-        console.error("in checkObjectives() invalid player.");
-        return;
-    }
-
     // Find the current location. Some objectives depend on it.
-    var location = findLocation(playerInfo.player.location.x,
-                                playerInfo.player.location.y);
+    var location = findLocation(player.location.x,
+                                player.location.y);
     if (!location) {
         console.error("in checkObjectives() invalid location.");
         return;
@@ -1759,7 +1705,7 @@ function checkObjectives(game, playerName, callback) {
         var handlerFunc = findHandler(objective.value, objective.value.type);
 
         console.log("calling " + objective.value.type + "() with game: " + JSON.stringify(g_gameData));
-        handlerFunc(objective.value, g_gameData, g_currentRealmData, playerName, location, function (handlerResp) {
+        handlerFunc(objective.value, g_gameData, g_currentRealmData, player, location, function (handlerResp) {
             console.log("handlerResp: " + handlerResp);
             if (!handlerResp) {
                 console.log("Objective not completed.");
@@ -1789,7 +1735,7 @@ function checkObjectives(game, playerName, callback) {
     }
 }
 
-function handleCommand(commandTokens, playerName, statusCallback) {
+function handleCommand(commandTokens, player, statusCallback) {
     var errorMessage = "Unknown comand";
     console.log(errorMessage);
     statusCallback({ error: true, message: errorMessage });

@@ -406,7 +406,7 @@ function processMoveNotification(message) {
     var responseData = message.responseData;
     g_gameData = responseData.data.game;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         var newLocation = findLocation(
             responseData.description.to.x.toString(),
             responseData.description.to.y.toString());
@@ -457,7 +457,7 @@ function processTakeNotification(message) {
     g_gameData = responseData.data.game;
     var locationData = responseData.data.mapLocation;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -488,7 +488,7 @@ function processBuyNotification(message) {
     g_gameData = responseData.data.game;
     var locationData = responseData.data.mapLocation;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -519,7 +519,7 @@ function processDropNotification(message) {
     g_gameData = responseData.data.game;
     var locationData = responseData.data.mapLocation;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -550,7 +550,7 @@ function processGiveNotification(message) {
     g_gameData = responseData.data.game;
     var locationData = responseData.data.mapLocation;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -580,7 +580,7 @@ function processUseNotification(message) {
     var responseData = message.responseData;
     g_gameData = responseData.data.game;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         displayMessageBlock(responseData.description.message);
     }
 }
@@ -590,7 +590,7 @@ function processFightNotification(message) {
     g_gameData = responseData.data.game;
     var locationData = responseData.data.mapLocation;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         displayMessageBlock(responseData.description.message);
 
         var mapLocation = findLocation(
@@ -621,7 +621,7 @@ function processObjectiveCompletedNotification(message) {
     g_currentRealmData = responseData.data.realm;
     var objective = responseData.data.objective;
 
-    if (responseData.player === g_gameData.player.name) {
+    if (responseData.playerName === g_gameData.player.name) {
         var status = "You have completed an objective: " +
             buildObjectiveDescription(objective) + ".";
         displayMessage(status);
@@ -946,29 +946,35 @@ function handleCommand(playerLocation, commandText, callback) {
 
 function handleGenericHelp() {
     displayMessage("Commands:");
-    displayMessage("   help : display list of commands.");
-    displayMessage("   look [direction] : describe the adjacent location in the specified direction, or the current location " +
-        "if no direction is specified.");
-    displayMessage("   move direction : move in the specified direction, if possible.");
-    displayMessage("   take item [from character] : take the named item. e.g. \"take short sword\" from the specified character, " +
-        "or from the current location if no character is specified.");
-    displayMessage("   buy item from character : buy the named item from the specified character.    e.g. \"buy short sword from Giant\"." +
-        " Try to take the item first and the character will name the price, if it is willing to sell the item.");
-    displayMessage("   drop item : drop the named item. e.g. \"drop short sword\".");
-    displayMessage("   inventory : list the items in your inventory.");
-    displayMessage("   describe (...) : describe character or item, Use \"help describe\" for more details.");
-    displayMessage("   status : show health and game progress.");
-    displayMessage("   save [name] : save the game, optionally giving this save a name.");
+    displayMessage("\thelp : display list of commands.");
+    displayMessage("\tlook [direction] : describe the adjacent location in the specified direction,");
+    displayMessage("\t\tor the current location if no direction is specified.");
+    displayMessage("\tmove direction : move in the specified direction, if possible.");
+    displayMessage("\ttake item [from character] : take the named item. e.g. \"take short");
+    displayMessage("\t\tsword\" from the specified character, or from the current location if no");
+    displayMessage("\t\tcharacter is specified.");
+    displayMessage("\tbuy item from character : buy the named item from the specified character.");
+    displayMessage("\t\te.g. \"buy short sword from Giant\".");
+    displayMessage("\t\tTry to take the item first and the character will name the price, if it is");
+    displayMessage("\t\twilling to sell the item.");
+    displayMessage("\tdrop item : drop the named item. e.g. \"drop short sword\".");
+    displayMessage("\tinventory : list the items in your inventory.");
+    displayMessage("\tdescribe (...) : describe character or item, Use \"help describe\" for");
+    displayMessage("\t\tmore details.");
+    displayMessage("\tstatus : show health and game progress.");
+    displayMessage("\tsave [name] : save the game, optionally giving this save a name.");
     displayMessage("");
 }
 
 function handleHelpDescribe() {
     displayMessage("describe:");
-    displayMessage("   describe [location] | [character type [number]] | [item type [number]] : describe the current location, " +
-        "or a character or item of the specified type. For example:");
-    displayMessage("      describe dwarf : describe the first dwarf in the current location.");
-    displayMessage("      describe short sword 2 : describe the second short sword in the current location.");
-    displayMessage("      describe location : describe the current location and its surroundings.");
+    displayMessage("\tdescribe [location] | [character type [number]] | [item type [number]] :");
+    displayMessage("\t\tdescribe the current location, or a character or item of the specified type.");
+    displayMessage("\tFor example:");
+    displayMessage("\t\tdescribe dwarf : describe the first dwarf in the current location.");
+    displayMessage("\t\tdescribe short sword 2 : describe the second short sword in the current");
+    displayMessage("\t\tlocation.");
+    displayMessage("\t\tdescribe location : describe the current location and its surroundings.");
     displayMessage("");
 }
 

@@ -38,10 +38,10 @@ module.exports = {
       }
    },
    handlers: {
-      "Navigate to": function (objective, game, realm, playerName, playerLocation, callback) {
+      "Navigate to": function (objective, game, realm, player, playerLocation, callback) {
          console.log("in Navigate to()");
 
-         if (game.player.name !== playerName) {
+         if (game.player.name !== player.name) {
             var errMsg = "Invalid player";
             console.log(errMsg);
             callback(errMsg);
@@ -67,7 +67,7 @@ module.exports = {
          // TODO: return the details of the updated objective. Don't update the param directly.
          objective.completed = "true";
          resp = {
-            player: playerName,
+            playerName: player.name,
             description: {
                action: "objective completed"
             },
@@ -79,10 +79,10 @@ module.exports = {
          console.log("in Navigate to() callback value");
          callback(resp);
       },
-      "Acquire item": function (objective, game, realm, playerName, playerLocation, callback) {
+      "Acquire item": function (objective, game, realm, player, playerLocation, callback) {
          console.log("in Acquire item()");
 
-         if (game.player.name !== playerName) {
+         if (game.player.name !== player.name) {
             var errMsg = "Invalid player";
             console.log(errMsg);
             callback(errMsg);
@@ -119,7 +119,7 @@ module.exports = {
          // TODO: return the details of the updated objective. Don't update the param directly.
          objective.completed = "true";
          resp = {
-            player: playerName,
+            playerName: player.name,
             description: {
                action: "objective completed"
             },
@@ -131,10 +131,10 @@ module.exports = {
          console.log("in Acquire item() callback value");
          callback(resp);
       },
-      "Give item": function (objective, game, realm, playerName, playerLocation, callback) {
+      "Give item": function (objective, game, realm, player, playerLocation, callback) {
          console.log("in Give item()");
 
-         if (game.player.name !== playerName) {
+         if (game.player.name !== player.name) {
             var errMsg = "Invalid player";
             console.log(errMsg);
             callback(errMsg);
@@ -181,14 +181,14 @@ module.exports = {
                         item.source.reason !== undefined &&
                         item.source.reason === "give" &&
                         item.source.from !== undefined &&
-                        item.source.from === playerName) {
+                        item.source.from === player.name) {
                         console.log("in Give item(): character given object from player");
 
                         // Mark the objective complete.
                         // TODO: return the details of the updated objective. Don't update the param directly.
                         objective.completed = "true";
                         resp = {
-                           player: playerName,
+                           playerName: player.name,
                            description: {
                               action: "objective completed"
                            },
