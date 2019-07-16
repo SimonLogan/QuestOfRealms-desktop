@@ -33,9 +33,9 @@ $(document).ready(function () {
             loadAndDisplayAvailableGames(callback);
         },
     ],
-        function (err, results) {
-            if (!err) enableControls();
-        });
+    function (err, results) {
+        if (!err) { enableControls(); }
+    });
 
     $('#designMode').on('click', function () {
         $(this).prop('disabled', true);
@@ -138,8 +138,8 @@ $(document).ready(function () {
 function initializePlayer(playerName, gameName) {
     const app = electron.remote.app;
     var gameBasedir = path.join(app.getPath('userData'), "games");
-    // The dbs will be in a 0/ subdirectory. This is the initial
-    // game version. Subsequent saves will go into 1/ etc.
+    // The dbs will be in a /0 subdirectory. This is the initial
+    // game version. Subsequent saves will go into /1 etc.
     var dbPath = path.join(gameBasedir, gameName, "0");
     var gameDbWrapper = require('../../assets/js/utils/dbWrapper');
 
@@ -158,38 +158,11 @@ function initializePlayer(playerName, gameName) {
             });
         },
         function (db_collections, gameData, callback) {
-            // Initially assume the first realm. Later, we need to
-            // load the current realm from the player data.
-            loadRealm(db_collections, gameData.realms[0], function (error, realmData) {
-                if (error) {
-                    callback(error);
-                } else {
-                    callback(error, db_collections, gameData, realmData);
-                }
-            });
-        },
-        function (db_collections, gameData, realmData, callback) {
-            var startAtObjective = realmData.objectives.filter(objective => objective.type === "Start at");
-            if (startAtObjective.length !== 1) {
-                // Should be impossible.
-                alert(`Found ${startAtObjective.length} \"Start at\" objectives. Expecting 1`);
-
-                callback("Wrong number of objectives.");
-                return;
-            }
-
-            // If we found a start at objective, assume it has valid x and y params.
-            // This should really be validated too.
-            var startx = startAtObjective[0].params.filter(param => param.name === "x");
-            var starty = startAtObjective[0].params.filter(param => param.name === "y");
-
             // Set the default map draw mode too.
             gameData.player = {
                 'name': playerName,
                 'location': {
-                    'realm': realmData._id,
-                    'x': startx[0].value,
-                    'y': starty[0].value
+                    'realm': gameData.realms[0]
                 },
                 'visited': {},
                 'inventory': [],
@@ -199,23 +172,19 @@ function initializePlayer(playerName, gameName) {
                 'mapDrawMode': mapDrawModeEnum.AUTO_ALL
             };
 
-            // The player has implicitly visited the start location.
-            var visitedKey = startx[0].value + "_" + starty[0].value;
-            var visitedRecord = {};
-            visitedRecord[visitedKey] = true;
-            gameData.player.visited[realmData._id] = visitedRecord;
+            gameData.player.visited[gameData.realms[0]] = {};
 
             db_collections.game.update({ _id: gameData._id }, gameData, {}, function (err, numReplaced) {
                 callback(null);
             });
         }
     ],
-        function (err, results) {
-            // Create the tabbed panels
-            //$("#paletteInnerPanel").tabs();
-            //$("#propertiesInnerPanel").tabs();
-            //if (!err) enableControls();
-        });
+    function (err, results) {
+        // Create the tabbed panels
+        //$("#paletteInnerPanel").tabs();
+        //$("#propertiesInnerPanel").tabs();
+        //if (!err) enableControls();
+    });
 }
 
 function loadGame(db_collections, callback) {
@@ -398,12 +367,11 @@ function displayAvailableGames() {
     $('.playGameInstance').on('click', function () {
         console.log("playgame");
         var gameName = availableGames[$(this).closest('.gameDetails').attr('data-gameId')].manifest.name;
-        var gameInstance = $(this).closest('tr').attr('data-instance');
-        var maxGameInstance = $(this).closest('tbody').find('tr:last').attr('data-instance');
+        var gameInstance = parseInt($(this).closest('tr').attr('data-instance'));
+        var maxGameInstance = parseInt($(this).closest('tbody').find('tr:last').attr('data-instance'));
 
-        // Build a URL to invoke the game player.
+        // Send a request to invoke the game player.
         var args = {
-            url: 'file://' + __dirname + '/../playGame/playGame.html',
             data: { 'name': gameName,
                     'instance': gameInstance,
                     'maxInstance': maxGameInstance }

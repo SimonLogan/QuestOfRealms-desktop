@@ -92,12 +92,12 @@ class findCharacter {
 }
 
 module.exports = {
-    // Initialize the game engine by loading the specfied game.
-    // Params:
-    //   dbPath - the location of the game db.
-    //   loadCallback - a function to notify the caller when the game
-    //                  has finished loading.
     initialize: function (gamePath, instance, maxInstance, dependencyInfo, loadCallback) {
+        // Initialize the game engine by loading the specfied game.
+        // Params:
+        //   dbPath - the location of the game db.
+        //   loadCallback - a function to notify the caller when the game
+        //                  has finished loading.
         async.waterfall([
             function (callback) {
                 g_dependencyInfo = dependencyInfo;
@@ -116,7 +116,7 @@ module.exports = {
             function (callback) {
                 // Initially assume the first realm. Later, we need to
                 // load the current realm from the player data.
-                loadRealm(g_gameData.realms[0], callback);
+                loadRealm(g_gameData.player.location.realm, callback);
             }
         ],
         function (err, results) {
@@ -130,6 +130,11 @@ module.exports = {
     getCurrentRealmData: function () {
         // Return a copy of currentRealmData;
         return local_getCurrentRealmData();
+    },
+    updatePlayer: function (player) {
+        // Used only to update the player info the first time
+        // a realm is launched. Do not call this at any other time.
+        g_gameData.player = player;
     },
     gameCommand: function (command, callback) {
         // In a multiplayer game, gameCommand() would be invoked via
@@ -230,6 +235,13 @@ module.exports = {
                             checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
                         }
                     }
+                });
+                break;
+            case "level":
+                handleLevelUp(command, g_gameData.player, function (handlerResult) {
+                    console.log("in gameCommand. handleLevelUp result = " + JSON.stringify(handlerResult));
+                    callback(handlerResult);
+                    // No need to check objectives after level up.
                 });
                 break;
             case "save":
@@ -1530,6 +1542,55 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
     });
 }
 
+function handleLevelUp(command, player, statusCallback) {
+    // The initial parser expects the first token to be the command verb.
+    // In this command it's the first two.. Check the 2nd word to be sure.
+    if (command !== "level up") {
+        statusCallback({ error: true, message: "Unknown command " + command });
+        return;
+    }
+
+    console.log("LEVEL UP");
+
+    var currentRealmIndex = g_gameData.realms.indexOf(g_currentRealmData._id);
+
+    if (currentRealmIndex === g_gameData.realms.length -1) {
+        statusCallback({ error: true, message: "There are no more levels." });
+        return;
+    }
+
+    // You can't level up unless you have completed all the objectives.
+    if (!allObjectivesCompleted()) {
+        displayMessageBlock("hmm, complete all objecitves you must");
+        return; 
+    }
+
+    player.location = {'realm': g_gameData.realms[currentRealmIndex + 1]};
+
+    // Add 1 to move up a level.
+    // currentRealmIndex is 0-based so add another 1 for display purposes.
+    var newLevel = currentRealmIndex + 2;
+
+    handleSave(
+        "save move to level " + newLevel,
+        function() {
+            notifyData = {
+                playerName: player.name,
+                description: {
+                    action: "level up",
+                    message: "move to level " + newLevel
+                },
+                data: { 'name': g_launchArgs.name,
+                        'instance': g_launchArgs.maxInstance + 1,
+                        'maxInstance': g_launchArgs.maxInstance + 1
+                }
+            };
+
+            statusCallback({ error: false, responseData: notifyData });
+        }
+    );
+}
+
 function handleSave(command, statusCallback) {
     var instanceName = command.replace(/save[\s+]/i, "");
 
@@ -1687,7 +1748,6 @@ function checkObjectives(game, player, callback) {
 
     console.log("Objectives: " + JSON.stringify(g_currentRealmData.objectives));
 
-    var allcompleted = true;
     for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
         // We need to keep track of the id for later on.
         var objective = {'id': i, 'value': g_currentRealmData.objectives[i]};

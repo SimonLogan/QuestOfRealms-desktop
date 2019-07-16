@@ -26,6 +26,13 @@ const MAP_VIEW_SIZE = 8;
 var MAP_OFFSET_X = 0;
 var MAP_OFFSET_Y = 0;
 
+// Callback for handling question reponses in the command window.
+var g_questionHandler;
+
+// Retain a copy of the args passed when launching this game, so that
+// we can relaunch it when moving to the next realm.
+var g_launchArgs;
+
 // The game data. This will be retrieved initially and then kept updated
 // via callbacks from the game engine. The "g_" prefix is to prevent accidental
 // assignment in a function.
@@ -52,6 +59,7 @@ var MapLocationCollection = Backbone.Collection.extend({
         // save the raw data.
         g_currentRealmData.mapLocations = this.models.map(thisModel => thisModel.attributes);
         saveRealm(function () {
+            alert("playGame.js SAVEREALM"); // to see if this is actually used.
             ipc.send('logmsg', 'realm saved()');
         });
     }
@@ -130,10 +138,48 @@ class findPlayer {
     }
 }
 
-// Called when the realm editor is loaded.
+function initializePlayer(callback) {
+    // Set the player's start location when launching a realm for the first time.
+    if (g_gameData.player.location.hasOwnProperty('x') &&
+        g_gameData.player.location.hasOwnProperty('y')) {
+        // Nothing to do.
+        return;
+    }
+
+    var startAtObjective = g_currentRealmData.objectives.filter(objective => objective.type === "Start at");
+    if (startAtObjective.length !== 1) {
+        // Should be impossible.
+        alert(`Found ${startAtObjective.length} \"Start at\" objectives. Expecting 1`);
+        return "Wrong number of objectives.";
+    }
+
+    // If we found a start at objective, assume it has valid x and y params.
+    // This should really be validated too.
+    var startx = startAtObjective[0].params.filter(param => param.name === "x");
+    var starty = startAtObjective[0].params.filter(param => param.name === "y");
+
+    // Set the default map draw mode too.
+    g_gameData.player.location = {
+        'realm': g_currentRealmData._id,
+        'x': startx[0].value,
+        'y': starty[0].value
+    };
+
+    // The player has implicitly visited the start location.
+    var visitedKey = startx[0].value + "_" + starty[0].value;
+    var visitedRecord = {};
+    visitedRecord[visitedKey] = true;
+    g_gameData.player.visited[g_currentRealmData._id] = visitedRecord;
+
+    gameEngine.updatePlayer(g_gameData.player);
+    g_gameData = gameEngine.getGameData();
+    return;
+}
+
+// Called when the realm is launched.
 ipc.on('playGame-data', function (event, data) {
     $('#page_title').text("Play Game " + data.name);
-    g_maxGameInstance = parseInt(data.maxInstance);
+    g_launchArgs = data;
 
     const app = electron.remote.app;
     var gamePath = path.join(app.getPath('userData'), "games", data.name);
@@ -149,7 +195,7 @@ ipc.on('playGame-data', function (event, data) {
         },
         function(callback) {
             gameEngine.initialize(
-                gamePath, data.instance, data.maxInstance,
+                gamePath, data.instance.toString(), data.maxInstance.toString(),
                 g_dependencyInfo, function (err) {
                     if (err) {
                         alert("Failed to load game: " + err);
@@ -179,6 +225,9 @@ ipc.on('playGame-data', function (event, data) {
                     callback(null);
                 }
             );
+        },
+        function(callback) {
+            callback(initializePlayer());
         },
         function(callback) {
             MAP_OFFSET_X = get_map_x_offset(g_gameData.player.location.x);
@@ -229,12 +278,18 @@ ipc.on('playGame-data', function (event, data) {
         $('#inputArea').val(prevCommands[selectedCommand]);
     });
 
-    // A command has been chosen by pressing enter.
+    // A command or input response has been submitted by pressing enter.
     $('#inputArea').keypress(function (event) {
         if (event.keyCode == 13) {
             var commandTextBox = $('#inputArea');
             var commandText = commandTextBox.val().trim();
             if (0 === commandText.length) {
+                return;
+            }
+
+            // Active prompts from the game override command handling.
+            if (g_questionHandler) {
+                g_questionHandler(commandText);
                 return;
             }
 
@@ -336,6 +391,25 @@ function loadDependencyData(gamePath) {
     });
 }
 
+function askQuestion(question, allowedResponses, callback) {
+   var message = question + " (" + allowedResponses.join(", ") + ")";
+   displayMessage(message);
+
+   function handleQuestionReponse(response) {
+       displayMessage(response);
+       $('#inputArea').val("");
+       if (allowedResponses.indexOf(response) == -1) {
+          displayMessage("Invalid response");
+          displayMessage(message);
+       } else {
+          callback(response);
+          g_questionHandler = null;
+       }
+   }
+
+   g_questionHandler = handleQuestionReponse;
+}
+
 function processMessage(thisMessage) {
     console.log("======== starting processMessage() ========");
     console.log("processing message: " + JSON.stringify(thisMessage));
@@ -370,6 +444,9 @@ function processMessage(thisMessage) {
     }
     else if (thisMessage.responseData.description.action === "fight") {
         processFightNotification(thisMessage);
+    }
+    else if (thisMessage.responseData.description.action === "level up") {
+        processLevelUpNotification(thisMessage);
     }
 
     console.log("======== finished processMessage() ========");
@@ -616,6 +693,18 @@ function processFightNotification(message) {
     }
 }
 
+function processLevelUpNotification(message) {
+    var responseData = message.responseData;
+    displayMessageBlock(responseData.description.message);
+    
+    var args = {
+        data: { 'name': responseData.data.name,
+                'instance': responseData.data.maxInstance ,
+                'maxInstance': responseData.data.maxInstance }
+    };
+    ipc.send('play-game', args);
+}
+
 function processObjectiveCompletedNotification(message) {
     var responseData = message.responseData;
     g_currentRealmData = responseData.data.realm;
@@ -626,15 +715,9 @@ function processObjectiveCompletedNotification(message) {
             buildObjectiveDescription(objective) + ".";
         displayMessage(status);
 
-        for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
-            // Special treatment for the "start at" objective. That's
-            // really a dummy objective and is implicitly completed
-            // by starting the game, so don't count it.
-            if (!g_currentRealmData.objectives[i].completed &&
-                g_currentRealmData.objectives[i].type !== "Start at") {
-                displayMessage("");
-                return;
-            }
+        if (!allObjectivesCompleted()) {
+            displayMessage("");
+            return; 
         }
 
         if (g_currentRealmData.hasOwnProperty("completionMessage") &&
@@ -642,6 +725,26 @@ function processObjectiveCompletedNotification(message) {
             displayMessageBlock(g_currentRealmData.completionMessage);
         } else {
             displayMessageBlock("All objectives are complete. Nice.");
+        }
+
+        var currentRealmIndex = g_gameData.realms.indexOf(g_currentRealmData._id);
+        // We could remove this offer to automatically level up and always require the
+        // player to issue a level up command, but leave it here as an example of
+        // how to ask a question and handle the response.
+        if (currentRealmIndex !== g_gameData.realms.length -1) {
+            askQuestion("Move to next realm?", ["y", "n"], function(response) {
+                console.log("received response: " + response);
+                if (response === "n") {
+                    // A manual level up command will be required.
+                    displayMessage("");
+                    return;
+                }
+
+                gameEngine.gameCommand("level up", function (result) {
+                    // Asynchronous result notifications from the game engine.
+                    processMessage(result);
+                });
+            });
         }
     }
 }
@@ -740,8 +843,10 @@ function drawMapLocation(locationData) {
         target.attr('data-env', locationData.attributes.type);
         target.attr('data-id', locationData.id);
         target.attr('data-module', locationData.attributes.module);
+        var moduleData = g_dependencyInfo[locationData.attributes.module][locationData.attributes.filename][locationData.attributes.type];
         target.html('');
-        target.append("<img src='" + pluginsPath + locationData.attributes.module + "/images/" + locationData.attributes.type + ".png'/>");
+        target.append("<img src='" + pluginsPath + locationData.attributes.module + "/images/" + 
+                      moduleData.image + "'/>");
 
         // TODO: decide whether the maplocation's items and characters remain permanently visible, or
         // only visible when the player is in the location.

@@ -213,7 +213,8 @@ ipcMain.on('save-add-objective-result', (event, msg) => {
 
 // Launch the play game window.
 ipcMain.on('play-game', (event, args) => {
-  console.log("Received play-game. args:" + JSON.stringify(args));
+  args.url = 'file://' + __dirname + '/views/playGame/playGame.html';
+  console.log("Updated play-game. args:" + JSON.stringify(args));
   win.webContents.once('did-finish-load', function() {
     win.webContents.send('playGame-data', args.data);
     win.webContents.openDevTools();

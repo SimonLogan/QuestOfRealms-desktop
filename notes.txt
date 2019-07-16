@@ -291,7 +291,7 @@ const app = electron.remote.app;
 var dbPath = app.getPath('userData') + "/db/";
 
 This will choose
-C:\Users\Simon\AppData\Roaming\questofrealms-designer-desktop/db/
+C:\Users\Simon\AppData\Roaming\questofrealms-desktop/db/
 for both dev and packages versions.
 
 ===================

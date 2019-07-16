@@ -1,4 +1,4 @@
-Follow the cryptoApp example to create QuestOfRealms-designer-desktop
+Follow the cryptoApp example to create QuestOfRealms-desktop
 
 FYI:
 ${__dirname} is a nodejs variable.
