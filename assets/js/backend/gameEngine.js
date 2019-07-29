@@ -92,7 +92,7 @@ class findCharacter {
 }
 
 module.exports = {
-    initialize: function (gamePath, instance, maxInstance, dependencyInfo, loadCallback) {
+    initialize: function (gamePath, launchArgs, dependencyInfo, loadCallback) {
         // Initialize the game engine by loading the specfied game.
         // Params:
         //   dbPath - the location of the game db.
@@ -102,12 +102,13 @@ module.exports = {
             function (callback) {
                 g_dependencyInfo = dependencyInfo;
                 g_gameInfo = {
+                    'name': launchArgs.name,
                     'gamePath': gamePath,
-                    'gameInstance': instance,
-                    'maxGameInstance': maxInstance
+                    'gameInstance': launchArgs.instance,
+                    'maxGameInstance': launchArgs.maxInstance
                 };
 
-                var dbPath = path.join(gamePath, instance);
+                var dbPath = path.join(gamePath, launchArgs.instance.toString());
                 dbWrapper.openGameDB(callback, dbPath);
             },
             function (callback) {
@@ -1580,9 +1581,9 @@ function handleLevelUp(command, player, statusCallback) {
                     action: "level up",
                     message: "move to level " + newLevel
                 },
-                data: { 'name': g_launchArgs.name,
-                        'instance': g_launchArgs.maxInstance + 1,
-                        'maxInstance': g_launchArgs.maxInstance + 1
+                data: { 'name': g_gameInfo.name,
+                        'instance': g_gameInfo.maxGameInstance,
+                        'maxInstance': g_gameInfo.maxGameInstance
                 }
             };
 
@@ -1707,7 +1708,7 @@ function createGameInstance(instanceName, gameCallback) {
             callback(null);
         },
         function (callback) {
-            var currentInstancePath = path.join(g_gameInfo.gamePath, g_gameInfo.gameInstance);
+            var currentInstancePath = path.join(g_gameInfo.gamePath, g_gameInfo.gameInstance.toString());
             fs.copyFile(path.join(currentInstancePath, "game.db"),
                         path.join(newInstancePath, "game.db"),
                         function(err) {

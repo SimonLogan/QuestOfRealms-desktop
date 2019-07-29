@@ -195,7 +195,7 @@ ipc.on('playGame-data', function (event, data) {
         },
         function(callback) {
             gameEngine.initialize(
-                gamePath, data.instance.toString(), data.maxInstance.toString(),
+                gamePath, g_launchArgs,
                 g_dependencyInfo, function (err) {
                     if (err) {
                         alert("Failed to load game: " + err);
