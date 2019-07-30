@@ -218,7 +218,7 @@ module.exports = {
                 handleUse(command, g_gameData.player, function (handlerResult) {
                     console.log("in gameCommand. handleUse result = " + JSON.stringify(handlerResult));
                     callback(handlerResult);
-                    
+
                     if (handlerResult.hasOwnProperty("responseData")) {
                         if (handlerResult.responseData.hasOwnProperty("data")) {
                             checkObjectives(handlerResult.responseData.data.game, g_gameData.player, callback);
@@ -384,11 +384,11 @@ function findHandler(object, action, findOptions) {
             break;
         } else {
             console.log("1 Module: " + handlerPath +
-                " does not have a handler for \"" + action + "\".");
+                        " does not have a handler for \"" + action + "\".");
         }
     }
-	
-	return handlerFunc;
+
+    return handlerFunc;
 }
 
 // Javascript passes objects by reference. We don't want plugins to be
@@ -659,7 +659,7 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, player, stat
 
             statusCallback({ error: false, responseData: notifyData });
             return;
-    });
+        });
 }
 
 function handleBuy(command, player, statusCallback) {
@@ -801,7 +801,7 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, player, statu
 
             statusCallback({ error: false, responseData: notifyData });
             return;
-    });
+        });
 }
 
 function handleDrop(command, player, statusCallback) {
@@ -998,7 +998,7 @@ function handleGiveToNPC(objectName, targetName, currentLocation, player, status
 
             statusCallback({ error: false, responseData: notifyData });
             return;
-    });
+        });
 }
 
 function handleUse(command, player, statusCallback) {
@@ -1042,7 +1042,7 @@ function handleUse(command, player, statusCallback) {
         player.using = [];
         player.using.push(item);
         player.damage = Math.max(player.damage, item.damage);
-    
+
         notifyData = {
             playerName: player.name,
             description: {
@@ -1054,7 +1054,7 @@ function handleUse(command, player, statusCallback) {
                 game: local_getGameData()
             }
         };
-    
+
         statusCallback({ error: false, responseData: notifyData });
         return;
     } else {
@@ -1067,13 +1067,13 @@ function handleUse(command, player, statusCallback) {
                     statusCallback({ error: true, message: "You cannot use the " + objectName });
                     return;
                 }
-    
+
                 if (!handlerResp.description.success) {
                     console.log("2 use failed: " + handlerResp.description.message);
                     statusCallback({ error: true, message: handlerResp.description.message });
                     return;
                 }
-    
+
                 // Don't update the game if there was no response from the handler.
                 if (!handlerResp.hasOwnProperty('data')) {
                     handlerResp.data = { game: game, mapLocation: currentLocation };
@@ -1112,7 +1112,7 @@ function handleUse(command, player, statusCallback) {
 
                 statusCallback({ error: false, responseData: notifyData });
                 return;
-        });
+            });
     }
 }
 
@@ -1196,7 +1196,7 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
 
     // Perform the default fight operation and call the optional handler to modify the
     // NPC's behaviour.
-    var handlerFunc = findHandler(characterInfo.character, "fight", {'useDefault': true});
+    var handlerFunc = findHandler(characterInfo.character, "fight", { 'useDefault': true });
     if (!handlerFunc) {
         statusCallback({ error: true, message: "There is no handler for \"fight\" available" });
         return;
@@ -1212,7 +1212,7 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
     // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
 
     var moduleData = g_dependencyInfo[characterInfo.character.module]
-        [characterInfo.character.filename][characterInfo.character.type];
+    [characterInfo.character.filename][characterInfo.character.type];
     characterInfo.character.health = readProperty(characterInfo.character.health, moduleData.health);
     characterInfo.character.damage = readProperty(characterInfo.character.damage, moduleData.damage);
 
@@ -1303,12 +1303,12 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
                 // was equal, judge based on remaining strength.
                 if ((playerDamageDealt > characterDamageDealt) ||
                     ((playerDamageDealt === characterDamageDealt) &&
-                    (playerHealth > characterHealth))) {
+                        (playerHealth > characterHealth))) {
                     message = "You fought valiantly and were victorious.";
                     playerWon = true;
                 } else if ((characterDamageDealt > playerDamageDealt) ||
-                        ((playerDamageDealt === characterDamageDealt) &&
-                            (characterHealth > playerHealth))) {
+                    ((playerDamageDealt === characterDamageDealt) &&
+                        (characterHealth > playerHealth))) {
                     format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
                     message = template(format, { character_type: characterInfo.character.type });
                 } else {
@@ -1345,7 +1345,7 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
 
             statusCallback({ error: false, responseData: notifyData });
             return;
-    });
+        });
 }
 
 // Fight until you beat the NPC and take the object
@@ -1383,7 +1383,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
     }
 
 
-    var handlerFunc = findHandler(characterInfo.character, "fight for", {'useDefault': true});
+    var handlerFunc = findHandler(characterInfo.character, "fight for", { 'useDefault': true });
     if (!handlerFunc) {
         statusCallback({ error: true, message: "There is no handler for \"fight for\" available" });
         return;
@@ -1399,7 +1399,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
     // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
 
     var moduleData = g_dependencyInfo[characterInfo.character.module]
-        [characterInfo.character.filename][characterInfo.character.type];
+    [characterInfo.character.filename][characterInfo.character.type];
     characterInfo.character.health = readProperty(characterInfo.character.health, moduleData.health);
     characterInfo.character.damage = readProperty(characterInfo.character.damage, moduleData.damage);
 
@@ -1492,12 +1492,12 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
                 // was equal, judge based on remaining strength.
                 if ((playerDamageDealt > characterDamageDealt) ||
                     ((playerDamageDealt === characterDamageDealt) &&
-                    (playerHealth > characterHealth))) {
+                        (playerHealth > characterHealth))) {
                     message = "You fought valiantly and were victorious.";
                     playerWon = true;
                 } else if ((characterDamageDealt > playerDamageDealt) ||
-                        ((playerDamageDealt === characterDamageDealt) &&
-                            (characterHealth > playerHealth))) {
+                    ((playerDamageDealt === characterDamageDealt) &&
+                        (characterHealth > playerHealth))) {
                     format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
                     message = template(format, { character_type: characterInfo.character.type });
                 } else {
@@ -1508,7 +1508,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
 
             player.health = playerHealth;
             characterInfo.character.health = characterHealth;
-            
+
             // Fight worked, so update the target.
             // Record who we took the object from so we can check for
             // "acquire from" objectives.
@@ -1540,7 +1540,7 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
 
             statusCallback({ error: false, responseData: notifyData });
             return;
-    });
+        });
 }
 
 function handleLevelUp(command, player, statusCallback) {
@@ -1555,7 +1555,7 @@ function handleLevelUp(command, player, statusCallback) {
 
     var currentRealmIndex = g_gameData.realms.indexOf(g_currentRealmData._id);
 
-    if (currentRealmIndex === g_gameData.realms.length -1) {
+    if (currentRealmIndex === g_gameData.realms.length - 1) {
         statusCallback({ error: true, message: "There are no more levels." });
         return;
     }
@@ -1563,10 +1563,10 @@ function handleLevelUp(command, player, statusCallback) {
     // You can't level up unless you have completed all the objectives.
     if (!allObjectivesCompleted()) {
         displayMessageBlock("hmm, complete all objecitves you must");
-        return; 
+        return;
     }
 
-    player.location = {'realm': g_gameData.realms[currentRealmIndex + 1]};
+    player.location = { 'realm': g_gameData.realms[currentRealmIndex + 1] };
 
     // Add 1 to move up a level.
     // currentRealmIndex is 0-based so add another 1 for display purposes.
@@ -1574,16 +1574,17 @@ function handleLevelUp(command, player, statusCallback) {
 
     handleSave(
         "save move to level " + newLevel,
-        function() {
+        function () {
             notifyData = {
                 playerName: player.name,
                 description: {
                     action: "level up",
                     message: "move to level " + newLevel
                 },
-                data: { 'name': g_gameInfo.name,
-                        'instance': g_gameInfo.maxGameInstance,
-                        'maxInstance': g_gameInfo.maxGameInstance
+                data: {
+                    'name': g_gameInfo.name,
+                    'instance': g_gameInfo.maxGameInstance,
+                    'maxInstance': g_gameInfo.maxGameInstance
                 }
             };
 
@@ -1596,7 +1597,7 @@ function handleSave(command, statusCallback) {
     var instanceName = command.replace(/save[\s+]/i, "");
 
     console.log("SAVE: " + instanceName);
-    createGameInstance(instanceName, function(err) {
+    createGameInstance(instanceName, function (err) {
         if (err) {
             return;
         }
@@ -1604,7 +1605,7 @@ function handleSave(command, statusCallback) {
         // Tell dbWrapper to open dbs from the new directory.
         var instancePath = path.join(g_gameInfo.gamePath, g_gameInfo.maxGameInstance.toString());
         console.log("new path " + instancePath);
-        dbWrapper.openGameDB(function() {
+        dbWrapper.openGameDB(function () {
             // Warning: NEDB does not support transactions. The code below assumes both updates work.
             saveGame(function (gameErr) {
                 if (gameErr) {
@@ -1710,18 +1711,18 @@ function createGameInstance(instanceName, gameCallback) {
         function (callback) {
             var currentInstancePath = path.join(g_gameInfo.gamePath, g_gameInfo.gameInstance.toString());
             fs.copyFile(path.join(currentInstancePath, "game.db"),
-                        path.join(newInstancePath, "game.db"),
-                        function(err) {
-                if (err) {
-                    callback(err);
-                }
+                path.join(newInstancePath, "game.db"),
+                function (err) {
+                    if (err) {
+                        callback(err);
+                    }
 
-                fs.copyFile(path.join(currentInstancePath, "questrealms.db"),
-                            path.join(newInstancePath, "questrealms.db"),
-                            function(err) {
-                    callback(err);
+                    fs.copyFile(path.join(currentInstancePath, "questrealms.db"),
+                        path.join(newInstancePath, "questrealms.db"),
+                        function (err) {
+                            callback(err);
+                        });
                 });
-            });
         }
     ],
     function (err) {
@@ -1741,7 +1742,7 @@ function checkObjectives(game, player, callback) {
 
     // Find the current location. Some objectives depend on it.
     var location = findLocation(player.location.x,
-                                player.location.y);
+        player.location.y);
     if (!location) {
         console.error("in checkObjectives() invalid location.");
         return;
@@ -1751,7 +1752,7 @@ function checkObjectives(game, player, callback) {
 
     for (var i = 0; i < g_currentRealmData.objectives.length; i++) {
         // We need to keep track of the id for later on.
-        var objective = {'id': i, 'value': g_currentRealmData.objectives[i]};
+        var objective = { 'id': i, 'value': g_currentRealmData.objectives[i] };
 
         if (objective.value.completed === "true") {
             continue;

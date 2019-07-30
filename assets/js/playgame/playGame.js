@@ -13,7 +13,7 @@ var path = require('path');
 var pluginsPath = path.join(__dirname, "../../assets/QuestOfRealms-plugins/");
 const gameEngine = require(path.join(__dirname, '../../assets/js/backend/gameEngine.js'));
 const async = require('async');
-var g_playerPrefs = {'mapDrawMode': mapDrawModeEnum.AUTO_VISITED};
+var g_playerPrefs = { 'mapDrawMode': mapDrawModeEnum.AUTO_VISITED };
 
 // Constants
 describeDetailEnum = {
@@ -189,11 +189,11 @@ ipc.on('playGame-data', function (event, data) {
     ipc.send('logmsg', "********** starting playGame-data " + JSON.stringify(data) + " (" + Date.now() + ") **********");
 
     async.series([
-        function(callback) {
+        function (callback) {
             loadDependencyData(gamePath);
             callback(null);
         },
-        function(callback) {
+        function (callback) {
             gameEngine.initialize(
                 gamePath, g_launchArgs,
                 g_dependencyInfo, function (err) {
@@ -226,10 +226,10 @@ ipc.on('playGame-data', function (event, data) {
                 }
             );
         },
-        function(callback) {
+        function (callback) {
             callback(initializePlayer());
         },
-        function(callback) {
+        function (callback) {
             MAP_OFFSET_X = get_map_x_offset(g_gameData.player.location.x);
             MAP_OFFSET_Y = get_map_y_offset(g_gameData.player.location.y);
             drawMapGrid();
@@ -247,7 +247,7 @@ ipc.on('playGame-data', function (event, data) {
             callback(null);
         }
     ],
-    function(err, results) {
+    function (err, results) {
         console.log("Series end. err: " + err + ", results: " + JSON.stringify(results));
     });
 
@@ -270,7 +270,7 @@ ipc.on('playGame-data', function (event, data) {
                 selectedCommand--;
             }
         } else if (event.keyCode === 40 &&
-                   (selectedCommand < prevCommands.length - 1)) {
+            (selectedCommand < prevCommands.length - 1)) {
             // Down arrow.
             selectedCommand++;
         }
@@ -377,13 +377,13 @@ function loadDependencyData(gamePath) {
     */
 
     // Use jQuery to iterate the modules dict.
-    $.each(manifest.modules, function(moduleName, moduleDetails) {
+    $.each(manifest.modules, function (moduleName, moduleDetails) {
         // For each javascript file that is required from this module,
         // load the attributes of all available resources. It's not worth
         // the bother searching for just required resources.
         console.log("processing module " + moduleName);
         g_dependencyInfo[moduleName] = {};
-        $.each(moduleDetails, function(fileName, resourceList) {
+        $.each(moduleDetails, function (fileName, resourceList) {
             console.log("   processing file " + fileName);
             var fileInfo = require(path.join(gamePath, "modules", moduleName, fileName));
             g_dependencyInfo[moduleName][fileName] = fileInfo.attributes;
@@ -392,22 +392,22 @@ function loadDependencyData(gamePath) {
 }
 
 function askQuestion(question, allowedResponses, callback) {
-   var message = question + " (" + allowedResponses.join(", ") + ")";
-   displayMessage(message);
+    var message = question + " (" + allowedResponses.join(", ") + ")";
+    displayMessage(message);
 
-   function handleQuestionReponse(response) {
-       displayMessage(response);
-       $('#inputArea').val("");
-       if (allowedResponses.indexOf(response) == -1) {
-          displayMessage("Invalid response");
-          displayMessage(message);
-       } else {
-          callback(response);
-          g_questionHandler = null;
-       }
-   }
+    function handleQuestionReponse(response) {
+        displayMessage(response);
+        $('#inputArea').val("");
+        if (allowedResponses.indexOf(response) == -1) {
+            displayMessage("Invalid response");
+            displayMessage(message);
+        } else {
+            callback(response);
+            g_questionHandler = null;
+        }
+    }
 
-   g_questionHandler = handleQuestionReponse;
+    g_questionHandler = handleQuestionReponse;
 }
 
 function processMessage(thisMessage) {
@@ -455,19 +455,19 @@ function processMessage(thisMessage) {
 function get_map_x_offset(player_x) {
     if (parseInt(g_currentRealmData.width) > MAP_VIEW_SIZE &&
         parseInt(player_x) > (MAP_OFFSET_X + MAP_VIEW_SIZE)) {
-            return (parseInt(player_x) - MAP_VIEW_SIZE);
+        return (parseInt(player_x) - MAP_VIEW_SIZE);
     }
-	
-	return MAP_OFFSET_X;
+
+    return MAP_OFFSET_X;
 }
 
 function get_map_y_offset(player_y) {
     if (parseInt(g_currentRealmData.height) > MAP_VIEW_SIZE &&
         parseInt(player_y) > (MAP_OFFSET_Y + MAP_VIEW_SIZE)) {
-            return (parseInt(player_y) - MAP_VIEW_SIZE);
+        return (parseInt(player_y) - MAP_VIEW_SIZE);
     }
-	
-	return MAP_OFFSET_Y;
+
+    return MAP_OFFSET_Y;
 }
 
 function location_in_viewport(xStr, yStr) {
@@ -476,7 +476,7 @@ function location_in_viewport(xStr, yStr) {
     var viewport_width = Math.min(parseInt(g_currentRealmData.width), MAP_VIEW_SIZE);
     var viewport_height = Math.min(parseInt(g_currentRealmData.height), MAP_VIEW_SIZE);
     return ((x > MAP_OFFSET_X && x <= MAP_OFFSET_X + viewport_width) &&
-            (y > MAP_OFFSET_Y && y <= MAP_OFFSET_Y + viewport_height));
+        (y > MAP_OFFSET_Y && y <= MAP_OFFSET_Y + viewport_height));
 }
 
 function processMoveNotification(message) {
@@ -515,7 +515,7 @@ function processMoveNotification(message) {
             g_locationData.forEach(function (item) {
                 drawMapLocation(item);
             });
-    
+
             var playerLocation = findPlayerLocation();
             showPlayerLocation(playerLocation);
         } else {
@@ -696,11 +696,13 @@ function processFightNotification(message) {
 function processLevelUpNotification(message) {
     var responseData = message.responseData;
     displayMessageBlock(responseData.description.message);
-    
+
     var args = {
-        data: { 'name': responseData.data.name,
-                'instance': responseData.data.maxInstance ,
-                'maxInstance': responseData.data.maxInstance }
+        data: {
+            'name': responseData.data.name,
+            'instance': responseData.data.maxInstance,
+            'maxInstance': responseData.data.maxInstance
+        }
     };
     ipc.send('play-game', args);
 }
@@ -717,7 +719,7 @@ function processObjectiveCompletedNotification(message) {
 
         if (!allObjectivesCompleted()) {
             displayMessage("");
-            return; 
+            return;
         }
 
         if (g_currentRealmData.hasOwnProperty("completionMessage") &&
@@ -731,8 +733,8 @@ function processObjectiveCompletedNotification(message) {
         // We could remove this offer to automatically level up and always require the
         // player to issue a level up command, but leave it here as an example of
         // how to ask a question and handle the response.
-        if (currentRealmIndex !== g_gameData.realms.length -1) {
-            askQuestion("Move to next realm?", ["y", "n"], function(response) {
+        if (currentRealmIndex !== g_gameData.realms.length - 1) {
+            askQuestion("Move to next realm?", ["y", "n"], function (response) {
                 console.log("received response: " + response);
                 if (response === "n") {
                     // A manual level up command will be required.
@@ -767,7 +769,7 @@ function buildObjectiveDescription(objective) {
 
 function displayInstructions() {
     if (g_currentRealmData.hasOwnProperty("startMessage") &&
-    g_currentRealmData.startMessage.length > 0) {
+        g_currentRealmData.startMessage.length > 0) {
         displayMessageBlock(g_currentRealmData.startMessage);
     }
 
@@ -845,8 +847,8 @@ function drawMapLocation(locationData) {
         target.attr('data-module', locationData.attributes.module);
         var moduleData = g_dependencyInfo[locationData.attributes.module][locationData.attributes.filename][locationData.attributes.type];
         target.html('');
-        target.append("<img src='" + pluginsPath + locationData.attributes.module + "/images/" + 
-                      moduleData.image + "'/>");
+        target.append("<img src='" + pluginsPath + locationData.attributes.module + "/images/" +
+            moduleData.image + "'/>");
 
         // TODO: decide whether the maplocation's items and characters remain permanently visible, or
         // only visible when the player is in the location.
@@ -1013,7 +1015,7 @@ function handleCommand(playerLocation, commandText, callback) {
         handleHelp(tokens);
         return;
     }
-    
+
     if (tokens[0] === "status") {
         handleStatus(playerLocation, tokens);
         return;
@@ -1030,12 +1032,12 @@ function handleCommand(playerLocation, commandText, callback) {
         handleLook(playerLocation, tokens);
         return;
     }
-    
+
     if (tokens[0] === "inventory") {
         handleInventory(playerLocation, tokens);
         return;
     }
-    
+
     if (tokens[0] === "describe") {
         handleDescribe(playerLocation, tokens);
         return;
@@ -1306,7 +1308,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
     displayMessage("Damage: " + readProperty(thisCharacter.damage, moduleData.damage));
     displayMessage("Health: " + readProperty(thisCharacter.health, moduleData.health));
 
-   var drops = readProperty(thisCharacter.drops, moduleData.drops);
+    var drops = readProperty(thisCharacter.drops, moduleData.drops);
     if (drops) {
         if (Object.prototype.toString.call(drops) === '[object Array]') {
             displayMessage("Drops: " + drops.join(", "));
@@ -1323,7 +1325,7 @@ function describeLocationCharacter(playerLocation, characterName, characterNumbe
         for (var j = 0; j < thisCharacter.inventory.length; j++) {
             // TODO: improve this to share the implementation with
             // describeLocationItem().
-            describeItem(thisCharacter.inventory[j], {"indent": true});
+            describeItem(thisCharacter.inventory[j], { "indent": true });
         }
     }
 
@@ -1447,12 +1449,11 @@ function handleStatus() {
     displayMessage("Damage: " + playerInfo.player.damage);
 
     var usingMessage = "You are not using any objects.";
-    if (playerInfo.player.using.length > 0)
-    {
+    if (playerInfo.player.using.length > 0) {
         usingMessage = "Using: ";
         for (var j = 0; j < playerInfo.player.using.length; j++) {
             usingMessage += playerInfo.player.using[j].type;
-            if (j < playerInfo.player.using.length -1) {
+            if (j < playerInfo.player.using.length - 1) {
                 usingMessage = usingMessage + ",";
             }
         }
@@ -1475,7 +1476,7 @@ function handleStatus() {
             displayMessage("      " +
                 buildObjectiveDescription(
                     g_currentRealmData.objectives[i]) + ": " +
-                    (g_currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
+                (g_currentRealmData.objectives[i].completed === "true" ? "complete" : "not complete"));
         }
 
         // TODO: "start at" doesn't really count as an objective. If that is the only one then say

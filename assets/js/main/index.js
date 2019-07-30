@@ -96,7 +96,7 @@ $(document).ready(function () {
         $('#importPanel #playerName').val('');
         $('#importPanel').show();
     });
- 
+
     // Entering a value into the "player name" field on the "import game" form.
     // Only enable the "choose file" button if a name has been specified.
     $('#playerName').on('keyup paste', function () {
@@ -179,12 +179,12 @@ function initializePlayer(playerName, gameName) {
             });
         }
     ],
-    function (err, results) {
-        // Create the tabbed panels
-        //$("#paletteInnerPanel").tabs();
-        //$("#propertiesInnerPanel").tabs();
-        //if (!err) enableControls();
-    });
+        function (err, results) {
+            // Create the tabbed panels
+            //$("#paletteInnerPanel").tabs();
+            //$("#propertiesInnerPanel").tabs();
+            //if (!err) enableControls();
+        });
 }
 
 function loadGame(db_collections, callback) {
@@ -372,9 +372,11 @@ function displayAvailableGames() {
 
         // Send a request to invoke the game player.
         var args = {
-            data: { 'name': gameName,
-                    'instance': gameInstance,
-                    'maxInstance': maxGameInstance }
+            data: {
+                'name': gameName,
+                'instance': gameInstance,
+                'maxInstance': maxGameInstance
+            }
         };
         ipc.send('play-game', args);
     });
@@ -420,7 +422,7 @@ function loadAndDisplayAvailableGames(callback) {
     // from https://stackoverflow.com/questions/18112204/get-all-directories-within-directory-nodejs
     const { lstatSync, readdirSync } = require('fs');
     const path = require('path');
-    const getDirectories = function(basedir) {
+    const getDirectories = function (basedir) {
         var candidates = readdirSync(basedir);
         var matches = [];
         $.each(candidates, function (index, candidate) {
@@ -461,9 +463,11 @@ function loadAndDisplayAvailableGames(callback) {
                 return;
             }
 
-            availableSaves.push({ 'saveId': saveId,
-                                  'saveName': (manifest.name ? manifest.name : ""),
-                                  'saveDate': manifest.saveDate });
+            availableSaves.push({
+                'saveId': saveId,
+                'saveName': (manifest.name ? manifest.name : ""),
+                'saveDate': manifest.saveDate
+            });
         });
 
         availableGames.push({ 'manifest': manifest, 'saves': availableSaves });
@@ -605,7 +609,7 @@ function deleteGame(target) {
     var gameId = target.closest('.gameDetails').attr('data-gameId');
     var name = availableGames[gameId].manifest.name;
     if (confirm("Are you sure you want to delete game " + name + "?" +
-                "\nThis will delete all saved data for this game.")) {
+        "\nThis will delete all saved data for this game.")) {
         const app = electron.remote.app;
         var gameDir = path.join(app.getPath('userData'), "games", name);
         removeGameDirectory(gameDir, function (err) {
@@ -912,7 +916,7 @@ function exportGame(gameBasedir, callback) {
                     var manifestData = {
                         'name': 'Start from the beginning.'
                     };
-        
+
                     writeInstanceManifest(dbDir, manifestData);
                     callback(null);
                 });

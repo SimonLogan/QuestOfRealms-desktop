@@ -3,7 +3,7 @@
  * (c) Simon Logan 2019
  */
 
- // Write a file that contains a list of all the
+// Write a file that contains a list of all the
 // <module / filename / type> requirements of this game.
 // This is just a human-readable helpful guide - the system
 // won't use this file when importing a game, but will instead
