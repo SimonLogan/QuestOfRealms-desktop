@@ -78,7 +78,7 @@ New games can be imported using the "Import Game" button. You will need to suppl
 You cannot import games with duplicate names. The name comes from the manifest data in the zipfile, and not the file name.
 Imported games are saved in a suitably-named subdirectory of
 %AppData%\Roaming\questofrealms-desktop\games on windows, and
-**xxxxx** on Linux.
+~/.config/questofrealms-desktop/games on Linux.
 
 Choosing a game to play launches the game play window.
 
@@ -91,7 +91,7 @@ The map cells indicate the contents of that location using the following icons.
 
 ![Player icon](/Documentation/Player/player-doc-icon.png) This icon indicates the current player location on the map. If the icon is lying on its side the player is dead.
 
-![NPC icon](/Documentation/Player/npc-doc-icon.png) This icon indicates the presence of non-player characters (NPCs) in a given map location. You may interact with NPCs in various ways.
+![NPC icon](/Documentation/Player/NPC-doc-icon.png) This icon indicates the presence of non-player characters (NPCs) in a given map location. You may interact with NPCs in various ways.
 
 ![Object icon](/Documentation/Player/object-doc-icon.png) This icon indicates the presence of objects in a given map location. Objects may be taken, dropped, or used to interact with NPCs.
 
@@ -133,6 +133,7 @@ Commands are entered into the single-line field at the bottom of the command win
 A game is split across a number of levels, called realms. You complete a realm by completing all the objectives set for that realm. You can see the objective progress using the **status** command.
 
 ![Command status](/Documentation/Player/command-status-example.png)
+
 This example tells us that this realm has a single objective - to acquire a single long sword.
 
 You will be notified when you complete an objective:
@@ -301,9 +302,8 @@ data retrieved from the game database by gameEngine.js
 ```
 
 From [the Backbone website](https://backbonejs.org/):
-```
-Backbone.js gives structure to web applications by providing models with key-value binding and custom events, collections with a rich API of enumerable functions, views with declarative event handling, and connects it all to your existing API over a RESTful JSON interface.
-```
+
+"Backbone.js gives structure to web applications by providing models with key-value binding and custom events, collections with a rich API of enumerable functions, views with declarative event handling, and connects it all to your existing API over a RESTful JSON interface."
 
 We don't use the REST API interface in playGame.js - instead initialising the collection as described above.
 The benefit of using Backbone is that we can update g_locationData at varions places in the code and the view will take care of rendering itself. 
