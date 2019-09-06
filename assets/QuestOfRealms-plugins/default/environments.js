@@ -8,12 +8,12 @@ module.exports = {
     category: "environment",
     attributes: {
         "grassland": {
-            image: "grassland.png",
+            image: "grassland2.png",
             description: "Grassy plains.",
             healthCost: 1
         },
         "mountains": {
-            image: "mountains2.png",
+            image: "mountains3.png",
             description: "Not much grows here.",
             healthcost: 10
         }

@@ -92,7 +92,7 @@ module.exports = {
     // No attributes provided by this module.
 
     handlers: {
-        "fight": function(character, game, player, callback) {
+        "fight": function(character, player, callback) {
             /*
              * The handler doesn't need to update the game. It just needs to
              * return description and data to indicate the result of the fight:
@@ -114,6 +114,8 @@ module.exports = {
             var playerHealth = player.health;
             var characterHealth = character.health;
 
+            // If the player is using an object that has higher damage than their bare hands then
+            // use the object's damage value.
             var playerDamage = player.damage;
             if (player.using.length > 0 &&
                 player.using[0].hasOwnProperty('damage')) {
@@ -140,7 +142,7 @@ module.exports = {
 
             callback(resp);
         },
-        "fight for": function(character, object, game, player, callback) {
+        "fight for": function(character, object, player, callback) {
             // By default "fight for" behaves just like fight, except the game
             // will take the object from the character if you win.
 

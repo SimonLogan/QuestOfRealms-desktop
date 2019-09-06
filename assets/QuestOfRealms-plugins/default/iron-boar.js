@@ -8,7 +8,7 @@ module.exports = {
     category: "character",
     attributes: {
         "Iron boar": {
-            image: "IronBoar.png",
+            image: "IronBoar2.png",
             description: "Tough, easily tamed animals.",
             additional_info: "Medium armour. Can be domesticated. Found on Endless plains, and in Utropica. Loves to eat Forge Weed.",
             health: 20,
@@ -17,7 +17,7 @@ module.exports = {
         }
     },
     handlers: {
-        "take from": function (ironboar, object, game, player, callback) {
+        "take from": function (character, object, player, callback) {
             /*
              * The handler doesn't need to update the game. It just needs to
              * return description.success=true/false to indicate whether you

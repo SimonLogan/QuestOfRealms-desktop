@@ -24,7 +24,7 @@ const TableDisplayMode = {
 ipc.on('editGame-data', function (event, data) {
     //ipc.send('logmsg', 'realmEditor.js:editRealm-data. data=' + JSON.stringify(data));
 
-    // Load the game and available relams and call the functions below when they have been
+    // Load the game and available realms and call the functions below when they have been
     // retrieved. You need to use this callback approach because the AJAX calls are
     // asynchronous. This means the code here won't wait for them to complete,
     // so you have to provide a function that can be called when the data is ready.

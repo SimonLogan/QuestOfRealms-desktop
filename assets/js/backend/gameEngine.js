@@ -618,7 +618,6 @@ function handleTakeFromNPC(objectName, targetName, currentLocation, player, stat
     handlerFunc(
         copyData(characterInfo.character),
         copyData(foundInventoryItem),
-        copyData(g_gameData),
         copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
@@ -749,7 +748,6 @@ function handleBuyFromNPC(objectName, targetName, currentLocation, player, statu
     handlerFunc(
         copyData(characterInfo.character),
         copyData(foundInventoryItem),
-        copyData(g_gameData),
         copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
@@ -948,7 +946,6 @@ function handleGiveToNPC(objectName, targetName, currentLocation, player, status
     handlerFunc(
         targetName,
         copyData(foundInventoryItem),
-        copyData(g_gameData),
         copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
@@ -1164,17 +1161,6 @@ function handleCharacterDeath(character, currentLocation) {
     /// TODO: handle character.drops
 }
 
-function handleCharacterDefeat(character, currentLocation) {
-    // The character will drop its inventory.
-    if (character.inventory !== undefined) {
-        for (var i = 0; i < character.inventory.length; i++) {
-            currentLocation.items.push(character.inventory[i]);
-        }
-    }
-
-    character.inventory = [];
-}
-
 function handlePlayerDeath(player, currentLocation) {
     // You will drop your inventory.
     for (var i = 0; i < player.inventory.length; i++) {
@@ -1202,15 +1188,6 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
         return;
     }
 
-    // For string template substitution.
-    var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
-
-    // Note on the format/message split below. If we ever wish to localise the strings,
-    // "You are too weak to fight. The ${character_type} was victorious." is much better
-    // for translators as there is a full sentence to work with, and the embedded named
-    // token gives info about what data it contains. Compare this to the much worse
-    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
-
     var moduleData = g_dependencyInfo[characterInfo.character.module]
     [characterInfo.character.filename][characterInfo.character.type];
     characterInfo.character.health = readProperty(characterInfo.character.health, moduleData.health);
@@ -1222,10 +1199,17 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
         ", character.health: " + characterInfo.character.health +
         ", character damage: " + characterInfo.character.damage);
 
+    var character_type = characterInfo.character.type;
+
+    // Note on the message strings below. If we ever wish to localise the strings,
+    // "You are too weak to fight. The ${character_type} was victorious." is much better
+    // for translators as there is a full sentence to work with, and the embedded named
+    // token gives info about what data it contains. Compare this to the much worse
+    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
+
     // The player can't fight if health is 0.
     if (player.health === 0) {
-        var format = "You are too weak to fight. The ${character_type} was victorious.";
-        var message = template(format, { character_type: characterInfo.character.type });
+        var message = `You are too weak to fight. The ${character_type} was victorious.`;
         var notifyData = {
             playerName: player.name,
             description: {
@@ -1244,7 +1228,6 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
     var playerOrigHealth = player.health;
     handlerFunc(
         copyData(characterInfo.character),
-        copyData(g_gameData),
         copyData(player),
         function (handlerResp) {
             if (!handlerResp) {
@@ -1266,9 +1249,6 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
                 return;
             }
 
-            // In "fight" your opponent can die.
-            // In "fight for" they can be totally defeated but will not die.
-            // The player can die in either case.
             var characterDied = false;
             var playerDied = false;
             var playerWon = false;
@@ -1276,8 +1256,8 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
             // The victor is the combatant that does the biggest %age damage to the opponent.
             var playerHealth = handlerResp.data.playerHealth;
             var characterHealth = handlerResp.data.characterHealth;
-            var playerDamageDealt = Math.round((player.damage / characterOrigHealth) * 100);
-            var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
+            var playerDamageDealt = Math.round(((characterOrigHealth - characterHealth) / characterOrigHealth) * 100);
+            var characterDamageDealt = Math.round(((playerOrigHealth - playerHealth) / playerOrigHealth) * 100);
 
             console.log(
                 "After fight. player.health: " + playerHealth +
@@ -1287,9 +1267,8 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
 
             message = "You fought valiantly.";
             if (characterHealth === 0 && playerHealth > 0) {
-                format = "You fought valiantly. The ${character_type} died.";
+                message = `You fought valiantly. The ${character_type} died.`;
                 characterDied = true;
-                message = template(format, { character_type: characterInfo.character.type });
                 playerWon = true;
             } else if (characterHealth > 0 && playerHealth === 0) {
                 message = "You fought valiantly, but you died.";
@@ -1303,14 +1282,13 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
                 // was equal, judge based on remaining strength.
                 if ((playerDamageDealt > characterDamageDealt) ||
                     ((playerDamageDealt === characterDamageDealt) &&
-                        (playerHealth > characterHealth))) {
+                     (playerHealth > characterHealth))) {
                     message = "You fought valiantly and were victorious.";
                     playerWon = true;
                 } else if ((characterDamageDealt > playerDamageDealt) ||
-                    ((playerDamageDealt === characterDamageDealt) &&
-                        (characterHealth > playerHealth))) {
-                    format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
-                    message = template(format, { character_type: characterInfo.character.type });
+                           ((playerDamageDealt === characterDamageDealt) &&
+                            (characterHealth > playerHealth))) {
+                                message = `You fought valiantly but unfortunately the ${character_type} was victorious.`;
                 } else {
                     // Evenly matched so far, declare a draw.
                     message = "You both fought valiantly, but are evently matched.";
@@ -1329,11 +1307,15 @@ function handleFightNPC(targetName, currentLocation, player, statusCallback) {
                 handlePlayerDeath(player, currentLocation);
             }
 
+            var preamble = "";
+            if (handlerResp.description.hasOwnProperty("message")) {
+                preamble = handlerResp.description.message + " ";
+            }
             notifyData = {
                 playerName: player.name,
                 description: {
                     action: "fight",
-                    message: message
+                    message: preamble + message
                 },
                 data: {}
             };
@@ -1389,15 +1371,6 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
         return;
     }
 
-    // For string template substitution.
-    var template = (tpl, args) => tpl.replace(/\${(\w+)}/g, (_, v) => args[v]);
-
-    // Note on the format/message split below. If we ever wish to localise the strings,
-    // "You are too weak to fight. The ${character_type} was victorious." is much better
-    // for translators as there is a full sentence to work with, and the embedded named
-    // token gives info about what data it contains. Compare this to the much worse
-    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
-
     var moduleData = g_dependencyInfo[characterInfo.character.module]
     [characterInfo.character.filename][characterInfo.character.type];
     characterInfo.character.health = readProperty(characterInfo.character.health, moduleData.health);
@@ -1409,10 +1382,17 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
         ", character.health: " + characterInfo.character.health +
         ", character damage: " + characterInfo.character.damage);
 
+    var character_type = characterInfo.character.type;
+
+    // Note on the message strings below. If we ever wish to localise the strings,
+    // "You are too weak to fight. The ${character_type} was victorious." is much better
+    // for translators as there is a full sentence to work with, and the embedded named
+    // token gives info about what data it contains. Compare this to the much worse
+    // translate("You are too weak to fight. The ") + character.type + translate(" was victorious.");
+
     // The player can't fight if health is 0.
     if (player.health === 0) {
-        var format = "You are too weak to fight. The ${character_type} was victorious.";
-        var message = template(format, { character_type: characterInfo.character.type });
+        var message = `You are too weak to fight. The ${character_type} was victorious.`;
         var notifyData = {
             playerName: player.name,
             description: {
@@ -1432,7 +1412,6 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
     handlerFunc(
         copyData(characterInfo.character),
         copyData(foundInventoryItem),
-        copyData(g_gameData),
         copyData(player),
         function (handlerResp) {
             console.log("handlerResp: " + handlerResp);
@@ -1455,18 +1434,15 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
                 return;
             }
 
-            // In "fight" your opponent can die.
-            // In "fight for" they can be totally defeated but will not die.
-            // The player can die in either case.
-            var characterTotallyDefeated = false;
+            var characterDied = false;
             var playerDied = false;
             var playerWon = false;
 
             // The victor is the combatant that does the biggest %age damage to the opponent.
             var playerHealth = handlerResp.data.playerHealth;
             var characterHealth = handlerResp.data.characterHealth;
-            var playerDamageDealt = Math.round((player.damage / characterOrigHealth) * 100);
-            var characterDamageDealt = Math.round((characterInfo.character.damage / playerOrigHealth) * 100);
+            var playerDamageDealt = Math.round(((characterOrigHealth - characterHealth) / characterOrigHealth) * 100);
+            var characterDamageDealt = Math.round(((playerOrigHealth - playerHealth) / playerOrigHealth) * 100);
 
             console.log(
                 "After fight. player.health: " + playerHealth +
@@ -1476,30 +1452,28 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
 
             message = "You fought valiantly.";
             if (characterHealth === 0 && playerHealth > 0) {
-                format = "You fought valiantly. The ${character_type} was totally defeated.";
-                characterTotallyDefeated = true;
-                message = template(format, { character_type: characterInfo.character.type });
+                message = `You fought valiantly. The ${character_type} died.`;
+                characterDied = true;
                 playerWon = true;
             } else if (characterHealth > 0 && playerHealth === 0) {
                 message = "You fought valiantly, but you died.";
                 playerDied = true;
             } else if (characterHealth === 0 && playerHealth === 0) {
-                message = "You fought valiantly. The ${character_type} was totally defeated, but you died.";
-                characterTotallyDefeated = true;
+                message = "You fought valiantly, but you both died.";
+                characterDied = true;
                 playerDied = true;
             } else {
                 // Neither died. Judge the victor on who dealt the highest %age damage, or if damage
                 // was equal, judge based on remaining strength.
                 if ((playerDamageDealt > characterDamageDealt) ||
                     ((playerDamageDealt === characterDamageDealt) &&
-                        (playerHealth > characterHealth))) {
+                     (playerHealth > characterHealth))) {
                     message = "You fought valiantly and were victorious.";
                     playerWon = true;
                 } else if ((characterDamageDealt > playerDamageDealt) ||
-                    ((playerDamageDealt === characterDamageDealt) &&
-                        (characterHealth > playerHealth))) {
-                    format = "You fought valiantly but unfortunately the ${character_type} was victorious.";
-                    message = template(format, { character_type: characterInfo.character.type });
+                           ((playerDamageDealt === characterDamageDealt) &&
+                            (characterHealth > playerHealth))) {
+                                message = `You fought valiantly but unfortunately the ${character_type} was victorious.`;
                 } else {
                     // Evenly matched so far, declare a draw.
                     message = "You both fought valiantly, but are evently matched.";
@@ -1518,19 +1492,24 @@ function handleFightNPCforItem(targetName, objectName, currentLocation, player, 
                 characterInfo.character.inventory.splice(foundIndex, 1);
             }
 
-            if (characterTotallyDefeated) {
-                handleCharacterDefeat(characterInfo.character, currentLocation);
+            if (characterDied) {
+                handleCharacterDeath(characterInfo.character, currentLocation);
+                currentLocation.characters.splice(characterInfo.characterIndex, 1);
             }
 
             if (playerDied) {
                 handlePlayerDeath(player, currentLocation);
             }
 
+            var preamble = "";
+            if (handlerResp.description.hasOwnProperty("message")) {
+                preamble = handlerResp.description.message + " ";
+            }
             notifyData = {
                 playerName: player.name,
                 description: {
                     action: "fight",
-                    message: message
+                    message: preamble + message
                 },
                 data: {
                     game: local_getGameData(),
@@ -1767,7 +1746,12 @@ function checkObjectives(game, player, callback) {
         var handlerFunc = findHandler(objective.value, objective.value.type);
 
         console.log("calling " + objective.value.type + "() with game: " + JSON.stringify(g_gameData));
-        handlerFunc(objective.value, g_gameData, g_currentRealmData, player, location, function (handlerResp) {
+        handlerFunc(objective.value,
+                    g_gameData,
+                    g_currentRealmData,
+                    player,
+                    location,
+                    function (handlerResp) {
             console.log("handlerResp: " + handlerResp);
             if (!handlerResp) {
                 console.log("Objective not completed.");

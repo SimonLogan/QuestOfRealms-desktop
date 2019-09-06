@@ -1062,7 +1062,7 @@ function handleGenericHelp() {
     displayMessage("\t\tcharacter is specified.");
     displayMessage("\tbuy item from character : buy the named item from the specified character.");
     displayMessage("\t\te.g. \"buy short sword from Giant\".");
-    displayMessage("\t\tTry to take the item first and the character will name the price, if it is");
+    displayMessage("\t\tIf you try to take the item first, the character will name the price if it is");
     displayMessage("\t\twilling to sell the item.");
     displayMessage("\tdrop item : drop the named item. e.g. \"drop short sword\".");
     displayMessage("\tinventory : list the items in your inventory.");

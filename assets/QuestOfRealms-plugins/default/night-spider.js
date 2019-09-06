@@ -8,7 +8,7 @@ module.exports = {
     category: "character",
     attributes: {
         "night spider": {
-            image: "NightSpider.png",
+            image: "NightSpider2.png",
             description: "Sinister, silent killers.",
             additional_info: "Webs can be made into bow strings. can appear in any realm. can give you sleeping sickness (-1 health per minute when you have it). juveniles can be domesticated to replenish bow strings.",
             health: 3,
@@ -17,7 +17,7 @@ module.exports = {
         }
     },
     handlers: {
-        "give": function (nightSpider, object, game, player, callback) {
+        "give": function (character, object, player, callback) {
             /*
              * The handler doesn't need to update the game. It just needs to
              * return description.success=true/false to indicate whether the

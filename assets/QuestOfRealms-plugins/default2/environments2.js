@@ -8,7 +8,7 @@ module.exports = {
     category: "environment",
     attributes: {
         "water": {
-            image: "water2.png",
+            image: "water3.png",
             description: "Lake or ocean. You need a boat to cross this.",
             healthcost: 50
         }
