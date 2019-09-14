@@ -936,7 +936,7 @@ function droppedMapItem(realmId, droppedItem, target) {
 function removeItemFromLocation(droppedItem) {
     var selectedMapCell = $('#mapTable').find(".mapItem.selected");
     if (0 === selectedMapCell.length) {
-        console.log("populateLocationCharacterDetails: no map item selected");
+        console.log("removeItemFromLocation: no map item selected");
         return;
     }
 
@@ -1197,19 +1197,19 @@ function populateLocationCharacterDetails(character) {
     if (!characterData.damage) {
         $('#characterDamage').text(characterPaletteData.modules[characterData.module][characterData.filename][characterData.type].damage);
     } else {
-        $('#characterDamage').text(characterPaletteData.damage);
+        $('#characterDamage').text(characterData.damage);
     }
 
     if (!characterData.health) {
         $('#characterHealth').text(characterPaletteData.modules[characterData.module][characterData.filename][characterData.type].health);
     } else {
-        $('#characterHealth').text(characterPaletteData.health);
+        $('#characterHealth').text(characterData.health);
     }
 
     if (!characterData.description) {
         $('#characterDescription').text(characterPaletteData.modules[characterData.module][characterData.filename][characterData.type].description);
     } else {
-        $('#characterDescription').text(characterPaletteData.description);
+        $('#characterDescription').text(characterData.description);
     }
 
     if (!characterData.drops) {
