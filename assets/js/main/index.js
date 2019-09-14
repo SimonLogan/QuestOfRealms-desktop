@@ -786,13 +786,13 @@ function findRealmModules(newRealm, moduleRequirements) {
 
         mapLocation.characters.forEach(function (character) {
             updateCollectionModules(character, moduleRequirements);
-            character.inventory.forEach(function (item) {
-                updateCollectionModules(item, moduleRequirements);
-            });
+            if (character.hasOwnProperty('inventory')) {
+                character.inventory.forEach(function (item) {
+                    updateCollectionModules(item, moduleRequirements);
+                });
+            }
         });
     });
-
-    console.log("leaving updateRealmModules: " + JSON.stringify(moduleRequirements));
 }
 
 
