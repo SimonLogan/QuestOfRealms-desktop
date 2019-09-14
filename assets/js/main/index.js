@@ -786,6 +786,9 @@ function findRealmModules(newRealm, moduleRequirements) {
 
         mapLocation.characters.forEach(function (character) {
             updateCollectionModules(character, moduleRequirements);
+            character.inventory.forEach(function (item) {
+                updateCollectionModules(item, moduleRequirements);
+            });
         });
     });
 
