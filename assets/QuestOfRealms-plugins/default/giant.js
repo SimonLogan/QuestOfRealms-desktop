@@ -33,7 +33,7 @@ module.exports = {
                 description: {
                     action: "give",
                     success: true,
-                    message: "The giant took the " + object.type
+                    message: "The Giant took the " + object.type
                 }
             };
 
@@ -56,7 +56,7 @@ module.exports = {
                 description: {
                     action: "take from",
                     success: false,
-                    message: "The giant will not give you the " + object.type +
+                    message: "The Giant will not give you the " + object.type +
                         " but will sell it to you for one coin."
                 }
             };

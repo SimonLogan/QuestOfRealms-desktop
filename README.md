@@ -535,3 +535,23 @@ As for *fight*.
 
 The game is trusting your handler not to mess up the player or the game with your return data.
 
+## Examples
+Some example games that you can open in the editor and experiment with can be found in
+
+QuestOfRealms-desktop\example_games\designer
+
+Copy the designer directory to
+
+%AppData%\Roaming\questofrealms-desktop\QuestOfRealms
+
+on windows, or
+
+~/.config/questofrealms-desktop/QuestOfRealms
+
+on Linux.
+
+Ready-to-play game examples can be found in 
+
+QuestOfRealms-desktop\example_games\exported_games
+
+Use the game import feature to import them.

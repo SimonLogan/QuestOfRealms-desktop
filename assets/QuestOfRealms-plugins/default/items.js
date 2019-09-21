@@ -11,13 +11,13 @@ module.exports = {
             use: "weapon",
             image: "longsword.png",
             description: "Useful against more powerful or armoured opponents.",
-            damage: 10
+            damage: 15
         },
         "short sword": {
             use: "weapon",
             image: "shortsword.png",
             description: "Useful for close-quarters combat. Easily concealed.",
-            damage: 5
+            damage: 10
         },
         "spear": {
             use: "weapon",

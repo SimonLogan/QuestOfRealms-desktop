@@ -17,6 +17,29 @@ module.exports = {
         }
     },
     handlers: {
+        "give": function (character, object, player, callback) {
+            /*
+             * The handler doesn't need to update the game. It just needs to
+             * return description.success=true/false to indicate whether the
+             * Giant took the object.
+             */
+
+            console.log("*** ");
+            console.log("*** in gryphon.give() " + JSON.stringify(object));
+            console.log("*** ");
+
+            var resp = {
+                playerName: player.name,
+                description: {
+                    action: "give",
+                    success: true,
+                    message: "The Gryphon took the " + object.type
+                }
+            };
+
+            console.log("in give() callback value");
+            callback(resp);
+        },
         "take from": function (character, object, player, callback) {
             /*
              * The handler doesn't need to update the game. It just needs to

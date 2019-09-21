@@ -50,8 +50,5 @@ Temporary Items
 node_modules
 bower_components
 
-# Data
-db
-
 # Compiled binaries
 release-builds
