@@ -21,7 +21,7 @@
     "decompress-zip": "^0.3.2",
     "electron-workers": "^1.10.3",
     "express": "^4.17.1",
-    "jquery": "^3.4.1",
+    "jquery": "^3.5.0",
     "jquery-ui-dist": "^1.12.1",
     "jqueryui": "^1.11.1",
     "ncp": "^2.0.0",
