@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "archiver": "^3.0.3",
-    "async": "^2.6.3",
+    "async": "^2.6.4",
     "backbone": "^1.4.0",
     "decompress-zip": "^0.3.2",
     "electron-workers": "^1.10.3",
